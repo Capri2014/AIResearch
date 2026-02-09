@@ -53,5 +53,12 @@ When you’re ready, we’ll add:
 
 ---
 
+## Maintenance
+This repository is maintained with help from **ClawBot (OpenClaw)**.
+
+- I will open PRs from `feature/*` branches.
+- You review and merge into `main`.
+- No secrets are committed to the repo; credentials live only on the VPS.
+
 ## License
 Add a license in `LICENSE` (MIT/Apache-2.0 are common).
