@@ -12,7 +12,12 @@ It is **not** the real Alpamayo model.
 cd demos/alpamayo_r1_toy
 python3 -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
+
+# Interactive plot
 python run_demo.py
+
+# Headless + write metrics artifact
+python run_demo.py --no-plot --metrics-out metrics.json
 ```
 
 ## What you’ll see
