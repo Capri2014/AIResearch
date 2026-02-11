@@ -1,9 +1,10 @@
 # Status (ClawBot)
 
-_Last updated: 2026-02-10_
+_Last updated: 2026-02-11_
 
 ## Current focus
 - Establish repo structure + documentation for Physical AI (driving + robotics)
+- Survey robotics + autonomous driving **pretraining tech** and turn it into a concrete build plan
 - Add simulation/data/eval scaffolding that can support CARLA + (Isaac or MuJoCo)
 
 ## Next (top 3)
