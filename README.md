@@ -74,6 +74,10 @@ When you’re ready, we’ll add:
   - how it plugs into planning (MPC / sampling / value estimation)
   - what we can reuse for encoder pretraining + ScenarioRunner evaluation
 
+### Reading / notes (to triage)
+- Triage + summarize:
+  - https://mp.weixin.qq.com/s/JqJMY_f0gh7Zn3b2KXV3AQ
+
 ---
 
 ## Maintenance
