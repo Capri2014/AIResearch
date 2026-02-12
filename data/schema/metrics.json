@@ -1,0 +1,54 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.com/airesearch/schema/metrics.json",
+  "title": "EvalMetrics",
+  "type": "object",
+  "required": ["run_id", "domain", "scenarios"],
+  "properties": {
+    "run_id": {"type": "string"},
+    "domain": {"type": "string", "enum": ["driving", "robotics"]},
+    "git": {
+      "type": "object",
+      "properties": {
+        "repo": {"type": "string"},
+        "commit": {"type": "string"},
+        "branch": {"type": "string"}
+      },
+      "additionalProperties": true
+    },
+    "policy": {
+      "type": "object",
+      "properties": {
+        "name": {"type": "string"},
+        "checkpoint": {"type": "string"}
+      },
+      "additionalProperties": true
+    },
+    "scenarios": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["scenario_id", "success"],
+        "properties": {
+          "scenario_id": {"type": "string"},
+          "success": {"type": "boolean"},
+          "route_completion": {"type": "number", "minimum": 0, "maximum": 1},
+          "collisions": {"type": "integer", "minimum": 0},
+          "offroad": {"type": "integer", "minimum": 0},
+          "red_light": {"type": "integer", "minimum": 0},
+          "comfort": {
+            "type": "object",
+            "properties": {
+              "max_accel": {"type": "number"},
+              "max_jerk": {"type": "number"}
+            },
+            "additionalProperties": true
+          },
+          "raw": {"type": "object", "description": "Pass-through raw metrics from ScenarioRunner", "additionalProperties": true}
+        },
+        "additionalProperties": true
+      }
+    }
+  },
+  "additionalProperties": true
+}

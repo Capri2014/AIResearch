@@ -1,0 +1,17 @@
+{
+  "canonical": [
+    "front",
+    "front_left",
+    "front_right",
+    "side_left",
+    "side_right"
+  ],
+  "waymo_to_canonical": {
+    "FRONT": "front",
+    "FRONT_LEFT": "front_left",
+    "FRONT_RIGHT": "front_right",
+    "SIDE_LEFT": "side_left",
+    "SIDE_RIGHT": "side_right"
+  },
+  "notes": "Waymo Open Dataset camera names (string form) mapped to repo canonical keys. If a variant has additional cameras, extend canonical + mapping."
+}
