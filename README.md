@@ -74,18 +74,17 @@ When you’re ready, we’ll add:
   - how it plugs into planning (MPC / sampling / value estimation)
   - what we can reuse for encoder pretraining + ScenarioRunner evaluation
 
-### Reading / notes (to triage)
-
-- Study **XPeng Drive-JEPA**:
+### XPeng Drive-JEPA (vs Waymo WorldModel)
+- Review and integrate **XPeng Drive-JEPA** into our roadmap:
   - source: https://mp.weixin.qq.com/s/JqJMY_f0gh7Zn3b2KXV3AQ
   - extract: training stages (pretrain encoder/world model → distill/BC/RL), inputs/outputs (BEV/video), eval protocol
+  - compare vs Alpamayo‑R1: what’s “JEPA/world-model” vs what’s “VLA policy”; where each fits in our pipeline
 
-- Compare **XPeng Drive-JEPA** vs **NVIDIA Alpamayo‑R1**:
-  - compare: what’s “JEPA/world-model” vs what’s “VLA policy” in Alpamayo‑R1; where each fits in our pipeline
-
-- Research question: what if we use **Lingbot** instead of **Genie 3** (Waymo) for the world-model component?
+### WorldModel rollout (Genie 3 vs Lingbot)
+- Study whether we should use **Lingbot** instead of **Genie 3** (Waymo) for world-model rollout:
   - clarify: which Genie 3 capability we need (video prediction? BEV rollout? action-conditioned simulation?)
-  - evaluate: Lingbot’s inputs/outputs, training recipe, licensing/availability, and how it would plug into Waymo → ScenarioRunner evaluation
+  - evaluate: Lingbot’s inputs/outputs, training recipe, licensing/availability
+  - decide: integration plan with Waymo pretrain + CARLA ScenarioRunner evaluation
 
 ---
 
