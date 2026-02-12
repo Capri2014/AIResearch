@@ -34,5 +34,10 @@ until we lock:
 - whether we extract images on disk vs. reference paths
 - the exact camera calibration representation we want in `episode.json`
 
-When we do implement it, it will live behind optional heavy deps (e.g. TensorFlow + Waymo
-Open Dataset API).
+To keep the repo lightweight, TFRecord parsing will live behind **optional heavy deps**.
+
+Scaffolding:
+- `data/waymo/tfrecord_reader.py` — dependency-guarded reader interface (skeleton)
+- `data/waymo/validate_episode.py` — lightweight contract checks
+
+When we do implement parsing, it will likely rely on TensorFlow + Waymo Open Dataset API.
