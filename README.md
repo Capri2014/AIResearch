@@ -86,6 +86,13 @@ When you’re ready, we’ll add:
   - evaluate: Lingbot’s inputs/outputs, training recipe, licensing/availability
   - decide: integration plan with Waymo pretrain + CARLA ScenarioRunner evaluation
 
+### Production-ready pipeline optimization (later)
+- Revisit our **episodes vs TFRecord streaming** choice and optimize towards a production-ready training pipeline:
+  - reduce storage/IO overhead (e.g., WebDataset tar shards, LMDB, or parquet-backed metadata)
+  - deterministic sharding + caching for distributed training
+  - data versioning + conversion reproducibility
+  - keep optional TFRecord streaming as a backend if it becomes necessary at scale
+
 ---
 
 ## Maintenance
