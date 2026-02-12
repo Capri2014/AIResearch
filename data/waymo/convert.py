@@ -29,6 +29,16 @@ from typing import Iterable, Optional
 from data.waymo.waypoint_extraction import Pose2D, extract_future_waypoints_xy
 
 
+def load_camera_map() -> dict[str, str]:
+    """Load Waymo->canonical camera mapping.
+
+    Mapping lives in `data/waymo/camera_map.json`.
+    """
+    path = Path(__file__).resolve().parent / "camera_map.json"
+    obj = json.loads(path.read_text())
+    return dict(obj.get("waymo_to_canonical", {}))
+
+
 CANONICAL_CAMERAS: tuple[str, ...] = (
     "front",
     "front_left",
@@ -45,8 +55,9 @@ class ConvertConfig:
     horizon_steps: int
     dt: float
 
-    # TFRecord inputs (optional; unimplemented parsing)
+    # TFRecord inputs (optional)
     tfrecords: tuple[Path, ...]
+    max_frames: Optional[int]
     split: str
 
 
@@ -87,7 +98,13 @@ def parse_args() -> ConvertConfig:
         type=Path,
         action="append",
         default=[],
-        help="Waymo TFRecord(s) to convert (optional; parsing not implemented yet)",
+        help="Waymo TFRecord(s) to convert (requires optional deps)",
+    )
+    p.add_argument(
+        "--max-frames",
+        type=int,
+        default=None,
+        help="Optional cap for TFRecord conversion (smoke tests)",
     )
 
     a = p.parse_args()
@@ -102,6 +119,7 @@ def parse_args() -> ConvertConfig:
         horizon_steps=int(a.horizon_steps),
         dt=float(a.dt),
         tfrecords=tuple(a.tfrecord),
+        max_frames=a.max_frames,
         split=a.split,
     )
 
@@ -203,23 +221,107 @@ def _check_waymo_deps() -> Optional[str]:
     return None
 
 
-def iter_waymo_records(_tfrecords: Iterable[Path]):
-    """Placeholder iterator for Waymo TFRecord parsing.
+def iter_waymo_records(
+    _tfrecords: Iterable[Path],
+    *,
+    out_dir: Path,
+    split: str,
+    cameras: tuple[str, ...],
+    horizon_steps: int,
+    dt: float,
+    max_frames: int | None,
+):
+    """Convert TFRecords into episode dicts (v0, image_path-first).
 
-    TODO:
-    - decide which frame fields to use (camera images vs. just metadata first)
-    - map Waymo camera names  our canonical camera keys
-    - output image files + intrinsics/extrinsics
-    - write episodes as shards for scalable training
+    For each TFRecord, we write:
+    - one episode JSON: `<out_dir>/<episode_id>.json`
+    - images under: `<out_dir>/images/`
 
-    Intentionally unimplemented to keep the repo lightweight until we commit to
-    a concrete dependency + extraction path.
+    The yielded dict matches `data/schema/episode.json`.
+
+    Caveats:
+    - requires TF + waymo-open-dataset
+    - calibration fields are left empty for now
     """
 
-    raise NotImplementedError(
-        "Waymo TFRecord parsing is not implemented yet. "
-        "Run without --tfrecord to emit a synthetic episode contract."
-    )
+    from data.waymo.tfrecord_reader import iter_frames
+
+    images_dir = out_dir / "images"
+    images_dir.mkdir(parents=True, exist_ok=True)
+
+    for tfrecord_path in _tfrecords:
+        poses: list[Pose2D] = []
+        ts0: float | None = None
+        frames_out = []
+
+        for fr in iter_frames(
+            tfrecord_path,
+            camera_map=load_camera_map(),
+            max_frames=max_frames,
+        ):
+            if ts0 is None:
+                ts0 = fr.timestamp_s
+
+            cams_obj = {}
+            for cam in cameras:
+                cfr = fr.cameras.get(cam)
+                if cfr is None or cfr.image_bytes_jpeg is None:
+                    continue
+                fname = f"{int(fr.timestamp_s * 1e6):016d}_{cam}.jpg"
+                img_path = images_dir / fname
+                img_path.write_bytes(cfr.image_bytes_jpeg)
+                cams_obj[cam] = {
+                    "image_path": str(img_path),
+                    "intrinsics": cfr.intrinsics or [],
+                    "extrinsics": cfr.extrinsics or [],
+                }
+
+            # Strict v0: keep frames that have all required cameras.
+            if any(cam not in cams_obj for cam in cameras):
+                continue
+
+            poses.append(Pose2D(x=fr.ego.x, y=fr.ego.y, yaw=fr.ego.yaw))
+
+            frames_out.append(
+                {
+                    "t": float(fr.timestamp_s - ts0),
+                    "observations": {
+                        "cameras": cams_obj,
+                        "state": {
+                            "speed_mps": float(fr.ego.speed_mps),
+                            "yaw_rad": float(fr.ego.yaw),
+                        },
+                    },
+                    "expert": {},
+                }
+            )
+
+        # Add expert future waypoints.
+        if poses:
+            for i in range(len(frames_out)):
+                frames_out[i]["expert"]["waypoints"] = extract_future_waypoints_xy(
+                    poses,
+                    t0_index=i,
+                    horizon_steps=horizon_steps,
+                    stride=1,
+                )
+
+        episode_id = f"waymo_{split}_{tfrecord_path.stem}"
+        episode = {
+            "episode_id": episode_id,
+            "domain": "driving",
+            "source": {"dataset": "waymo", "split": split, "scene_id": tfrecord_path.stem},
+            "cameras": list(cameras),
+            "waypoint_spec": {
+                "horizon_steps": horizon_steps,
+                "dt": dt,
+                "frame": "ego",
+                "units": "m",
+            },
+            "frames": frames_out,
+        }
+
+        yield episode
 
 
 def main() -> None:
@@ -234,8 +336,19 @@ def main() -> None:
         if dep_err is not None:
             raise SystemExit(dep_err)
 
-        # Future: implement real conversion here.
-        _ = list(iter_waymo_records(cfg.tfrecords))
+        # v0: write one episode per TFRecord with images on disk.
+        for ep in iter_waymo_records(
+            cfg.tfrecords,
+            out_dir=cfg.out_dir,
+            split=cfg.split,
+            cameras=cfg.cameras,
+            horizon_steps=cfg.horizon_steps,
+            dt=cfg.dt,
+            max_frames=cfg.max_frames,
+        ):
+            out_path = write_episode(cfg.out_dir, ep)
+            print(f"[waymo/convert] wrote episode: {out_path}")
+        return
 
     # Default path: write a synthetic episode.
     episode_id = f"waymo_stub_{time.strftime('%Y%m%d-%H%M%S')}"
