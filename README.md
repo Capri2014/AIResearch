@@ -61,6 +61,12 @@ When you’re ready, we’ll add:
   - emits structured artifacts (notes, citations, code PRs, eval reports)
   - standard prompt templates + checklists for consistency
 
+### Robotics VLA base (Xiaomi)
+- Review and integrate Xiaomi’s robotics **VLA base** ideas into our roadmap:
+  - source: https://mp.weixin.qq.com/s/FEMJBekqPHpMpE60b8kV4A
+  - extract: model interface (obs/action), data recipe, training stages (pretrain → BC/SFT → RL), and evaluation protocol
+  - decide: what we can reuse for our driving-first plan + later robotics track
+
 ---
 
 ## Maintenance
