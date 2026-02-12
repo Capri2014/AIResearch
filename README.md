@@ -76,9 +76,11 @@ When you’re ready, we’ll add:
 
 ### Reading / notes (to triage)
 
-- Study **XPeng Drive-JEPA** and compare against **NVIDIA Alpamayo‑R1**:
+- Study **XPeng Drive-JEPA**:
   - source: https://mp.weixin.qq.com/s/JqJMY_f0gh7Zn3b2KXV3AQ
   - extract: training stages (pretrain encoder/world model → distill/BC/RL), inputs/outputs (BEV/video), eval protocol
+
+- Compare **XPeng Drive-JEPA** vs **NVIDIA Alpamayo‑R1**:
   - compare: what’s “JEPA/world-model” vs what’s “VLA policy” in Alpamayo‑R1; where each fits in our pipeline
 
 - Research question: what if we use **Lingbot** instead of **Genie 3** (Waymo) for the world-model component?
