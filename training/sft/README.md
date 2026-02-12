@@ -1,15 +1,22 @@
-# SFT / IL (supervised fine-tuning / imitation learning)
+# SFT / imitation learning
 
-SFT/IL covers supervised training that maps observations (and optionally language/task context) to actions/trajectories.
+This folder contains supervised fine-tuning (SFT) and imitation learning scripts.
 
-## Common variants
-- **Behavior cloning (BC):** learn from logged actions (human or stack)
-- **Teacher distillation:** learn to match a stronger teacher policy
+## Waypoint BC (NumPy baseline)
 
-## What we provide here
-- A **toy runnable BC** example (simple and fast, not meant to be state of the art)
-- A **distillation stub** that defines the teacher/student interface
+A dependency-light baseline to validate dataset contracts:
 
-Downstream, this should connect to:
-- rollout / evaluation (produce `metrics.json`)
-- dataset schema (`data/schema.md`)
+1) Generate a stub Waymo episode:
+```bash
+python -m data.waymo.convert --out-dir out/episodes/waymo_stub
+```
+
+2) Train the NumPy-only waypoint BC model:
+```bash
+python -m training.sft.train_waypoint_bc_np --episodes-glob "out/episodes/**/*.json"
+```
+
+Outputs:
+- `out/sft_waypoint_bc_np/model.json`
+
+You can load it via `models/waypoint_policy_ridge.py`.
