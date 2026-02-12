@@ -53,6 +53,16 @@ When you’re ready, we’ll add:
 
 ---
 
+## TODO (roadmap)
+
+### Agent Swarm (reusable framework)
+- Build a reusable **agent swarm framework** for this repo (task router + planner + worker agents + aggregator):
+  - supports “research → implement → eval” parallel lanes
+  - emits structured artifacts (notes, citations, code PRs, eval reports)
+  - standard prompt templates + checklists for consistency
+
+---
+
 ## Maintenance
 This repository is maintained with help from **ClawBot (OpenClaw)**.
 
