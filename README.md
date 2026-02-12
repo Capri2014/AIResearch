@@ -67,6 +67,13 @@ When you’re ready, we’ll add:
   - extract: model interface (obs/action), data recipe, training stages (pretrain → BC/SFT → RL), and evaluation protocol
   - decide: what we can reuse for our driving-first plan + later robotics track
 
+### Driving world model (Waymo)
+- Add and review the **Waymo world model** paper:
+  - distill: what’s being modeled (BEV/occupancy/video), conditioning signals, rollout horizon
+  - training objective(s) + dataset recipe
+  - how it plugs into planning (MPC / sampling / value estimation)
+  - what we can reuse for encoder pretraining + ScenarioRunner evaluation
+
 ---
 
 ## Maintenance
