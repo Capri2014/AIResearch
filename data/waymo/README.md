@@ -17,4 +17,22 @@ For driving-first V1 waypoint policy:
 - convention: 2.0s horizon @ 10Hz => 20 points
 - frame: ego (x forward, y left)
 
-Next: implement `data/waymo/convert.py` once we decide the exact Waymo TFRecord fields to use.
+## Quickstart (contract mode)
+
+Write a synthetic episode JSON that conforms to the schema (lets training/eval code progress
+without TFRecord deps):
+
+```bash
+python -m data.waymo.convert --out-dir out/episodes/waymo_stub
+```
+
+## TFRecord conversion (planned)
+
+The CLI already accepts `--tfrecord ...`, but real parsing is intentionally **not implemented**
+until we lock:
+- which Waymo TFRecord fields we will consume first
+- whether we extract images on disk vs. reference paths
+- the exact camera calibration representation we want in `episode.json`
+
+When we do implement it, it will live behind optional heavy deps (e.g. TensorFlow + Waymo
+Open Dataset API).
