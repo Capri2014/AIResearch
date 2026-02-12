@@ -58,6 +58,7 @@ class ConvertConfig:
     # TFRecord inputs (optional)
     tfrecords: tuple[Path, ...]
     max_frames: Optional[int]
+    no_write_images: bool
     split: str
 
 
@@ -106,6 +107,11 @@ def parse_args() -> ConvertConfig:
         default=None,
         help="Optional cap for TFRecord conversion (smoke tests)",
     )
+    p.add_argument(
+        "--no-write-images",
+        action="store_true",
+        help="Do not write JPEGs to disk in TFRecord mode (stores placeholder paths)",
+    )
 
     a = p.parse_args()
 
@@ -120,6 +126,7 @@ def parse_args() -> ConvertConfig:
         dt=float(a.dt),
         tfrecords=tuple(a.tfrecord),
         max_frames=a.max_frames,
+        no_write_images=bool(a.no_write_images),
         split=a.split,
     )
 
@@ -230,6 +237,7 @@ def iter_waymo_records(
     horizon_steps: int,
     dt: float,
     max_frames: int | None,
+    no_write_images: bool,
 ):
     """Convert TFRecords into episode dicts (v0, image_path-first).
 
@@ -247,7 +255,8 @@ def iter_waymo_records(
     from data.waymo.tfrecord_reader import iter_frames
 
     images_dir = out_dir / "images"
-    images_dir.mkdir(parents=True, exist_ok=True)
+    if not no_write_images:
+        images_dir.mkdir(parents=True, exist_ok=True)
 
     for tfrecord_path in _tfrecords:
         poses: list[Pose2D] = []
@@ -267,14 +276,22 @@ def iter_waymo_records(
                 cfr = fr.cameras.get(cam)
                 if cfr is None or cfr.image_bytes_jpeg is None:
                     continue
-                fname = f"{int(fr.timestamp_s * 1e6):016d}_{cam}.jpg"
-                img_path = images_dir / fname
-                img_path.write_bytes(cfr.image_bytes_jpeg)
-                cams_obj[cam] = {
-                    "image_path": str(img_path),
-                    "intrinsics": cfr.intrinsics or [],
-                    "extrinsics": cfr.extrinsics or [],
-                }
+                if no_write_images:
+                    # Keep the camera key present but skip I/O.
+                    cams_obj[cam] = {
+                        "image_path": None,
+                        "intrinsics": cfr.intrinsics or [],
+                        "extrinsics": cfr.extrinsics or [],
+                    }
+                else:
+                    fname = f"{int(fr.timestamp_s * 1e6):016d}_{cam}.jpg"
+                    img_path = images_dir / fname
+                    img_path.write_bytes(cfr.image_bytes_jpeg)
+                    cams_obj[cam] = {
+                        "image_path": str(img_path),
+                        "intrinsics": cfr.intrinsics or [],
+                        "extrinsics": cfr.extrinsics or [],
+                    }
 
             # Strict v0: keep frames that have all required cameras.
             if any(cam not in cams_obj for cam in cameras):
@@ -345,6 +362,7 @@ def main() -> None:
             horizon_steps=cfg.horizon_steps,
             dt=cfg.dt,
             max_frames=cfg.max_frames,
+            no_write_images=cfg.no_write_images,
         ):
             out_path = write_episode(cfg.out_dir, ep)
             print(f"[waymo/convert] wrote episode: {out_path}")
