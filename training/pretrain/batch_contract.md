@@ -25,6 +25,14 @@ A single batch is a dict with keys:
   - `episode_id`: length `B`
   - `t`: length `B` (float seconds since episode start)
 
+### Optional (when image decoding is enabled)
+
+- `images_by_cam`:
+  - if `collate_batch(..., stack_images=False)` (default): `dict[str, list[torch.Tensor|None]]`
+  - if `collate_batch(..., stack_images=True)`: `dict[str, torch.Tensor|None]` with tensors shaped `(B,3,H,W)`
+- `image_valid_by_cam` (only when `stack_images=True`): `dict[str, torch.BoolTensor]` shaped `(B,)`
+  - lets objectives ignore padded zeros for missing camera frames
+
 ## Notes
 - We start with **episodes backend** for debuggability and to avoid TF/Waymo deps in the training env.
 - For production-scale training we may switch storage to WebDataset/LMDB/parquet shards.

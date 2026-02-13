@@ -1,16 +1,15 @@
 # Status (ClawBot)
 
-_Last updated: 2026-02-12_
+_Last updated: 2026-02-13_
 
 ## Current focus
-- Establish repo structure + documentation for Physical AI (driving + robotics)
-- Survey robotics + autonomous driving **pretraining tech** and turn it into a concrete build plan
-- Add simulation/data/eval scaffolding that can support CARLA + (Isaac or MuJoCo)
+- Driving-first pipeline: **Waymo multi-cam pretrain → waypoint BC → CARLA ScenarioRunner eval**
+- Turn episode shards into something we can actually train on (dataloader + decode + batching contract)
 
 ## Next (top 3)
-1) Add `docs/README.md` table of contents + better navigation
-2) Add scenario + metrics schemas (JSON/YAML) and a simple validator script
-3) Add a minimal "eval runner" skeleton that outputs a metrics JSON
+1) Make `TinyMultiCamEncoder` support masked fusion (use `image_valid_by_cam`)
+2) Hook up a minimal SSL objective that actually uses images (contrastive or temporal)
+3) Flesh out ScenarioRunner adapter + metrics parsing so eval is a real end-to-end step
 
 ## Blockers / questions for owner
 - Confirm sim stack priority for the first runnable demo:
