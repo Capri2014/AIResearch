@@ -11,6 +11,21 @@ The goal is to keep pretraining code stable while we change models/objectives.
 ## Canonical cameras (v1)
 - `front`, `front_left`, `front_right`, `side_left`, `side_right`
 
+## Shape notation
+
+We use these symbols when describing tensor shapes:
+- `B`: batch size (number of samples/frames in a batch)
+- `C_img`: image channels (RGB = 3)
+- `H`, `W`: image height/width in pixels (after any resize)
+- `C_cam`: number of cameras (e.g. 5 canonical cams in v1), used as a *python dict key set*; when stacked, it becomes a leading dimension
+- `D`: embedding dimension output by an encoder
+
+Common shapes:
+- stacked images per camera: `(B, 3, H, W)`
+- per-camera valid mask: `(B,)`
+- encoder output embedding: `(B, D)`
+- stacked per-camera embeddings (before fusion): `(C_cam, B, D)`
+
 ## Batch dict (Python)
 
 A single batch is a dict with keys:
