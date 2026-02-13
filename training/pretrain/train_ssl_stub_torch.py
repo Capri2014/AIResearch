@@ -24,7 +24,6 @@ from pathlib import Path
 from typing import Optional
 
 from training.pretrain.dataloader_episodes import EpisodesFrameDataset, collate_batch
-from training.pretrain.image_loading import ImageConfig, load_image_tensor
 from models.encoders.tiny_multicam_encoder import TinyMultiCamEncoder
 
 
@@ -49,12 +48,11 @@ def main() -> None:
     torch = _require_torch()
 
     cfg = Config()
-    ds = EpisodesFrameDataset(cfg.episodes_glob)
+    # Enable decode + caching in the dataset to keep the training loop simple.
+    ds = EpisodesFrameDataset(cfg.episodes_glob, decode_images=True)
 
     encoder = TinyMultiCamEncoder(out_dim=128)
     opt = torch.optim.Adam(encoder.parameters(), lr=cfg.lr)
-
-    img_cfg = ImageConfig(size=(224, 224))
 
     cfg.out_dir.mkdir(parents=True, exist_ok=True)
 
@@ -67,32 +65,23 @@ def main() -> None:
             batch.append(ds[idx % len(ds)])
             idx += 1
 
-        b = collate_batch(batch)
+        b = collate_batch(batch, stack_images=True)
 
-        # Decode images for cameras that are present for this batch.
+        # Keep only cameras that are fully valid for this batch.
+        # (TinyMultiCamEncoder has no masking yet.)
         images_by_cam = {}
-        for cam, paths in b["image_paths_by_cam"].items():
-            imgs = []
-            ok = True
-            for p in paths:
-                try:
-                    t = load_image_tensor(p, cfg=img_cfg)
-                except RuntimeError:
-                    # pillow missing; fall back to path-only mode.
-                    ok = False
-                    break
-                if t is None:
-                    ok = False
-                    break
-                imgs.append(t)
-            if not ok:
+        for cam, x in b.get("images_by_cam", {}).items():
+            if x is None:
                 continue
-            images_by_cam[cam] = torch.stack(imgs, dim=0)  # (B,3,H,W)
+            valid = b.get("image_valid_by_cam", {}).get(cam)
+            if valid is None or not bool(valid.all()):
+                continue
+            images_by_cam[cam] = x
 
         if not images_by_cam:
             # No decodable images; skip.
             if step % 5 == 0:
-                print(f"[pretrain/ssl_stub] step={step} (no images decoded; skipping)")
+                print(f"[pretrain/ssl_stub] step={step} (no fully-valid cameras; skipping)")
             step += 1
             continue
 
