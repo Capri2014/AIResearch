@@ -93,6 +93,13 @@ When you’re ready, we’ll add:
   - data versioning + conversion reproducibility
   - keep optional TFRecord streaming as a backend if it becomes necessary at scale
 
+### ClawBot LLM cost optimization
+- Optimize ClawBot’s LLM usage to reduce cost while preserving quality:
+  - model tiering (cheap default for routine CLs; upgrade for deep research/debugging)
+  - agent-router for trivial vs complex tasks
+  - context minimization (small rolling state file; avoid large diffs unless needed)
+  - batch tool calls; avoid browser flows unless necessary
+
 ---
 
 ## Maintenance
