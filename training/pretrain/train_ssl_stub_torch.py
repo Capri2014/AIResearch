@@ -24,6 +24,8 @@ from pathlib import Path
 from typing import Optional
 
 from training.pretrain.dataloader_episodes import EpisodesFrameDataset, collate_batch
+from training.pretrain.image_loading import ImageConfig, load_image_tensor
+from models.encoders.tiny_multicam_encoder import TinyMultiCamEncoder
 
 
 def _require_torch():
@@ -49,9 +51,10 @@ def main() -> None:
     cfg = Config()
     ds = EpisodesFrameDataset(cfg.episodes_glob)
 
-    # Simple parameter to prove optimization runs.
-    w = torch.nn.Parameter(torch.zeros((), dtype=torch.float32))
-    opt = torch.optim.Adam([w], lr=cfg.lr)
+    encoder = TinyMultiCamEncoder(out_dim=128)
+    opt = torch.optim.Adam(encoder.parameters(), lr=cfg.lr)
+
+    img_cfg = ImageConfig(size=(224, 224))
 
     cfg.out_dir.mkdir(parents=True, exist_ok=True)
 
@@ -66,22 +69,52 @@ def main() -> None:
 
         b = collate_batch(batch)
 
-        # Placeholder loss: encourage w to match mean speed (nonsense but tests the pipe).
-        speed = b["state"]["speed_mps"]
-        loss = (w - speed.mean()) ** 2
+        # Decode images for cameras that are present for this batch.
+        images_by_cam = {}
+        for cam, paths in b["image_paths_by_cam"].items():
+            imgs = []
+            ok = True
+            for p in paths:
+                try:
+                    t = load_image_tensor(p, cfg=img_cfg)
+                except RuntimeError:
+                    # pillow missing; fall back to path-only mode.
+                    ok = False
+                    break
+                if t is None:
+                    ok = False
+                    break
+                imgs.append(t)
+            if not ok:
+                continue
+            images_by_cam[cam] = torch.stack(imgs, dim=0)  # (B,3,H,W)
+
+        if not images_by_cam:
+            # No decodable images; skip.
+            if step % 5 == 0:
+                print(f"[pretrain/ssl_stub] step={step} (no images decoded; skipping)")
+            step += 1
+            continue
+
+        emb = encoder(images_by_cam)  # (B,D)
+        # Placeholder loss: keep embeddings bounded.
+        loss = (emb ** 2).mean()
 
         opt.zero_grad(set_to_none=True)
         loss.backward()
         opt.step()
 
         if step % 5 == 0:
-            print(f"[pretrain/ssl_stub] step={step} loss={float(loss):.6f} w={float(w.detach()):.4f}")
+            print(f"[pretrain/ssl_stub] step={step} loss={float(loss):.6f} cams={list(images_by_cam.keys())}")
 
         step += 1
 
     # Save a tiny artifact.
     (cfg.out_dir / "stub.txt").write_text("ssl stub ran successfully\n")
+    ckpt = {"encoder": encoder.state_dict(), "out_dim": encoder.out_dim}
+    torch.save(ckpt, cfg.out_dir / "encoder.pt")
     print(f"[pretrain/ssl_stub] wrote: {cfg.out_dir / 'stub.txt'}")
+    print(f"[pretrain/ssl_stub] wrote: {cfg.out_dir / 'encoder.pt'}")
 
 
 if __name__ == "__main__":
