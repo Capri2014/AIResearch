@@ -48,6 +48,9 @@ class Config:
     temperature: float = 0.1
     cam_a: str = "front"
     cam_b: str = "front_left"
+    # Loader settings (kept minimal for now; perf knobs come next CL).
+    num_workers: int = 0
+    drop_last: bool = True
 
 
 def parse_args() -> Config:
@@ -60,7 +63,19 @@ def parse_args() -> Config:
     p.add_argument("--temperature", type=float, default=0.1)
     p.add_argument("--cam-a", type=str, default="front")
     p.add_argument("--cam-b", type=str, default="front_left")
+    p.add_argument("--num-workers", type=int, default=0)
+    p.add_argument("--drop-last", action="store_true")
+    p.add_argument("--no-drop-last", action="store_true")
     a = p.parse_args()
+
+    if a.drop_last and a.no_drop_last:
+        raise ValueError("Pass only one of --drop-last or --no-drop-last")
+    drop_last = True
+    if a.no_drop_last:
+        drop_last = False
+    if a.drop_last:
+        drop_last = True
+
     return Config(
         episodes_glob=a.episodes_glob,
         batch_size=a.batch_size,
@@ -70,6 +85,8 @@ def parse_args() -> Config:
         temperature=a.temperature,
         cam_a=a.cam_a,
         cam_b=a.cam_b,
+        num_workers=a.num_workers,
+        drop_last=drop_last,
     )
 
 
@@ -84,13 +101,23 @@ def main() -> None:
 
     cfg.out_dir.mkdir(parents=True, exist_ok=True)
 
+    loader = torch.utils.data.DataLoader(
+        ds,
+        batch_size=cfg.batch_size,
+        shuffle=True,
+        num_workers=cfg.num_workers,
+        drop_last=cfg.drop_last,
+        collate_fn=lambda batch: collate_batch(batch, stack_images=True),
+    )
+
     step = 0
-    idx = 0
+    it = iter(loader)
     while step < cfg.num_steps:
-        batch = [ds[(idx + i) % len(ds)] for i in range(cfg.batch_size)]
-        idx += cfg.batch_size
-        # Stack images into dense tensors + validity masks so we can ignore padded zeros.
-        b = collate_batch(batch, stack_images=True)
+        try:
+            b = next(it)
+        except StopIteration:
+            it = iter(loader)
+            b = next(it)
 
         xa = b.get("images_by_cam", {}).get(cfg.cam_a)
         xb = b.get("images_by_cam", {}).get(cfg.cam_b)
