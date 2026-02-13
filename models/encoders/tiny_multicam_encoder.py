@@ -51,23 +51,59 @@ class TinyMultiCamEncoder(_require_torch().nn.Module):
         self.per_cam = TinyCNNEncoder(out_dim=out_dim)
         self.out_dim = out_dim
 
-    def forward(self, images_by_cam):
+    def forward(self, images_by_cam, *, image_valid_by_cam=None):
         """Encode and fuse across cameras.
 
         Args:
-          images_by_cam: dict[cam, tensor] where each tensor is (B,3,H,W)
+          images_by_cam:
+            dict[cam, tensor] where each tensor is (B,3,H,W), OR None for cams
+            missing in the entire batch.
+          image_valid_by_cam:
+            Optional dict[cam, bool tensor] where each tensor is (B,). If
+            provided, fusion will ignore invalid cameras *per sample*.
 
         Returns:
-          (B, out_dim)
+          embedding: torch.Tensor shaped (B, out_dim)
+
+        Notes:
+          - If `image_valid_by_cam` is not provided, we treat all provided
+            cameras as valid.
+          - If a sample has zero valid cameras, its output embedding will be
+            zeros (denominator clamped).
         """
         torch = _require_torch()
-        feats = []
-        for _, x in sorted(images_by_cam.items()):
-            feats.append(self.per_cam(x))
 
-        if not feats:
+        feats_per_cam = []
+        weights_per_cam = []
+
+        for cam, x in sorted(images_by_cam.items()):
+            if x is None:
+                continue
+
+            f = self.per_cam(x)  # (B, D)
+            feats_per_cam.append(f)
+
+            if image_valid_by_cam is None:
+                w = torch.ones((f.shape[0],), dtype=torch.float32, device=f.device)
+            else:
+                v = image_valid_by_cam.get(cam)
+                if v is None:
+                    # Be permissive: if mask missing for a cam, treat as valid.
+                    w = torch.ones((f.shape[0],), dtype=torch.float32, device=f.device)
+                else:
+                    w = v.to(device=f.device, dtype=torch.float32)
+
+            weights_per_cam.append(w)
+
+        if not feats_per_cam:
             raise ValueError("No cameras provided to encoder")
 
-        # (num_cam, B, D) -> (B, D)
-        stack = torch.stack(feats, dim=0)
-        return stack.mean(dim=0)
+        # Stack
+        feats = torch.stack(feats_per_cam, dim=0)  # (C, B, D)
+        weights = torch.stack(weights_per_cam, dim=0).unsqueeze(-1)  # (C, B, 1)
+
+        # Weighted mean across cams per sample.
+        weighted = feats * weights
+        denom = weights.sum(dim=0).clamp(min=1.0)  # (B,1)
+        out = weighted.sum(dim=0) / denom  # (B,D)
+        return out
