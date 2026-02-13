@@ -18,6 +18,9 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Dict, Iterator, List, Optional, Tuple
 import json
+from collections import OrderedDict
+
+from training.pretrain.image_loading import ImageConfig, load_image_tensor
 
 
 def _require_torch():
@@ -67,8 +70,10 @@ def iter_episode_samples(ep_path: Path) -> Iterator[Sample]:
 class EpisodesFrameDataset:
     """Flattened frames from a collection of episode.json files."""
 
-    def __init__(self, episodes_glob: str):
+    def __init__(self, episodes_glob: str, *, decode_images: bool = False, image_cache_size: int = 2048):
         self._torch = _require_torch()
+        self.decode_images = bool(decode_images)
+        self.image_cache_size = int(image_cache_size)
 
         import glob
 
@@ -79,6 +84,10 @@ class EpisodesFrameDataset:
         # Materialize index: (episode_path, frame_index)
         self.index: List[Tuple[Path, int]] = []
         self._episode_cache: Dict[Path, Any] = {}
+
+        # LRU cache for decoded images (path -> tensor)
+        self._img_cache: "OrderedDict[str, Any]" = OrderedDict()
+        self._img_cfg = ImageConfig(size=(224, 224))
 
         for ep_path in self.episode_paths:
             ep = json.loads(ep_path.read_text())
@@ -111,7 +120,7 @@ class EpisodesFrameDataset:
                 continue
             image_paths_by_cam[cam] = payload.get("image_path")
 
-        return {
+        out: Dict[str, Any] = {
             "image_paths_by_cam": image_paths_by_cam,
             "state": {
                 "speed_mps": torch.tensor(float(state.get("speed_mps", 0.0)), dtype=torch.float32),
@@ -122,6 +131,38 @@ class EpisodesFrameDataset:
                 "t": t,
             },
         }
+
+        if self.decode_images:
+            images_by_cam: Dict[str, Any] = {}
+            for cam, p in image_paths_by_cam.items():
+                if p is None:
+                    images_by_cam[cam] = None
+                    continue
+
+                img_path = Path(p)
+                if not img_path.is_absolute():
+                    img_path = (ep_path.parent / img_path).resolve()
+
+                key = str(img_path)
+                cached = self._img_cache.get(key)
+                if cached is not None:
+                    # refresh LRU
+                    self._img_cache.move_to_end(key)
+                    images_by_cam[cam] = cached
+                    continue
+
+                t_img = load_image_tensor(key, cfg=self._img_cfg)
+                images_by_cam[cam] = t_img
+                self._img_cache[key] = t_img
+                self._img_cache.move_to_end(key)
+
+                # enforce LRU capacity
+                while len(self._img_cache) > self.image_cache_size:
+                    self._img_cache.popitem(last=False)
+
+            out["images_by_cam"] = images_by_cam
+
+        return out
 
 
 def collate_batch(batch: List[Dict[str, Any]]) -> Dict[str, Any]:
@@ -140,7 +181,7 @@ def collate_batch(batch: List[Dict[str, Any]]) -> Dict[str, Any]:
     speed = torch.stack([ex["state"]["speed_mps"] for ex in batch], dim=0)
     yaw = torch.stack([ex["state"]["yaw_rad"] for ex in batch], dim=0)
 
-    return {
+    out: Dict[str, Any] = {
         "image_paths_by_cam": image_paths_by_cam,
         "state": {"speed_mps": speed, "yaw_rad": yaw},
         "meta": {
@@ -148,3 +189,10 @@ def collate_batch(batch: List[Dict[str, Any]]) -> Dict[str, Any]:
             "t": [ex["meta"]["t"] for ex in batch],
         },
     }
+
+    if "images_by_cam" in batch[0]:
+        out["images_by_cam"] = {
+            cam: [ex.get("images_by_cam", {}).get(cam) for ex in batch] for cam in sorted(cams)
+        }
+
+    return out
