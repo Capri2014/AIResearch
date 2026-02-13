@@ -26,7 +26,7 @@ import argparse
 
 from models.encoders.tiny_multicam_encoder import TinyCNNEncoder
 from training.pretrain.dataloader_episodes import EpisodesFrameDataset, collate_batch
-from training.pretrain.image_loading import ImageConfig, load_image_tensor
+# image decoding is handled inside EpisodesFrameDataset(decode_images=True)
 from training.pretrain.objectives.contrastive import info_nce_loss
 
 
@@ -77,11 +77,11 @@ def main() -> None:
     torch = _require_torch()
     cfg = parse_args()
 
-    ds = EpisodesFrameDataset(cfg.episodes_glob)
+    # Use dataset-managed decoding so we also get per-sample camera validity masks.
+    ds = EpisodesFrameDataset(cfg.episodes_glob, decode_images=True)
     enc = TinyCNNEncoder(out_dim=128)
     opt = torch.optim.Adam(enc.parameters(), lr=cfg.lr)
 
-    img_cfg = ImageConfig(size=(224, 224))
     cfg.out_dir.mkdir(parents=True, exist_ok=True)
 
     step = 0
@@ -89,31 +89,37 @@ def main() -> None:
     while step < cfg.num_steps:
         batch = [ds[(idx + i) % len(ds)] for i in range(cfg.batch_size)]
         idx += cfg.batch_size
-        b = collate_batch(batch)
+        # Stack images into dense tensors + validity masks so we can ignore padded zeros.
+        b = collate_batch(batch, stack_images=True)
 
-        # decode two camera views
-        def decode_cam(cam: str):
-            paths = b["image_paths_by_cam"].get(cam)
-            if paths is None:
-                return None
-            imgs = []
-            for p in paths:
-                t = load_image_tensor(p, cfg=img_cfg)
-                if t is None:
-                    return None
-                imgs.append(t)
-            return torch.stack(imgs, dim=0)
+        xa = b.get("images_by_cam", {}).get(cfg.cam_a)
+        xb = b.get("images_by_cam", {}).get(cfg.cam_b)
+        va = b.get("image_valid_by_cam", {}).get(cfg.cam_a)
+        vb = b.get("image_valid_by_cam", {}).get(cfg.cam_b)
 
-        xa = decode_cam(cfg.cam_a)
-        xb = decode_cam(cfg.cam_b)
-        if xa is None or xb is None:
+        if xa is None or xb is None or va is None or vb is None:
             if step % 20 == 0:
-                print(f"[ssl/contrastive] step={step} missing cam paths (a={cfg.cam_a}, b={cfg.cam_b}); skipping")
+                print(
+                    f"[ssl/contrastive] step={step} missing cameras in batch (a={cfg.cam_a}, b={cfg.cam_b}); skipping"
+                )
             step += 1
             continue
 
-        za = enc(xa)
-        zb = enc(xb)
+        valid = va & vb
+        n_valid = int(valid.sum().item())
+        if n_valid < 2:
+            # InfoNCE needs at least 2 examples to be meaningful.
+            if step % 20 == 0:
+                print(
+                    f"[ssl/contrastive] step={step} too few valid pairs (n_valid={n_valid}); skipping"
+                )
+            step += 1
+            continue
+
+        za_all = enc(xa)
+        zb_all = enc(xb)
+        za = za_all[valid]
+        zb = zb_all[valid]
 
         loss = info_nce_loss(za, zb, temperature=cfg.temperature)
 
