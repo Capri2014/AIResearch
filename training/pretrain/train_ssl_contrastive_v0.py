@@ -24,7 +24,7 @@ from dataclasses import dataclass
 from pathlib import Path
 import argparse
 
-from models.encoders.tiny_multicam_encoder import TinyCNNEncoder
+from models.encoders.tiny_multicam_encoder import TinyMultiCamEncoder
 from training.pretrain.dataloader_episodes import EpisodesFrameDataset, collate_batch
 # image decoding is handled inside EpisodesFrameDataset(decode_images=True)
 from training.pretrain.objectives.contrastive import info_nce_loss
@@ -79,7 +79,7 @@ def main() -> None:
 
     # Use dataset-managed decoding so we also get per-sample camera validity masks.
     ds = EpisodesFrameDataset(cfg.episodes_glob, decode_images=True)
-    enc = TinyCNNEncoder(out_dim=128)
+    enc = TinyMultiCamEncoder(out_dim=128)
     opt = torch.optim.Adam(enc.parameters(), lr=cfg.lr)
 
     cfg.out_dir.mkdir(parents=True, exist_ok=True)
@@ -116,8 +116,15 @@ def main() -> None:
             step += 1
             continue
 
-        za_all = enc(xa)
-        zb_all = enc(xb)
+        # Build a 2-cam batch and use masks to select a single view per pass.
+        # This exercises TinyMultiCamEncoder's mask-aware fusion path.
+        images = {cfg.cam_a: xa, cfg.cam_b: xb}
+        zeros = torch.zeros_like(va)
+        mask_a = {cfg.cam_a: va, cfg.cam_b: zeros}
+        mask_b = {cfg.cam_a: zeros, cfg.cam_b: vb}
+
+        za_all = enc(images, image_valid_by_cam=mask_a)
+        zb_all = enc(images, image_valid_by_cam=mask_b)
         za = za_all[valid]
         zb = zb_all[valid]
 
