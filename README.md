@@ -100,6 +100,22 @@ When you’re ready, we’ll add:
   - context minimization (small rolling state file; avoid large diffs unless needed)
   - batch tool calls; avoid browser flows unless necessary
 
+### World Arena benchmark
+- Study **World Arena** (world-arena.ai) and assess relevance to our world-model + autonomy evaluation:
+  - project: http://world-arena.ai
+  - paper: http://arxiv.org/abs/2602.08971
+  - leaderboard: https://huggingface.co/spaces/WorldArena/WorldArena
+  - code/data: https://github.com/tsinghua-fib-lab/WorldArena
+  - extract: tasks, metrics, environment setup, and how to integrate as an eval lane
+
+### HoloBrain VLA (Horizon Robotics)
+- Study **HoloBrain VLA** and assess what’s reusable for our robotics track:
+  - tech report: https://arxiv.org/abs/2602.12062
+  - model code: https://github.com/HorizonRobotics/RoboOrchardLab
+  - real-robot infra: https://github.com/HorizonRobotics/RoboOrchard
+  - project: https://horizonrobotics.github.io/robot_lab/holobrain
+  - extract: data recipe, model interface (obs/action), training stages, evaluation on real hardware
+
 ---
 
 ## Maintenance
