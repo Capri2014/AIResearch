@@ -1,0 +1,8 @@
+# Minimal deps for PyTorch pretraining scripts
+# Install with: pip install -r training/pretrain/requirements.txt
+
+# Choose the correct torch build for your CUDA / platform.
+# See: https://pytorch.org/get-started/locally/
+
+torch
+pillow
