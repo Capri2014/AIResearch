@@ -48,9 +48,15 @@ class Config:
     temperature: float = 0.1
     cam_a: str = "front"
     cam_b: str = "front_left"
-    # Loader settings (kept minimal for now; perf knobs come next CL).
-    num_workers: int = 0
+    # Loader settings.
+    num_workers: int = 4
+    prefetch_factor: int = 2
+    pin_memory: bool = True
+    persistent_workers: bool = True
     drop_last: bool = True
+
+    # Training device.
+    device: str = "cuda"
 
 
 def parse_args() -> Config:
@@ -63,7 +69,13 @@ def parse_args() -> Config:
     p.add_argument("--temperature", type=float, default=0.1)
     p.add_argument("--cam-a", type=str, default="front")
     p.add_argument("--cam-b", type=str, default="front_left")
-    p.add_argument("--num-workers", type=int, default=0)
+    p.add_argument("--num-workers", type=int, default=4)
+    p.add_argument("--prefetch-factor", type=int, default=2)
+    p.add_argument("--pin-memory", action="store_true")
+    p.add_argument("--no-pin-memory", action="store_true")
+    p.add_argument("--persistent-workers", action="store_true")
+    p.add_argument("--no-persistent-workers", action="store_true")
+    p.add_argument("--device", type=str, default="cuda")
     p.add_argument("--drop-last", action="store_true")
     p.add_argument("--no-drop-last", action="store_true")
     a = p.parse_args()
@@ -76,6 +88,22 @@ def parse_args() -> Config:
     if a.drop_last:
         drop_last = True
 
+    if a.pin_memory and a.no_pin_memory:
+        raise ValueError("Pass only one of --pin-memory or --no-pin-memory")
+    pin_memory = True
+    if a.no_pin_memory:
+        pin_memory = False
+    if a.pin_memory:
+        pin_memory = True
+
+    if a.persistent_workers and a.no_persistent_workers:
+        raise ValueError("Pass only one of --persistent-workers or --no-persistent-workers")
+    persistent_workers = True
+    if a.no_persistent_workers:
+        persistent_workers = False
+    if a.persistent_workers:
+        persistent_workers = True
+
     return Config(
         episodes_glob=a.episodes_glob,
         batch_size=a.batch_size,
@@ -86,7 +114,11 @@ def parse_args() -> Config:
         cam_a=a.cam_a,
         cam_b=a.cam_b,
         num_workers=a.num_workers,
+        prefetch_factor=a.prefetch_factor,
+        pin_memory=pin_memory,
+        persistent_workers=persistent_workers,
         drop_last=drop_last,
+        device=a.device,
     )
 
 
@@ -96,19 +128,29 @@ def main() -> None:
 
     # Use dataset-managed decoding so we also get per-sample camera validity masks.
     ds = EpisodesFrameDataset(cfg.episodes_glob, decode_images=True)
-    enc = TinyMultiCamEncoder(out_dim=128)
+    enc = TinyMultiCamEncoder(out_dim=128).to(device)
     opt = torch.optim.Adam(enc.parameters(), lr=cfg.lr)
 
     cfg.out_dir.mkdir(parents=True, exist_ok=True)
 
-    loader = torch.utils.data.DataLoader(
-        ds,
+    device = torch.device(cfg.device)
+
+    loader_kwargs = dict(
         batch_size=cfg.batch_size,
         shuffle=True,
         num_workers=cfg.num_workers,
         drop_last=cfg.drop_last,
         collate_fn=lambda batch: collate_batch(batch, stack_images=True),
     )
+
+    # DataLoader perf knobs (valid only when num_workers > 0)
+    if cfg.num_workers > 0:
+        loader_kwargs["prefetch_factor"] = cfg.prefetch_factor
+        loader_kwargs["persistent_workers"] = bool(cfg.persistent_workers)
+
+    loader_kwargs["pin_memory"] = bool(cfg.pin_memory)
+
+    loader = torch.utils.data.DataLoader(ds, **loader_kwargs)
 
     step = 0
     it = iter(loader)
@@ -123,6 +165,16 @@ def main() -> None:
         xb = b.get("images_by_cam", {}).get(cfg.cam_b)
         va = b.get("image_valid_by_cam", {}).get(cfg.cam_a)
         vb = b.get("image_valid_by_cam", {}).get(cfg.cam_b)
+
+        # Move to device.
+        if xa is not None:
+            xa = xa.to(device, non_blocking=True)
+        if xb is not None:
+            xb = xb.to(device, non_blocking=True)
+        if va is not None:
+            va = va.to(device, non_blocking=True)
+        if vb is not None:
+            vb = vb.to(device, non_blocking=True)
 
         if xa is None or xb is None or va is None or vb is None:
             if step % 20 == 0:
