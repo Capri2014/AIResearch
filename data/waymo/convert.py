@@ -59,6 +59,7 @@ class ConvertConfig:
     tfrecords: tuple[Path, ...]
     max_frames: Optional[int]
     no_write_images: bool
+    relative_image_paths: bool
     split: str
 
 
@@ -112,6 +113,21 @@ def parse_args() -> ConvertConfig:
         action="store_true",
         help="Do not write JPEGs to disk in TFRecord mode (stores placeholder paths)",
     )
+    p.add_argument(
+        "--relative-image-paths",
+        action="store_true",
+        default=True,
+        help=(
+            "Store image_path as paths relative to the episode JSON directory (default: True). "
+            "This makes episode shards portable across machines."
+        ),
+    )
+    p.add_argument(
+        "--absolute-image-paths",
+        dest="relative_image_paths",
+        action="store_false",
+        help="Store image_path as absolute paths on disk (not recommended for sharing)",
+    )
 
     a = p.parse_args()
 
@@ -127,6 +143,7 @@ def parse_args() -> ConvertConfig:
         tfrecords=tuple(a.tfrecord),
         max_frames=a.max_frames,
         no_write_images=bool(a.no_write_images),
+        relative_image_paths=bool(a.relative_image_paths),
         split=a.split,
     )
 
@@ -238,6 +255,7 @@ def iter_waymo_records(
     dt: float,
     max_frames: int | None,
     no_write_images: bool,
+    relative_image_paths: bool,
 ):
     """Convert TFRecords into episode dicts (v0, image_path-first).
 
@@ -287,8 +305,16 @@ def iter_waymo_records(
                     fname = f"{int(fr.timestamp_s * 1e6):016d}_{cam}.jpg"
                     img_path = images_dir / fname
                     img_path.write_bytes(cfr.image_bytes_jpeg)
+
+                    # Keep episode shards portable by default: store paths relative to
+                    # the episode JSON directory (typically `out_dir`).
+                    if relative_image_paths:
+                        image_path_out: str | None = str(Path("images") / fname)
+                    else:
+                        image_path_out = str(img_path)
+
                     cams_obj[cam] = {
-                        "image_path": str(img_path),
+                        "image_path": image_path_out,
                         "intrinsics": cfr.intrinsics or [],
                         "extrinsics": cfr.extrinsics or [],
                     }
@@ -363,6 +389,7 @@ def main() -> None:
             dt=cfg.dt,
             max_frames=cfg.max_frames,
             no_write_images=cfg.no_write_images,
+            relative_image_paths=cfg.relative_image_paths,
         ):
             out_path = write_episode(cfg.out_dir, ep)
             print(f"[waymo/convert] wrote episode: {out_path}")
