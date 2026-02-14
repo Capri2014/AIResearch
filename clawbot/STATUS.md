@@ -10,7 +10,7 @@ _Last updated: 2026-02-14_
 - Fixed `train_ssl_contrastive_v0.py` device initialization bug (model `.to(device)` now happens after `device` is defined).
 
 ## Next (top 3)
-1) Run `train_ssl_contrastive_v0.py` end-to-end on real Waymo episodes and record throughput/memory; tune loader knobs + cache sizing.
+1) Run `train_ssl_contrastive_v0.py` end-to-end on real Waymo episodes (portable relative `image_path`s) and record throughput/memory; tune loader knobs + cache sizing.
 2) Extend SSL pretrain beyond 2-view InfoNCE: add temporal positives (t/t+1) and/or multi-positive across more cameras.
 3) Start the waypoint BC baseline + wire up CARLA ScenarioRunner adapter + metrics parsing for a true eval loop.
 
