@@ -36,6 +36,7 @@ import json
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
+from training.episodes.episode_paths import glob_episode_paths, resolve_episode_asset_path
 from training.pretrain.image_loading import ImageConfig, load_image_tensor
 
 
@@ -67,11 +68,7 @@ class EpisodesWaypointBCDataset:
         self.image_cache_size = int(image_cache_size)
         self._img_cfg = ImageConfig(size=image_size)
 
-        import glob
-
-        self.episode_paths = [Path(p) for p in glob.glob(episodes_glob, recursive=True)]
-        if not self.episode_paths:
-            raise ValueError(f"No episodes found for glob: {episodes_glob}")
+        self.episode_paths = glob_episode_paths(episodes_glob)
 
         # (episode_path, frame_index)
         self.index: List[Tuple[Path, int]] = []
@@ -116,9 +113,9 @@ class EpisodesWaypointBCDataset:
         if rel_or_abs is None:
             return None
 
-        img_path = Path(rel_or_abs)
-        if not img_path.is_absolute():
-            img_path = (ep_path.parent / img_path).resolve()
+        img_path = resolve_episode_asset_path(ep_path, rel_or_abs)
+        if img_path is None:
+            return None
 
         key = str(img_path)
         cached = self._img_cache.get(key)
