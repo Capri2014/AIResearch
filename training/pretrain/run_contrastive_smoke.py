@@ -7,10 +7,15 @@ Purpose:
 This is deliberately not a benchmark harness. It's a quick sanity check to run
 whenever we change the dataloader/encoder/objective.
 
-Usage:
+Usage (GPU):
   python3 -m training.pretrain.run_contrastive_smoke \
     --episodes-glob "out/episodes/**/*.json" \
     --device cuda --num-workers 4 --steps 50
+
+Usage (CPU):
+  python3 -m training.pretrain.run_contrastive_smoke \
+    --episodes-glob "out/episodes/**/*.json" \
+    --device cpu --num-workers 4 --steps 20
 
 Deps:
 - torch
