@@ -1,21 +1,22 @@
-"""SSL pretrain v0: multi-view contrastive alignment across cameras.
+"""SSL pretrain: temporal contrastive alignment (t vs t+k) within the same camera.
 
-Pipeline:
-- episodes-backed dataset yields `image_path` per camera
-- decode images (pillow)
-- encode each camera with a tiny CNN
-- apply InfoNCE between two selected camera views
+This complements multi-camera contrastive (train_ssl_contrastive_v0.py) by adding
+*temporal positives*.
 
-This is a first real objective; it is still intentionally minimal.
+Objective:
+  - pick a camera (default: front)
+  - embed anchor frame z_t and positive frame z_{t+k}
+  - InfoNCE between the two sets (in-batch negatives)
 
 Usage:
-  python3 -m training.pretrain.train_ssl_contrastive_v0 --episodes-glob "out/episodes/**/*.json"
+  python3 -m training.pretrain.train_ssl_temporal_contrastive_v0 \
+    --episodes-glob "out/episodes/**/*.json" \
+    --cam front \
+    --dt-frames 1
 
 Deps:
-- torch
-- pillow
-
-If torch/pillow are not installed, this script will raise a clear error.
+  - torch
+  - pillow (via EpisodesTemporalPairDataset when decode_images=True)
 """
 
 from __future__ import annotations
@@ -25,8 +26,7 @@ from pathlib import Path
 import argparse
 
 from models.encoders.tiny_multicam_encoder import TinyMultiCamEncoder
-from training.pretrain.dataloader_episodes import EpisodesFrameDataset, collate_batch
-# image decoding is handled inside EpisodesFrameDataset(decode_images=True)
+from training.pretrain.dataloader_temporal_pairs import EpisodesTemporalPairDataset, collate_temporal_pair_batch
 from training.pretrain.objectives.contrastive import info_nce_loss
 
 
@@ -44,10 +44,11 @@ class Config:
     batch_size: int = 16
     num_steps: int = 200
     lr: float = 1e-3
-    out_dir: Path = Path("out/pretrain_contrastive_v0")
+    out_dir: Path = Path("out/pretrain_temporal_contrastive_v0")
     temperature: float = 0.1
-    cam_a: str = "front"
-    cam_b: str = "front_left"
+    cam: str = "front"
+    dt_frames: int = 1
+
     # Loader settings.
     num_workers: int = 4
     prefetch_factor: int = 2
@@ -55,7 +56,6 @@ class Config:
     persistent_workers: bool = True
     drop_last: bool = True
 
-    # Training device.
     device: str = "cuda"
 
 
@@ -65,10 +65,10 @@ def parse_args() -> Config:
     p.add_argument("--batch-size", type=int, default=16)
     p.add_argument("--num-steps", type=int, default=200)
     p.add_argument("--lr", type=float, default=1e-3)
-    p.add_argument("--out-dir", type=Path, default=Path("out/pretrain_contrastive_v0"))
+    p.add_argument("--out-dir", type=Path, default=Path("out/pretrain_temporal_contrastive_v0"))
     p.add_argument("--temperature", type=float, default=0.1)
-    p.add_argument("--cam-a", type=str, default="front")
-    p.add_argument("--cam-b", type=str, default="front_left")
+    p.add_argument("--cam", type=str, default="front")
+    p.add_argument("--dt-frames", type=int, default=1)
     p.add_argument("--num-workers", type=int, default=4)
     p.add_argument("--prefetch-factor", type=int, default=2)
     p.add_argument("--pin-memory", action="store_true")
@@ -111,8 +111,8 @@ def parse_args() -> Config:
         lr=a.lr,
         out_dir=a.out_dir,
         temperature=a.temperature,
-        cam_a=a.cam_a,
-        cam_b=a.cam_b,
+        cam=a.cam,
+        dt_frames=a.dt_frames,
         num_workers=a.num_workers,
         prefetch_factor=a.prefetch_factor,
         pin_memory=pin_memory,
@@ -126,8 +126,7 @@ def main() -> None:
     torch = _require_torch()
     cfg = parse_args()
 
-    # Use dataset-managed decoding so we also get per-sample camera validity masks.
-    ds = EpisodesFrameDataset(cfg.episodes_glob, decode_images=True)
+    ds = EpisodesTemporalPairDataset(cfg.episodes_glob, dt_frames=cfg.dt_frames, decode_images=True)
 
     device = torch.device(cfg.device)
     enc = TinyMultiCamEncoder(out_dim=128).to(device)
@@ -140,10 +139,9 @@ def main() -> None:
         shuffle=True,
         num_workers=cfg.num_workers,
         drop_last=cfg.drop_last,
-        collate_fn=lambda batch: collate_batch(batch, stack_images=True),
+        collate_fn=lambda batch: collate_temporal_pair_batch(batch, stack_images=True),
     )
 
-    # DataLoader perf knobs (valid only when num_workers > 0)
     if cfg.num_workers > 0:
         loader_kwargs["prefetch_factor"] = cfg.prefetch_factor
         loader_kwargs["persistent_workers"] = bool(cfg.persistent_workers)
@@ -161,66 +159,64 @@ def main() -> None:
             it = iter(loader)
             b = next(it)
 
-        xa = b.get("images_by_cam", {}).get(cfg.cam_a)
-        xb = b.get("images_by_cam", {}).get(cfg.cam_b)
-        va = b.get("image_valid_by_cam", {}).get(cfg.cam_a)
-        vb = b.get("image_valid_by_cam", {}).get(cfg.cam_b)
+        xa = b.get("anchor", {}).get("images_by_cam", {}).get(cfg.cam)
+        xp = b.get("pos", {}).get("images_by_cam", {}).get(cfg.cam)
+        va = b.get("anchor", {}).get("image_valid_by_cam", {}).get(cfg.cam)
+        vp = b.get("pos", {}).get("image_valid_by_cam", {}).get(cfg.cam)
 
-        # Move to device.
         if xa is not None:
             xa = xa.to(device, non_blocking=True)
-        if xb is not None:
-            xb = xb.to(device, non_blocking=True)
+        if xp is not None:
+            xp = xp.to(device, non_blocking=True)
         if va is not None:
             va = va.to(device, non_blocking=True)
-        if vb is not None:
-            vb = vb.to(device, non_blocking=True)
+        if vp is not None:
+            vp = vp.to(device, non_blocking=True)
 
-        if xa is None or xb is None or va is None or vb is None:
+        if xa is None or xp is None or va is None or vp is None:
             if step % 20 == 0:
-                print(
-                    f"[ssl/contrastive] step={step} missing cameras in batch (a={cfg.cam_a}, b={cfg.cam_b}); skipping"
-                )
+                print(f"[ssl/temporal] step={step} missing camera='{cfg.cam}' in batch; skipping")
             step += 1
             continue
 
-        valid = va & vb
+        valid = va & vp
         n_valid = int(valid.sum().item())
         if n_valid < 2:
-            # InfoNCE needs at least 2 examples to be meaningful.
             if step % 20 == 0:
-                print(
-                    f"[ssl/contrastive] step={step} too few valid pairs (n_valid={n_valid}); skipping"
-                )
+                print(f"[ssl/temporal] step={step} too few valid pairs (n_valid={n_valid}); skipping")
             step += 1
             continue
 
-        # Build a 2-cam batch and use masks to select a single view per pass.
-        # This exercises TinyMultiCamEncoder's mask-aware fusion path.
-        images = {cfg.cam_a: xa, cfg.cam_b: xb}
-        zeros = torch.zeros_like(va)
-        mask_a = {cfg.cam_a: va, cfg.cam_b: zeros}
-        mask_b = {cfg.cam_a: zeros, cfg.cam_b: vb}
+        # Mask-aware usage of TinyMultiCamEncoder (single cam active).
+        images_a = {cfg.cam: xa}
+        images_p = {cfg.cam: xp}
+        mask_a = {cfg.cam: va}
+        mask_p = {cfg.cam: vp}
 
-        za_all = enc(images, image_valid_by_cam=mask_a)
-        zb_all = enc(images, image_valid_by_cam=mask_b)
+        za_all = enc(images_a, image_valid_by_cam=mask_a)
+        zp_all = enc(images_p, image_valid_by_cam=mask_p)
         za = za_all[valid]
-        zb = zb_all[valid]
+        zp = zp_all[valid]
 
-        loss = info_nce_loss(za, zb, temperature=cfg.temperature)
+        loss = info_nce_loss(za, zp, temperature=cfg.temperature)
 
         opt.zero_grad(set_to_none=True)
         loss.backward()
         opt.step()
 
         if step % 20 == 0:
-            print(f"[ssl/contrastive] step={step} loss={float(loss):.6f}")
+            dt = b.get("meta", {}).get("dt")
+            dt_str = f" dt~{float(dt[0]):.3f}s" if isinstance(dt, list) and dt else ""
+            print(f"[ssl/temporal] step={step} loss={float(loss):.6f}{dt_str}")
 
         step += 1
 
-    torch.save({"encoder": enc.state_dict(), "out_dim": 128}, cfg.out_dir / "encoder.pt")
-    (cfg.out_dir / "done.txt").write_text("contrastive v0 finished\n")
-    print(f"[ssl/contrastive] wrote: {cfg.out_dir / 'encoder.pt'}")
+    torch.save(
+        {"encoder": enc.state_dict(), "out_dim": 128, "cam": cfg.cam, "dt_frames": cfg.dt_frames},
+        cfg.out_dir / "encoder.pt",
+    )
+    (cfg.out_dir / "done.txt").write_text("temporal contrastive v0 finished\n")
+    print(f"[ssl/temporal] wrote: {cfg.out_dir / 'encoder.pt'}")
 
 
 if __name__ == "__main__":
