@@ -32,7 +32,7 @@ import time
 
 from models.encoders.tiny_multicam_encoder import TinyMultiCamEncoder
 from training.pretrain.dataloader_episodes import EpisodesFrameDataset, collate_batch
-from training.pretrain.objectives.contrastive import info_nce_loss
+from training.pretrain.objectives.contrastive import info_nce_loss, multi_pair_info_nce_loss
 
 
 def _require_torch():
@@ -50,8 +50,14 @@ class Config:
     batch_size: int = 16
     lr: float = 1e-3
     temperature: float = 0.1
+
+    # Legacy 2-cam mode (default): keep behavior identical unless --cams is passed.
     cam_a: str = "front"
     cam_b: str = "front_left"
+
+    # Multi-cam mode: comma-separated list passed via --cams.
+    cams: list[str] | None = None
+    max_pairs_per_step: int | None = None
 
     device: str = "cuda"
     num_workers: int = 4
@@ -70,6 +76,21 @@ def parse_args() -> Config:
     p.add_argument("--temperature", type=float, default=0.1)
     p.add_argument("--cam-a", type=str, default="front")
     p.add_argument("--cam-b", type=str, default="front_left")
+
+    p.add_argument(
+        "--cams",
+        type=str,
+        default="",
+        help="Optional comma-separated camera list for multi-cam InfoNCE (e.g. front,front_left,front_right). "
+        "If not set, uses legacy --cam-a/--cam-b behavior.",
+    )
+    p.add_argument(
+        "--max-pairs-per-step",
+        type=int,
+        default=-1,
+        help="In --cams mode, limit the number of camera pairs averaged per step (deterministic order). "
+        "-1 means no limit.",
+    )
 
     p.add_argument("--device", type=str, default="cuda")
     p.add_argument("--num-workers", type=int, default=4)
@@ -107,6 +128,16 @@ def parse_args() -> Config:
     if a.drop_last:
         drop_last = True
 
+    cams = None
+    if str(a.cams).strip():
+        cams = [c.strip() for c in str(a.cams).split(",") if c.strip()]
+        if len(cams) < 2:
+            raise ValueError("--cams must contain at least 2 camera names")
+
+    max_pairs_per_step = None
+    if int(a.max_pairs_per_step) >= 0:
+        max_pairs_per_step = int(a.max_pairs_per_step)
+
     return Config(
         episodes_glob=a.episodes_glob,
         steps=a.steps,
@@ -115,6 +146,8 @@ def parse_args() -> Config:
         temperature=a.temperature,
         cam_a=a.cam_a,
         cam_b=a.cam_b,
+        cams=cams,
+        max_pairs_per_step=max_pairs_per_step,
         device=a.device,
         num_workers=a.num_workers,
         prefetch_factor=a.prefetch_factor,
@@ -178,36 +211,72 @@ def main() -> None:
             it = iter(loader)
             b = next(it)
 
-        xa = b.get("images_by_cam", {}).get(cfg.cam_a)
-        xb = b.get("images_by_cam", {}).get(cfg.cam_b)
-        va = b.get("image_valid_by_cam", {}).get(cfg.cam_a)
-        vb = b.get("image_valid_by_cam", {}).get(cfg.cam_b)
+        if cfg.cams is None:
+            xa = b.get("images_by_cam", {}).get(cfg.cam_a)
+            xb = b.get("images_by_cam", {}).get(cfg.cam_b)
+            va = b.get("image_valid_by_cam", {}).get(cfg.cam_a)
+            vb = b.get("image_valid_by_cam", {}).get(cfg.cam_b)
 
-        if xa is None or xb is None or va is None or vb is None:
-            n_missing_cam += 1
-            continue
+            if xa is None or xb is None or va is None or vb is None:
+                n_missing_cam += 1
+                continue
 
-        xa = xa.to(device, non_blocking=True)
-        xb = xb.to(device, non_blocking=True)
-        va = va.to(device, non_blocking=True)
-        vb = vb.to(device, non_blocking=True)
+            xa = xa.to(device, non_blocking=True)
+            xb = xb.to(device, non_blocking=True)
+            va = va.to(device, non_blocking=True)
+            vb = vb.to(device, non_blocking=True)
 
-        valid = va & vb
-        if int(valid.sum().item()) < 2:
-            n_too_few_pairs += 1
-            continue
+            valid = va & vb
+            if int(valid.sum().item()) < 2:
+                n_too_few_pairs += 1
+                continue
 
-        images = {cfg.cam_a: xa, cfg.cam_b: xb}
-        zeros = torch.zeros_like(va)
-        mask_a = {cfg.cam_a: va, cfg.cam_b: zeros}
-        mask_b = {cfg.cam_a: zeros, cfg.cam_b: vb}
+            images = {cfg.cam_a: xa, cfg.cam_b: xb}
+            zeros = torch.zeros_like(va)
+            mask_a = {cfg.cam_a: va, cfg.cam_b: zeros}
+            mask_b = {cfg.cam_a: zeros, cfg.cam_b: vb}
 
-        za_all = enc(images, image_valid_by_cam=mask_a)
-        zb_all = enc(images, image_valid_by_cam=mask_b)
-        za = za_all[valid]
-        zb = zb_all[valid]
+            za_all = enc(images, image_valid_by_cam=mask_a)
+            zb_all = enc(images, image_valid_by_cam=mask_b)
+            za = za_all[valid]
+            zb = zb_all[valid]
 
-        loss = info_nce_loss(za, zb, temperature=cfg.temperature)
+            loss = info_nce_loss(za, zb, temperature=cfg.temperature)
+        else:
+            images = {}
+            valid_by_cam = {}
+            for cam in cfg.cams:
+                x = b.get("images_by_cam", {}).get(cam)
+                v = b.get("image_valid_by_cam", {}).get(cam)
+                if x is None or v is None:
+                    images = {}
+                    valid_by_cam = {}
+                    break
+                images[cam] = x.to(device, non_blocking=True)
+                valid_by_cam[cam] = v.to(device, non_blocking=True)
+
+            if not images:
+                n_missing_cam += 1
+                continue
+
+            # Encode each camera separately by masking out the others.
+            z_by_cam = {}
+            for cam in cfg.cams:
+                v = valid_by_cam[cam]
+                zeros = torch.zeros_like(v)
+                mask = {c: (valid_by_cam[c] if c == cam else zeros) for c in cfg.cams}
+                z_by_cam[cam] = enc(images, image_valid_by_cam=mask)
+
+            loss = multi_pair_info_nce_loss(
+                z_by_cam,
+                valid_by_cam,
+                temperature=cfg.temperature,
+                max_pairs_per_step=cfg.max_pairs_per_step,
+            )
+            if loss is None:
+                n_too_few_pairs += 1
+                continue
+
         opt.zero_grad(set_to_none=True)
         loss.backward()
         opt.step()
