@@ -68,7 +68,7 @@ When you’re ready, we’ll add:
   - Create a tiny repeatable benchmark suite + write up results.
 
 ### Survey: Karpathy microgpt/nanoGPT gist (atomic GPT)
-- Extract reusable abstractions for an autonomy CoT backbone: trace schema + eval harness + stepwise inference semantics.
+- **Paused** for now (per Qi).
 
 ### Agent Swarm (reusable framework)
 - Build a reusable **agent swarm framework** for this repo (task router + planner + worker agents + aggregator):

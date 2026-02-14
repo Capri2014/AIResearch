@@ -28,6 +28,8 @@ Try **MLG / MinMax / Doubao**
 
 ## Survey: Karpathy microgpt/nanoGPT gist (atomic GPT)
 
+Status: **paused** (per Qi, 2026-02-14).
+
 Source: https://gist.github.com/karpathy/8627fe009c40f57531cb18360106ce95
 
 Goal: extract reusable abstractions/patterns for our autonomy stack:
