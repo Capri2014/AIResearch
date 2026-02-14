@@ -28,6 +28,8 @@ import argparse
 from models.encoders.tiny_multicam_encoder import TinyMultiCamEncoder
 from training.pretrain.dataloader_temporal_pairs import EpisodesTemporalPairDataset, collate_temporal_pair_batch
 from training.pretrain.objectives.contrastive import info_nce_loss
+from training.utils.checkpointing import save_checkpoint
+from training.utils.device import resolve_torch_device
 
 
 def _require_torch():
@@ -49,6 +51,9 @@ class Config:
     cam: str = "front"
     dt_frames: int = 1
 
+    seed: int = 0
+    save_every: int = 100
+
     # Loader settings.
     num_workers: int = 4
     prefetch_factor: int = 2
@@ -56,7 +61,7 @@ class Config:
     persistent_workers: bool = True
     drop_last: bool = True
 
-    device: str = "cuda"
+    device: str = "auto"
 
 
 def parse_args() -> Config:
@@ -75,7 +80,9 @@ def parse_args() -> Config:
     p.add_argument("--no-pin-memory", action="store_true")
     p.add_argument("--persistent-workers", action="store_true")
     p.add_argument("--no-persistent-workers", action="store_true")
-    p.add_argument("--device", type=str, default="cuda")
+    p.add_argument("--device", type=str, default="auto")
+    p.add_argument("--seed", type=int, default=0)
+    p.add_argument("--save-every", type=int, default=100)
     p.add_argument("--drop-last", action="store_true")
     p.add_argument("--no-drop-last", action="store_true")
     a = p.parse_args()
@@ -119,6 +126,8 @@ def parse_args() -> Config:
         persistent_workers=persistent_workers,
         drop_last=drop_last,
         device=a.device,
+        seed=int(a.seed),
+        save_every=int(a.save_every),
     )
 
 
@@ -128,7 +137,12 @@ def main() -> None:
 
     ds = EpisodesTemporalPairDataset(cfg.episodes_glob, dt_frames=cfg.dt_frames, decode_images=True)
 
-    device = torch.device(cfg.device)
+    # Repro.
+    torch.manual_seed(int(cfg.seed))
+    if bool(torch.cuda.is_available()):
+        torch.cuda.manual_seed_all(int(cfg.seed))
+
+    device = resolve_torch_device(torch=torch, device_str=cfg.device)
     enc = TinyMultiCamEncoder(out_dim=128).to(device)
     opt = torch.optim.Adam(enc.parameters(), lr=cfg.lr)
 
@@ -208,6 +222,16 @@ def main() -> None:
             dt = b.get("meta", {}).get("dt")
             dt_str = f" dt~{float(dt[0]):.3f}s" if isinstance(dt, list) and dt else ""
             print(f"[ssl/temporal] step={step} loss={float(loss):.6f}{dt_str}")
+
+        if int(cfg.save_every) > 0 and (step + 1) % int(cfg.save_every) == 0:
+            save_checkpoint(
+                torch=torch,
+                out_dir=cfg.out_dir,
+                step=step + 1,
+                cfg=cfg,
+                model_state={"encoder": enc.state_dict()},
+                optim_state=opt.state_dict(),
+            )
 
         step += 1
 
