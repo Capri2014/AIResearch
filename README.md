@@ -93,6 +93,12 @@ When you’re ready, we’ll add:
   - data versioning + conversion reproducibility
   - keep optional TFRecord streaming as a backend if it becomes necessary at scale
 
+### Flywheel efficiency: PySpark + Delta Lake (exploration)
+- Explore using **PySpark + Delta Lake** to improve data flywheel efficiency:
+  - episode/frame indexing at scale (faster slicing/filtering than per-JSON scans)
+  - incremental conversion + versioned datasets
+  - simple dataset statistics/QA jobs (camera coverage, missing frames, label sanity)
+
 ### ClawBot LLM cost optimization
 - Optimize ClawBot’s LLM usage to reduce cost while preserving quality:
   - model tiering (cheap default for routine CLs; upgrade for deep research/debugging)
