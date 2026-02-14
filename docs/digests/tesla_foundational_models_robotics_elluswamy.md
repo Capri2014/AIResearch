@@ -2,7 +2,7 @@
 
 Source video (YouTube): https://www.youtube.com/watch?v=LFh9GAzHg1c
 
-This digest captures key technical claims from the talk (based on the chapter list you provided) and maps them to the closest **public papers/repos** that approximate each idea. The goal is to translate the talk into an actionable roadmap for this repo.
+This digest captures key technical claims from the talk (based on transcript excerpts you provided) and maps them to the closest **public papers/repos** that approximate each idea. The goal is to translate the talk into an actionable roadmap for this repo.
 
 ## TL;DR
 
@@ -14,32 +14,42 @@ This digest captures key technical claims from the talk (based on the chapter li
   - a push toward **one foundational network** spanning driving + humanoid robotics.
 - Closest public analogs are spread across multiple communities (robotics VLAs, driving end-to-end stacks, 3D reconstruction, world models). No single open repo matches Tesla end-to-end.
 
-## Key points (extracted from chapter list)
+## Key points (from transcript excerpts)
 
 ### End-to-end vs modular robotics (≈3:42–8:01)
-- Argues for end-to-end systems over modular pipelines.
-- Claims neural nets win on latency + scaling; discusses curse of dimensionality.
+- Uses a **single end-to-end neural network** taking raw sensor inputs (predominantly **8 camera videos**) + navigation + kinematics.
+- Argues modular stacks have **leaky abstractions** and are hard to decouple in real-world robotics; end-to-end lets information flow “densely” from pixels to control.
+- Claims neural nets win on deterministic latency and on the “bitter lesson” axis (scale model/data/compute/reward vs hand engineering).
 
-### Fleet data + long-tail safety (≈9:57–13:30)
-- Fleet logging is used to find and learn from interesting/rare scenarios.
-- Long-tail generalization and proactive safety are key.
+### Fleet data + long-tail safety (≈8:01–13:30)
+- Frames self-driving/robotics as a **high-dimensional compression** problem: talks about needing history/context and mentions the raw stream being on the order of **~2B tokens** (depending on tokenization) compressed down to a small action vector.
+- Fleet scale: claims the Tesla fleet can produce on the order of **500 years of driving data per day**, but most is boring; they invest in **"interesting data" detection** and collect selectively.
+- Emphasizes long-tail generalization and proactive safety (anticipating rare events seconds early).
 
 ### Debugging / interpretability (≈13:30)
-- Acknowledges end-to-end debugging difficulty; implies need for better tooling.
+- Says end-to-end systems can still be debugged with probes.
+- Mentions attaching **reasoning traces** during training (not necessarily at test time) and distilling that into the policy.
 
 ### 3D geometric reasoning (≈14:26)
-- Mentions 3D reasoning with **generative Gaussian Splatting**.
+- Describes a **generative Gaussian Splatting** representation that generalizes better to novel views than “traditional” GS.
+- Claims it runs far faster ("hundreds of milliseconds" vs "~30 minutes") and is part of the same end-to-end network that produces control.
 
 ### Text-based reasoning / situational understanding (≈16:25)
-- Mentions language/text reasoning as part of situational understanding.
+- Mentions text-based reasoning for scene understanding (e.g., reading detour/closure signage), but suggests most of this should be distilled into the network and kept implicit at inference due to real-time constraints.
 
 ### World simulators + generated video (≈17:08–21:48)
-- Long-tail evaluation requires **world simulators**.
-- Mentions neural-network-generated simulation video.
-- Simulator used for policy evaluation, regression testing, injecting novel/adversarial scenes, and reducing compute to run in (near) real-time.
+- Calls evaluation the hardest challenge due to the long tail; closed-loop eval needs a simulator.
+- Describes a learned **world simulator neural network** trained on paired state/action data:
+  - given current video + current action, predict next state / next video frames.
+  - can be rolled out in a loop with the policy.
+  - claims simulator can use privileged info the policy doesn’t, to enable independent verification.
+- Mentions generated simulation video for **8 cameras**, **36 fps**, **5 MP**, with multi-camera consistency.
+- Uses the simulator for regression testing (replaying historical issues on new policies) and for injecting/adversarial scene edits.
+- Mentions reducing test-time compute to run near real-time for interactive driving.
 
 ### One foundational network across robotics (≈21:48–23:02)
-- A single foundational neural network intended to generalize from driving to Optimus indoor scenes + manipulation.
+- Frames the end-to-end driving network (and simulator) as a **foundational robotics network** trained on common data across robots.
+- Claims the video generation network generalizes to Optimus indoor navigation and manipulation in an action-conditioned way.
 
 ## Closest public papers/repos (by claim)
 
@@ -152,9 +162,9 @@ Pick 3–5 of these as separate digests (one PR each):
 - DreamerV3 (world model RL) as a “world simulator” anchor
 
 ## Notes / open questions
-- The talk likely contains specific claims about:
-  - control frequency (36Hz) and command interface
-  - reward/penalty usage in simulator
-  - camera-only vs sensor fusion
-  - compute constraints for real-time sim
-  These should be captured verbatim once we have transcript excerpts.
+- Control frequency: mentions issuing control commands at **36 Hz** (~every 27 ms).
+- World simulator rewards/penalties: mentions they can attach a model that outputs rewards/penalties, and/or use explicit collision checks.
+- Camera-first stance: argues cameras provide sufficient information; other sensors were a crutch during the DARPA-era when intelligence was insufficient.
+- Open questions for this repo:
+  - What minimal “world simulator” approximation should we build first (toy kinematics + rendered observations vs learned video stub)?
+  - How do we define a regression suite of historical issues in our own `episode.json` format?
