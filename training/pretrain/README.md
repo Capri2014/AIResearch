@@ -36,6 +36,9 @@ In this repo we keep it minimal on purpose:
 - keep the batch contract consistent (stacked tensors + validity masks)
 - later combine temporal positives with multi-camera positives (multi-positive InfoNCE)
 
+For a deeper implementation walk-through, see:
+- `docs/temporal_ssl_infonce.md`
+
 ## Outputs
 - A checkpoint (weights) for a backbone encoder
 - Optionally a config file describing normalization/tokenization
