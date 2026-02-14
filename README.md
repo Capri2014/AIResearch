@@ -17,6 +17,8 @@ Simulation is our multiplier:
 
 See: `docs/sim_training_eval.md`.
 
+Also see: `docs/roadmap.md` (expanded TODOs).
+
 ---
 
 ## Repo map
@@ -54,6 +56,19 @@ When you’re ready, we’ll add:
 ---
 
 ## TODO (roadmap)
+
+### microgpt backbone (CoT for autonomous driving)
+- Cooperate a **microgpt** component into this repo as the backbone for CoT-style reasoning/tracing in driving.
+  - Decide integration shape: library module vs service.
+  - Add later: **LoRA/PEFT update tricks** (train head + LoRA adapters vs full-backbone finetune; clean config switch + checkpoint format).
+
+### Model/provider eval
+- Try **MLG / MinMax / Doubao**
+  - Evaluate quality/latency/cost + tool-use/structured-output reliability.
+  - Create a tiny repeatable benchmark suite + write up results.
+
+### Survey: Karpathy microgpt/nanoGPT gist (atomic GPT)
+- Extract reusable abstractions for an autonomy CoT backbone: trace schema + eval harness + stepwise inference semantics.
 
 ### Agent Swarm (reusable framework)
 - Build a reusable **agent swarm framework** for this repo (task router + planner + worker agents + aggregator):
