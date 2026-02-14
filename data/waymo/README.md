@@ -26,18 +26,18 @@ without TFRecord deps):
 python -m data.waymo.convert --out-dir out/episodes/waymo_stub
 ```
 
-## TFRecord conversion (planned)
+## TFRecord conversion (optional)
 
-The CLI already accepts `--tfrecord ...`, but real parsing is intentionally **not implemented**
-until we lock:
-- which Waymo TFRecord fields we will consume first
-- whether we extract images on disk vs. reference paths
-- the exact camera calibration representation we want in `episode.json`
+The CLI supports converting Waymo TFRecord(s) into episode shards, but keeps the heavy deps
+optional.
 
-To keep the repo lightweight, TFRecord parsing will live behind **optional heavy deps**.
+Notes:
+- Requires TensorFlow + Waymo Open Dataset API (`waymo-open-dataset`).
+- Writes images under `<out_dir>/images/` and stores `image_path` **relative** to the
+  episode root (e.g. `images/<ts>_<cam>.jpg`) for portability.
+- Camera intrinsics/extrinsics are passed through when available; representation may
+  evolve as we lock calibration conventions.
 
 Scaffolding:
-- `data/waymo/tfrecord_reader.py` — dependency-guarded reader interface (skeleton)
+- `data/waymo/tfrecord_reader.py` — dependency-guarded reader interface
 - `data/waymo/validate_episode.py` — lightweight contract checks
-
-When we do implement parsing, it will likely rely on TensorFlow + Waymo Open Dataset API.

@@ -156,7 +156,8 @@ def build_episode(
 
         cams = {
             cam: {
-                "image_path": f"PLACEHOLDER/{episode_id}/{t0:05d}_{cam}.jpg",
+                # Keep paths *relative* to the episode root for portability.
+                "image_path": f"images/{t0:05d}_{cam}.jpg",
                 "intrinsics": [],
                 "extrinsics": [],
             }
@@ -247,6 +248,10 @@ def iter_waymo_records(
 
     The yielded dict matches `data/schema/episode.json`.
 
+    Conventions:
+    - `image_path` is stored as a **relative** path (e.g. `images/<ts>_<cam>.jpg`) so
+      episode shards are portable across machines.
+
     Caveats:
     - requires TF + waymo-open-dataset
     - calibration fields are left empty for now
@@ -276,22 +281,19 @@ def iter_waymo_records(
                 cfr = fr.cameras.get(cam)
                 if cfr is None or cfr.image_bytes_jpeg is None:
                     continue
-                if no_write_images:
-                    # Keep the camera key present but skip I/O.
-                    cams_obj[cam] = {
-                        "image_path": None,
-                        "intrinsics": cfr.intrinsics or [],
-                        "extrinsics": cfr.extrinsics or [],
-                    }
-                else:
-                    fname = f"{int(fr.timestamp_s * 1e6):016d}_{cam}.jpg"
+
+                fname = f"{int(fr.timestamp_s * 1e6):016d}_{cam}.jpg"
+                rel_path = f"images/{fname}"
+
+                if not no_write_images:
                     img_path = images_dir / fname
                     img_path.write_bytes(cfr.image_bytes_jpeg)
-                    cams_obj[cam] = {
-                        "image_path": str(img_path),
-                        "intrinsics": cfr.intrinsics or [],
-                        "extrinsics": cfr.extrinsics or [],
-                    }
+
+                cams_obj[cam] = {
+                    "image_path": rel_path,
+                    "intrinsics": cfr.intrinsics or [],
+                    "extrinsics": cfr.extrinsics or [],
+                }
 
             # Strict v0: keep frames that have all required cameras.
             if any(cam not in cams_obj for cam in cameras):
