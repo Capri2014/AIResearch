@@ -23,6 +23,7 @@ import json
 from pathlib import Path
 from typing import Any, Dict, Iterator, List, Optional, Tuple
 
+from training.episodes.episode_paths import glob_episode_paths, resolve_episode_asset_path
 from training.pretrain.image_loading import ImageConfig, load_image_tensor
 
 
@@ -85,11 +86,7 @@ class EpisodesFrameDataset:
         self.decode_images = bool(decode_images)
         self.image_cache_size = int(image_cache_size)
 
-        import glob
-
-        self.episode_paths = [Path(p) for p in glob.glob(episodes_glob, recursive=True)]
-        if not self.episode_paths:
-            raise ValueError(f"No episodes found for glob: {episodes_glob}")
+        self.episode_paths = glob_episode_paths(episodes_glob)
 
         # Materialize index: (episode_path, frame_index)
         self.index: List[Tuple[Path, int]] = []
@@ -149,9 +146,10 @@ class EpisodesFrameDataset:
                     images_by_cam[cam] = None
                     continue
 
-                img_path = Path(p)
-                if not img_path.is_absolute():
-                    img_path = (ep_path.parent / img_path).resolve()
+                img_path = resolve_episode_asset_path(ep_path, p)
+                if img_path is None:
+                    images_by_cam[cam] = None
+                    continue
 
                 key = str(img_path)
                 cached = self._img_cache.get(key)

@@ -22,6 +22,7 @@ Instead we define:
 - `training/pretrain/train_ssl_stub_torch.py` — PyTorch SSL stub (placeholder objective)
 - `training/pretrain/dataloader_temporal_pairs.py` — episodes-backed dataset yielding *(t, t+Δt)* frame pairs for temporal SSL
 - `training/pretrain/train_ssl_temporal_contrastive_v0.py` — minimal temporal InfoNCE stub (anchor=t, positive=t+Δt)
+- `training/pretrain/run_temporal_smoke.py` — short end-to-end smoke runner printing throughput/skip stats
 
 ## Why temporal contrastive is important (driving)
 Multi-camera contrast (same timestamp, different views) is useful, but it does **not** teach invariance to motion, lighting changes, and small viewpoint shifts over time.
