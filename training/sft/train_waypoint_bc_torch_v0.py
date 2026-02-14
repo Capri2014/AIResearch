@@ -1,0 +1,293 @@
+"""Waypoint behavior cloning (BC) with PyTorch (v0).
+
+This is the next step after the episode contract + SSL pretrain plumbing:
+  Waymo episode shards -> image encoder -> waypoint head.
+
+This trainer is intentionally minimal:
+- single-camera input (default: front)
+- predicts the full flattened waypoint vector (H,2)
+- MSE loss
+
+Usage
+-----
+python -m training.sft.train_waypoint_bc_torch_v0 \
+  --episodes-glob "out/episodes/**/*.json" \
+  --cam front \
+  --batch-size 32 \
+  --num-steps 200
+
+Optionally initialize the encoder from temporal SSL:
+python -m training.sft.train_waypoint_bc_torch_v0 \
+  --episodes-glob "out/episodes/**/*.json" \
+  --pretrained-encoder out/pretrain_temporal_contrastive_v0/encoder.pt
+
+Outputs
+-------
+- out/sft_waypoint_bc_torch_v0/model.pt
+- out/sft_waypoint_bc_torch_v0/train_metrics.json
+
+Notes
+-----
+- For now we keep the encoder trainable (no freezing) to keep the script simple.
+- Episode images are resized to 224x224 via PIL.
+"""
+
+from __future__ import annotations
+
+from dataclasses import dataclass
+from pathlib import Path
+import argparse
+import json
+
+from models.encoders.tiny_multicam_encoder import TinyMultiCamEncoder
+from training.sft.dataloader_waypoint_bc import EpisodesWaypointBCDataset, collate_waypoint_bc_batch
+
+
+def _require_torch():
+    try:
+        import torch  # type: ignore
+    except Exception as e:
+        raise RuntimeError("This script requires PyTorch.") from e
+    return torch
+
+
+class WaypointHead:
+    """Small MLP head that maps encoder embeddings -> flattened waypoint vector."""
+
+    def __init__(self, *, torch: object, in_dim: int, horizon_steps: int):
+        nn = torch.nn  # type: ignore
+        out_dim = int(horizon_steps) * 2
+        self.net = nn.Sequential(
+            nn.Linear(in_dim, 256),
+            nn.ReLU(),
+            nn.Linear(256, out_dim),
+        )
+        self.horizon_steps = int(horizon_steps)
+
+    def to(self, device):
+        self.net = self.net.to(device)
+        return self
+
+    def parameters(self):
+        return self.net.parameters()
+
+    def __call__(self, z):
+        # z: (B,D) -> (B,H,2)
+        y = self.net(z)
+        b = y.shape[0]
+        return y.view(b, self.horizon_steps, 2)
+
+    def state_dict(self):
+        return self.net.state_dict()
+
+    def load_state_dict(self, sd):
+        return self.net.load_state_dict(sd)
+
+
+@dataclass
+class Config:
+    episodes_glob: str
+    out_dir: Path = Path("out/sft_waypoint_bc_torch_v0")
+
+    cam: str = "front"
+    horizon_steps: int = 20
+
+    batch_size: int = 32
+    num_steps: int = 200
+    lr: float = 1e-3
+    weight_decay: float = 1e-4
+
+    num_workers: int = 4
+    prefetch_factor: int = 2
+    pin_memory: bool = True
+    persistent_workers: bool = True
+    drop_last: bool = True
+
+    device: str = "cuda"
+
+    # Optional: init encoder weights from SSL.
+    pretrained_encoder: Path | None = None
+
+
+def parse_args() -> Config:
+    p = argparse.ArgumentParser()
+    p.add_argument("--episodes-glob", type=str, default="out/episodes/**/*.json")
+    p.add_argument("--out-dir", type=Path, default=Path("out/sft_waypoint_bc_torch_v0"))
+    p.add_argument("--cam", type=str, default="front")
+    p.add_argument("--horizon-steps", type=int, default=20)
+    p.add_argument("--batch-size", type=int, default=32)
+    p.add_argument("--num-steps", type=int, default=200)
+    p.add_argument("--lr", type=float, default=1e-3)
+    p.add_argument("--weight-decay", type=float, default=1e-4)
+    p.add_argument("--num-workers", type=int, default=4)
+    p.add_argument("--prefetch-factor", type=int, default=2)
+    p.add_argument("--pin-memory", action="store_true")
+    p.add_argument("--no-pin-memory", action="store_true")
+    p.add_argument("--persistent-workers", action="store_true")
+    p.add_argument("--no-persistent-workers", action="store_true")
+    p.add_argument("--device", type=str, default="cuda")
+    p.add_argument("--drop-last", action="store_true")
+    p.add_argument("--no-drop-last", action="store_true")
+    p.add_argument("--pretrained-encoder", type=Path, default=None)
+    a = p.parse_args()
+
+    if a.drop_last and a.no_drop_last:
+        raise ValueError("Pass only one of --drop-last or --no-drop-last")
+    drop_last = True
+    if a.no_drop_last:
+        drop_last = False
+    if a.drop_last:
+        drop_last = True
+
+    if a.pin_memory and a.no_pin_memory:
+        raise ValueError("Pass only one of --pin-memory or --no-pin-memory")
+    pin_memory = True
+    if a.no_pin_memory:
+        pin_memory = False
+    if a.pin_memory:
+        pin_memory = True
+
+    if a.persistent_workers and a.no_persistent_workers:
+        raise ValueError("Pass only one of --persistent-workers or --no-persistent-workers")
+    persistent_workers = True
+    if a.no_persistent_workers:
+        persistent_workers = False
+    if a.persistent_workers:
+        persistent_workers = True
+
+    return Config(
+        episodes_glob=a.episodes_glob,
+        out_dir=a.out_dir,
+        cam=a.cam,
+        horizon_steps=int(a.horizon_steps),
+        batch_size=int(a.batch_size),
+        num_steps=int(a.num_steps),
+        lr=float(a.lr),
+        weight_decay=float(a.weight_decay),
+        num_workers=int(a.num_workers),
+        prefetch_factor=int(a.prefetch_factor),
+        pin_memory=bool(pin_memory),
+        persistent_workers=bool(persistent_workers),
+        drop_last=bool(drop_last),
+        device=a.device,
+        pretrained_encoder=a.pretrained_encoder,
+    )
+
+
+def main() -> None:
+    torch = _require_torch()
+    cfg = parse_args()
+
+    cfg.out_dir.mkdir(parents=True, exist_ok=True)
+
+    ds = EpisodesWaypointBCDataset(
+        cfg.episodes_glob,
+        cam=cfg.cam,
+        horizon_steps=cfg.horizon_steps,
+        decode_images=True,
+    )
+
+    device = torch.device(cfg.device)
+
+    enc = TinyMultiCamEncoder(out_dim=128).to(device)
+    head = WaypointHead(torch=torch, in_dim=128, horizon_steps=cfg.horizon_steps).to(device)
+
+    if cfg.pretrained_encoder is not None:
+        ckpt = torch.load(cfg.pretrained_encoder, map_location="cpu")
+        sd = ckpt.get("encoder") if isinstance(ckpt, dict) else None
+        if not isinstance(sd, dict):
+            raise SystemExit(f"Unexpected pretrained encoder checkpoint format: {cfg.pretrained_encoder}")
+        missing, unexpected = enc.load_state_dict(sd, strict=False)
+        print(f"[sft/waypoint_bc_torch] loaded encoder: missing={len(missing)} unexpected={len(unexpected)}")
+
+    opt = torch.optim.AdamW(
+        list(enc.parameters()) + list(head.parameters()),
+        lr=cfg.lr,
+        weight_decay=cfg.weight_decay,
+    )
+
+    loader_kwargs = dict(
+        batch_size=cfg.batch_size,
+        shuffle=True,
+        num_workers=cfg.num_workers,
+        drop_last=cfg.drop_last,
+        collate_fn=collate_waypoint_bc_batch,
+    )
+    if cfg.num_workers > 0:
+        loader_kwargs["prefetch_factor"] = cfg.prefetch_factor
+        loader_kwargs["persistent_workers"] = bool(cfg.persistent_workers)
+    loader_kwargs["pin_memory"] = bool(cfg.pin_memory)
+
+    loader = torch.utils.data.DataLoader(ds, **loader_kwargs)
+
+    step = 0
+    it = iter(loader)
+    losses = []
+
+    while step < cfg.num_steps:
+        try:
+            b = next(it)
+        except StopIteration:
+            it = iter(loader)
+            b = next(it)
+
+        x = b.get("image")
+        xv = b.get("image_valid")
+        y = b.get("waypoints")
+        yv = b.get("waypoints_valid")
+
+        if x is None or y is None or xv is None or yv is None:
+            step += 1
+            continue
+
+        # Keep only fully-valid examples.
+        valid = xv & yv
+        n_valid = int(valid.sum().item())
+        if n_valid < 2:
+            step += 1
+            continue
+
+        x = x.to(device, non_blocking=True)[valid]
+        y = y.to(device, non_blocking=True)[valid]
+
+        # TinyMultiCamEncoder expects a dict of cameras.
+        z = enc({cfg.cam: x}, image_valid_by_cam={cfg.cam: torch.ones((n_valid,), dtype=torch.bool, device=device)})
+        yhat = head(z)
+
+        loss = torch.mean((yhat - y) ** 2)
+
+        opt.zero_grad(set_to_none=True)
+        loss.backward()
+        opt.step()
+
+        losses.append(float(loss.item()))
+        if step % 20 == 0:
+            print(f"[sft/waypoint_bc_torch] step={step} loss={float(loss):.6f} n_valid={n_valid}")
+
+        step += 1
+
+    metrics = {
+        "loss_mean": float(sum(losses) / max(1, len(losses))),
+        "num_steps": int(cfg.num_steps),
+        "cam": cfg.cam,
+        "horizon_steps": int(cfg.horizon_steps),
+        "n_examples": int(len(ds)),
+    }
+
+    ckpt_path = cfg.out_dir / "model.pt"
+    torch.save(
+        {
+            "encoder": enc.state_dict(),
+            "head": head.state_dict(),
+            "out_dim": 128,
+            "cam": cfg.cam,
+            "horizon_steps": int(cfg.horizon_steps),
+        },
+        ckpt_path,
+    )
+    (cfg.out_dir / "train_metrics.json").write_text(json.dumps(metrics, indent=2) + "\n")
+    print(f"[sft/waypoint_bc_torch] wrote: {ckpt_path}")
+
+
+if __name__ == "__main__":
+    main()
