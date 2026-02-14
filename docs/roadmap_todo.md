@@ -23,3 +23,17 @@ It is intentionally not exhaustive.
     - What open implementations are cleanest and most reusable
     - How this could apply to action-conditioned video generation ("world simulator" direction)
   - Deliverable: one digest under `docs/digests/` with citations + action items for this repo.
+
+### Post-SFT RL (policy refinement)
+- **RL after imitation (BC/SFT) for driving/robotics policies**
+  - TODO: survey recent (2023–2026) papers + repos on refining an imitation policy with RL, especially:
+    - online RL / sim RL with imitation initialization
+    - offline RL / RLHF-style preference learning for embodied policies (if applicable)
+    - residual RL (policy = BC + delta)
+    - safe RL / constraint-based RL relevant to long-tail safety
+  - Questions to answer in a digest:
+    - What is the best "minimal" RL setup that consistently improves over BC in practice?
+    - What reward shaping / proxy metrics are used when real-world rewards are sparse?
+    - What evaluation protocols are standard (closed-loop metrics, regressions, safety counters)?
+    - Which open repos are most reusable for our waypoint-policy + sim-eval stack?
+  - Deliverable: one digest under `docs/digests/` with citations + action items.
