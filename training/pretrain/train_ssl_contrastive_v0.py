@@ -128,12 +128,12 @@ def main() -> None:
 
     # Use dataset-managed decoding so we also get per-sample camera validity masks.
     ds = EpisodesFrameDataset(cfg.episodes_glob, decode_images=True)
+
+    device = torch.device(cfg.device)
     enc = TinyMultiCamEncoder(out_dim=128).to(device)
     opt = torch.optim.Adam(enc.parameters(), lr=cfg.lr)
 
     cfg.out_dir.mkdir(parents=True, exist_ok=True)
-
-    device = torch.device(cfg.device)
 
     loader_kwargs = dict(
         batch_size=cfg.batch_size,
