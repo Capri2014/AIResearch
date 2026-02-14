@@ -22,7 +22,7 @@ from dataclasses import dataclass
 import json
 from pathlib import Path
 from typing import Any, Dict, Iterator, List, Optional, Tuple
-from collections import OrderedDict
+
 from training.pretrain.image_loading import ImageConfig, load_image_tensor
 
 
@@ -195,8 +195,8 @@ def _stack_images(images: List[Any], *, torch: Any) -> tuple[Optional[Any], Any]
         )
 
     c, h, w = first.shape
-    stacked = torch.zeros((len(images), c, h, w), dtype=first.dtype)
-    valid = torch.zeros((len(images),), dtype=torch.bool)
+    stacked = torch.zeros((len(images), c, h, w), dtype=first.dtype, device=first.device)
+    valid = torch.zeros((len(images),), dtype=torch.bool, device=first.device)
 
     for i, x in enumerate(images):
         if x is None:

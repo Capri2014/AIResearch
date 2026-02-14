@@ -7,9 +7,9 @@ _Last updated: 2026-02-13_
 - Turn episode shards into something we can actually train on (dataloader + decode + batching contract)
 
 ## Next (top 3)
-1) Make `TinyMultiCamEncoder` support masked fusion (use `image_valid_by_cam`)
-2) Hook up a minimal SSL objective that actually uses images (contrastive or temporal)
-3) Flesh out ScenarioRunner adapter + metrics parsing so eval is a real end-to-end step
+1) Run `train_ssl_contrastive_v0.py` end-to-end on real Waymo episodes and record throughput/memory; tune loader knobs + cache sizing.
+2) Extend SSL pretrain beyond 2-view InfoNCE: add temporal positives (t/t+1) and/or multi-positive across more cameras.
+3) Start the waypoint BC baseline + wire up CARLA ScenarioRunner adapter + metrics parsing for a true eval loop.
 
 ## Blockers / questions for owner
 - Confirm sim stack priority for the first runnable demo:
