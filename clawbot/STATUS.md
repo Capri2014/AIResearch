@@ -6,6 +6,7 @@ _Last updated: 2026-02-14_
 Driving-first pipeline: **Waymo episodes → PyTorch SSL pretrain → waypoint BC → CARLA ScenarioRunner eval**.
 
 ## Recent changes
+- Centralized episode path plumbing: `training/episodes/episode_paths.py` + refactors so both the SSL-pretrain and waypoint-BC dataloaders resolve `image_path` relative to the episode shard directory the same way.
 - Temporal SSL pretrain path: `EpisodesTemporalPairDataset` + `train_ssl_temporal_contrastive_v0.py` for InfoNCE on (t, t+k) within the same camera.
 - Waypoint BC (PyTorch, image-conditioned): `EpisodesWaypointBCDataset` + `train_waypoint_bc_torch_v0.py` (TinyMultiCamEncoder + MLP head, MSE) with optional `--pretrained-encoder` init.
 
