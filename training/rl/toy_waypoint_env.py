@@ -1,118 +1,310 @@
-"""Toy waypoint RL environment (deterministic).
+"""Toy 2D kinematic waypoint environment for RL experimentation.
 
-This is a tiny, dependency-free env used to harden RL evaluation plumbing *before*
-we hook up a real simulator.
+This is a minimal playground for testing:
+- Residual delta-waypoint learning
+- PPO training dynamics
+- ADE/FDE metrics
 
-Episode dynamics:
-- 2D point starts at (0, 0)
-- goal is sampled deterministically from a seed
-- action is a small delta (dx, dy) applied each step
-- reward is -L2 distance to goal (dense)
-- success when within `goal_radius`
+Design
+------
+- 2D planar world (x, y) with simple car kinematics
+- State: (x, y, heading, speed)
+- Action: (steer, throttle) or direct waypoint deltas
+- Goal: reach a sequence of target waypoints
 
-The intent is to support:
-- deterministic rollouts (seeded goals)
-- per-episode metrics that fit `data/schema/metrics.json`
-- side-by-side comparisons of "SFT" vs "RL-refined" waypoint policies
+Usage
+-----
+python -m training.rl.toy_waypoint_env --help
 """
 
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import Tuple
 import math
 import random
-from typing import Any, Dict, Tuple
 
-from training.rl.env_interface import Action, Info, Obs
+import numpy as np
 
 
 @dataclass
+class WaypointEnvConfig:
+    """Configuration for the toy waypoint environment."""
+    # World bounds
+    world_size: float = 100.0  # meters
+    
+    # Car kinematics
+    max_speed: float = 10.0  # m/s
+    min_speed: float = 0.0
+    max_steer: float = math.pi / 4  # 45 degrees
+    wheelbase: float = 2.5  # meters (distance between axles)
+    
+    # Waypoints
+    horizon_steps: int = 20
+    waypoint_spacing: float = 5.0  # meters between waypoints
+    
+    # Episode
+    max_episode_steps: int = 200
+    target_reach_radius: float = 3.0  # meters - considered "reached"
+    
+    # Rewards
+    progress_weight: float = 1.0
+    time_weight: float = -0.01
+    overshoot_weight: float = -0.1
+    goal_weight: float = 10.0
+
+
 class ToyWaypointEnv:
-    seed: int
-    max_steps: int = 50
-    goal_radius: float = 0.05
-    step_scale: float = 0.2
-
-    # state
-    t: int = 0
-    x: float = 0.0
-    y: float = 0.0
-    gx: float = 0.0
-    gy: float = 0.0
-
-    def reset(self) -> Obs:
-        r = random.Random(int(self.seed))
-        self.t = 0
-        self.x, self.y = 0.0, 0.0
-        # Keep goals bounded so simple policies can succeed.
-        self.gx = r.uniform(-1.0, 1.0)
-        self.gy = r.uniform(-1.0, 1.0)
-        return self._obs()
-
-    def _obs(self) -> Obs:
-        return {
-            "t": int(self.t),
-            "pos": {"x": float(self.x), "y": float(self.y)},
-            "goal": {"x": float(self.gx), "y": float(self.gy)},
+    """Minimal 2D car environment that consumes predicted waypoints."""
+    
+    def __init__(self, config: WaypointEnvConfig | None = None):
+        self.config = config or WaypointEnvConfig()
+        self.reset()
+    
+    def reset(self) -> Tuple[np.ndarray, dict]:
+        """Reset environment, return initial state and info."""
+        # Random start position
+        self.state = np.array([
+            random.uniform(-self.config.world_size / 2, self.config.world_size / 2),
+            random.uniform(-self.config.world_size / 2, self.config.world_size / 2),
+            random.uniform(-math.pi, math.pi),  # heading
+            0.0,  # speed
+        ], dtype=np.float32)
+        
+        # Generate target waypoints ahead of the car
+        self.waypoints = self._generate_waypoints()
+        self.current_waypoint_idx = 0
+        self.step_count = 0
+        
+        info = {
+            "waypoints": self.waypoints.copy(),
+            "start_pos": self.state[:2].copy(),
         }
-
-    def _dist(self) -> float:
-        return math.hypot(self.gx - self.x, self.gy - self.y)
-
-    def step(self, action: Action) -> Tuple[Obs, float, bool, Info]:
-        dx = float(action.get("dx", 0.0))
-        dy = float(action.get("dy", 0.0))
-
-        # Clamp action magnitude.
-        mag = math.hypot(dx, dy)
-        if mag > 1.0 and mag > 0:
-            dx /= mag
-            dy /= mag
-
-        self.x += dx * float(self.step_scale)
-        self.y += dy * float(self.step_scale)
-        self.t += 1
-
-        dist = self._dist()
-        reward = -float(dist)
-        success = bool(dist <= float(self.goal_radius))
-        done = bool(success or self.t >= int(self.max_steps))
-
-        info: Info = {
-            "dist": float(dist),
-            "success": bool(success),
+        return self.state.copy(), info
+    
+    def step(self, action: np.ndarray) -> Tuple[np.ndarray, float, bool, bool, dict]:
+        """
+        Step the environment.
+        
+        Args:
+            action: Either (steer, throttle) OR waypoint deltas (dx, dy)
+                    Shape depends on config - we'll detect based on magnitude.
+        
+        Returns:
+            state, reward, terminated, truncated, info
+        """
+        self.step_count += 1
+        
+        # Detect action type based on magnitude
+       rottle: # Steering/th values typically in [-1, 1]
+        # Waypoint deltas: could be larger
+        if np.abs(action).max() <= 1.0:
+            # Interpret as (steer, throttle)
+            steer, throttle = action[0], action[1]
+            self._kinematic_step(steer, throttle)
+        else:
+            # Interpret as waypoint delta prediction
+            self._waypoint_follow(action)
+        
+        # Check termination
+        terminated = self._check_goal()
+        truncated = self.step_count >= self.config.max_episode_steps
+        
+        # Compute reward
+        reward = self._compute_reward()
+        
+        info = {
+            "waypoints": self.waypoints.copy(),
+            "current_waypoint_idx": self.current_waypoint_idx,
+            "progress": self._compute_progress(),
         }
-        return self._obs(), reward, done, info
+        
+        return self.state.copy(), reward, terminated, truncated, info
+    
+    def _generate_waypoints(self) -> np.ndarray:
+        """Generate a sequence of waypoints ahead of the car."""
+        # Start from current position + some offset
+        start_x = self.state[0] + self.config.waypoint_spacing * math.cos(self.state[2])
+        start_y = self.state[1] + self.config.waypoint_spacing * math.sin(self.state[2])
+        
+        waypoints = []
+        for i in range(self.config.horizon_steps):
+            # Add some curve to the waypoints
+            angle = self.state[2] + (i - self.config.horizon_steps // 2) * 0.05
+            wx = start_x + i * self.config.waypoint_spacing * math.cos(angle)
+            wy = start_y + i * self.config.waypoint_spacing * math.sin(angle)
+            
+            # Clamp to world bounds
+            half = self.config.world_size / 2
+            wx = np.clip(wx, -half, half)
+            wy = np.clip(wy, -half, half)
+            
+            waypoints.append([wx, wy])
+        
+        return np.array(waypoints, dtype=np.float32)
+    
+    def _kinematic_step(self, steer: float, throttle: float, dt: float = 0.1):
+        """Apply simple bicycle model kinematics."""
+        x, y, heading, speed = self.state
+        
+        # Clamp inputs
+        steer = np.clip(steer, -1.0, 1.0) * self.config.max_steer
+        throttle = np.clip(throttle, -1.0, 1.0)
+        
+        # Update speed
+        speed += throttle * dt * 5.0  # acceleration
+        speed = np.clip(speed, self.config.min_speed, self.config.max_speed)
+        
+        # Update heading
+        v = speed * dt
+        if abs(speed) > 0.01:
+            heading += (v / self.config.wheelbase) * math.tan(steer) * dt
+        
+        # Update position
+        x += v * math.cos(heading)
+        y += v * math.sin(heading)
+        
+        # Keep in bounds
+        half = self.config.world_size / 2
+        x = np.clip(x, -half, half)
+        y = np.clip(y, -half, half)
+        
+        self.state = np.array([x, y, heading, speed], dtype=np.float32)
+    
+    def _waypoint_follow(self, delta_waypoints: np.ndarray):
+        """
+        Directly apply predicted waypoint deltas (simplified).
+        Used for testing residual learning.
+        """
+        # This is a simplified model for residual learning experiments
+        # The delta_waypoints would be added to a base policy's predictions
+        x, y, heading, speed = self.state
+        
+        # Apply first delta as movement
+        dx, dy = delta_waypoints[0], delta_waypoints[1]
+        x += dx * 0.1  # scale down for safety
+        y += dy * 0.1
+        
+        # Update heading toward next waypoint
+        target = self.waypoints[min(self.current_waypoint_idx + 1, len(self.waypoints) - 1)]
+        angle_to_target = math.atan2(target[1] - y, target[0] - x)
+        heading = heading * 0.9 + angle_to_target * 0.1
+        
+        # Clamp to world bounds
+        half = self.config.world_size / 2
+        x = np.clip(x, -half, half)
+        y = np.clip(y, -half, half)
+        
+        self.state = np.array([x, y, heading, speed], dtype=np.float32)
+    
+    def _check_goal(self) -> bool:
+        """Check if all waypoints have been reached."""
+        car_pos = self.state[:2]
+        
+        # Check current target waypoint
+        if self.current_waypoint_idx < len(self.waypoints):
+            dist = np.linalg.norm(car_pos - self.waypoints[self.current_waypoint_idx])
+            if dist < self.config.target_reach_radius:
+                self.current_waypoint_idx += 1
+                # Check if all waypoints reached
+                if self.current_waypoint_idx >= len(self.waypoints):
+                    return True
+        
+        # Also check if we went too far off track
+        if np.abs(self.state[0]) > self.config.world_size / 2 or np.abs(self.state[1]) > self.config.world_size / 2:
+            return True
+        
+        return False
+    
+    def _compute_progress(self) -> float:
+        """Compute progress as fraction of waypoints reached."""
+        return self.current_waypoint_idx / len(self.waypoints)
+    
+    def _compute_reward(self) -> float:
+        """Compute reward based on progress and behavior."""
+        car_pos = self.state[:2]
+        
+        reward = 0.0
+        
+        # Progress reward
+        progress = self._compute_progress()
+        reward += progress * self.config.progress_weight
+        
+        # Time penalty
+        reward += self.config.time_weight
+        
+        # Distance to current waypoint
+        if self.current_waypoint_idx < len(self.waypoints):
+            dist = np.linalg.norm(car_pos - self.waypoints[self.current_waypoint_idx])
+            reward -= dist * 0.01
+        
+        # Goal bonus
+        if self.current_waypoint_idx >= len(self.waypoints):
+            reward += self.config.goal_weight
+        
+        return float(reward)
+    
+    def get_observation(self) -> np.ndarray:
+        """Get observation for the policy."""
+        car_pos = self.state[:2]
+        
+        # Stack: car_state + waypoints + target_idx
+        obs = list(self.state)  # [x, y, heading, speed]
+        
+        # Pad waypoints to fixed length
+        wp_padded = np.zeros((self.config.horizon_steps, 2), dtype=np.float32)
+        for i, wp in enumerate(self.waypoints):
+            wp_padded[i] = wp
+        obs.extend(wp_padded.flatten().tolist())
+        
+        # Add target index (normalized)
+        obs.append(self.current_waypoint_idx / self.config.horizon_steps)
+        
+        return np.array(obs, dtype=np.float32)
+    
+    @property
+    def observation_space(self) -> tuple:
+        """Return observation space shape."""
+        # 4 (car state) + 20*2 (waypoints) + 1 (target idx) = 45
+        return (4 + self.config.horizon_steps * 2 + 1,)
+    
+    @property
+    def action_space(self) -> tuple:
+        """Return action space shape."""
+        # Can be (steer, throttle) or waypoint deltas
+        return (2,)
 
 
-def _unit(vx: float, vy: float) -> Tuple[float, float]:
-    mag = math.hypot(vx, vy)
-    if mag <= 1e-12:
-        return 0.0, 0.0
-    return vx / mag, vy / mag
+def main():
+    """Quick test of the environment."""
+    import argparse
+    
+    parser = argparse.ArgumentParser(description="Toy Waypoint Environment")
+    parser.add_argument("--episodes", type=int, default=10, help="Number of test episodes")
+    args = parser.parse_args()
+    
+    env = ToyWaypointEnv()
+    
+    total_reward = 0.0
+    
+    for ep in range(args.episodes):
+        state, info = env.reset()
+        ep_reward = 0.0
+        
+        for t in range(env.config.max_episode_steps):
+            # Random action
+            action = np.random.uniform(-1, 1, size=2)
+            state, reward, terminated, truncated, info = env.step(action)
+            ep_reward += reward
+            
+            if terminated or truncated:
+                break
+        
+        print(f"Episode {ep+1}: reward={ep_reward:.3f}, steps={t+1}, progress={info['progress']:.2f}")
+        total_reward += ep_reward
+    
+    print(f"\nAverage reward: {total_reward / args.episodes:.3f}")
 
 
-def policy_sft(obs: Obs) -> Dict[str, float]:
-    """A "BC/SFT-like" heuristic: step toward goal with a small magnitude."""
-    px = float(obs["pos"]["x"])
-    py = float(obs["pos"]["y"])
-    gx = float(obs["goal"]["x"])
-    gy = float(obs["goal"]["y"])
-    ux, uy = _unit(gx - px, gy - py)
-
-    # Intentionally conservative => may need more steps.
-    return {"dx": 0.6 * ux, "dy": 0.6 * uy}
-
-
-def policy_rl_refined(obs: Obs) -> Dict[str, float]:
-    """A slightly more aggressive heuristic (stands in for RL refinement)."""
-    px = float(obs["pos"]["x"])
-    py = float(obs["pos"]["y"])
-    gx = float(obs["goal"]["x"])
-    gy = float(obs["goal"]["y"])
-    ux, uy = _unit(gx - px, gy - py)
-
-    # Larger step + mild "braking" near goal to reduce oscillation.
-    dist = math.hypot(gx - px, gy - py)
-    scale = 1.0 if dist > 0.25 else 0.5
-    return {"dx": scale * ux, "dy": scale * uy}
+if __name__ == "__main__":
+    main()
