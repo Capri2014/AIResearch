@@ -180,5 +180,7 @@ This repository is maintained with help from **ClawBot (OpenClaw)**.
 - You review and merge into `main`.
 - No secrets are committed to the repo; credentials live only on the VPS.
 
+See `docs/branch-pr-workflow.md` for branch naming conventions and PR guidelines.
+
 ## License
 Add a license in `LICENSE` (MIT/Apache-2.0 are common).
