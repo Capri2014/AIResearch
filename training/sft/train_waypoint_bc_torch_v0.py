@@ -7,6 +7,7 @@ This trainer is intentionally minimal:
 - single-camera input (default: front)
 - predicts the full flattened waypoint vector (H,2)
 - MSE loss
+- ADE/FDE evaluation metrics after training
 
 Usage
 -----
@@ -24,12 +25,14 @@ python -m training.sft.train_waypoint_bc_torch_v0 \
 Outputs
 -------
 - out/sft_waypoint_bc_torch_v0/model.pt
-- out/sft_waypoint_bc_torch_v0/train_metrics.json
+- out/sft_waypoint_bc_torch_v0/train_metrics.json (includes ADE/FDE)
 
 Notes
 -----
 - For now we keep the encoder trainable (no freezing) to keep the script simple.
 - Episode images are resized to 224x224 via PIL.
+- ADE = Average Displacement Error (mean over all waypoints)
+- FDE = Final Displacement Error (error at last waypoint only)
 """
 
 from __future__ import annotations
@@ -49,6 +52,23 @@ def _require_torch():
     except Exception as e:
         raise RuntimeError("This script requires PyTorch.") from e
     return torch
+
+
+def compute_ade_fde(preds: torch.Tensor, targets: torch.Tensor) -> tuple[float, float]:
+    """Compute Average Displacement Error (ADE) and Final Displacement Error (FDE).
+
+    Args:
+        preds: Predicted waypoints of shape (B, H, 2)
+        targets: Ground truth waypoints of shape (B, H, 2)
+
+    Returns:
+        ade: Mean Euclidean distance across all waypoints
+        fde: Euclidean distance at the final waypoint only
+    """
+    errors = torch.norm(preds - targets, dim=2)  # (B, H)
+    ade = float(torch.mean(errors).item())
+    fde = float(errors[:, -1].mean().item())
+    return ade, fde
 
 
 class WaypointHead:
@@ -223,6 +243,8 @@ def main() -> None:
     step = 0
     it = iter(loader)
     losses = []
+    eval_preds = []
+    eval_targets = []
 
     while step < cfg.num_steps:
         try:
@@ -261,10 +283,24 @@ def main() -> None:
         opt.step()
 
         losses.append(float(loss.item()))
+
+        # Collect evaluation samples (last 100 valid samples)
+        if len(eval_preds) < 100:
+            eval_preds.append(yhat.detach().cpu())
+            eval_targets.append(y.detach().cpu())
+
         if step % 20 == 0:
             print(f"[sft/waypoint_bc_torch] step={step} loss={float(loss):.6f} n_valid={n_valid}")
 
         step += 1
+
+    # Compute ADE/FDE evaluation metrics
+    eval_ade, eval_fde = None, None
+    if eval_preds:
+        eval_preds_cat = torch.cat(eval_preds, dim=0)
+        eval_targets_cat = torch.cat(eval_targets, dim=0)
+        eval_ade, eval_fde = compute_ade_fde(eval_preds_cat, eval_targets_cat)
+        print(f"[sft/waypoint_bc_torch] eval ADE={eval_ade:.4f} FDE={eval_fde:.4f}")
 
     metrics = {
         "loss_mean": float(sum(losses) / max(1, len(losses))),
@@ -273,6 +309,10 @@ def main() -> None:
         "horizon_steps": int(cfg.horizon_steps),
         "n_examples": int(len(ds)),
     }
+
+    if eval_ade is not None:
+        metrics["ade"] = round(eval_ade, 4)
+        metrics["fde"] = round(eval_fde, 4)
 
     ckpt_path = cfg.out_dir / "model.pt"
     torch.save(
