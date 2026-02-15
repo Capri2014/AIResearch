@@ -8,6 +8,11 @@ Driving-first plan:
 This script now does *real* ScenarioRunner process invocation when a ScenarioRunner
 checkout is available, while keeping a safe fallback that writes stub metrics.
 
+Optionally loads a trained waypoint policy for closed-loop evaluation:
+  python -m sim.driving.carla_srunner.run_srunner_eval \
+    --policy-checkpoint out/sft_waypoint_bc_torch_v0/model.pt \
+    --suite smoke
+
 Outputs
 -------
 - out/eval/<run_id>/metrics.json
@@ -96,6 +101,39 @@ def _git_info(repo_root: Path) -> Dict[str, Any]:
     }
 
 
+def _load_policy_info(checkpoint: Optional[Path]) -> Dict[str, Any]:
+    """Load metadata from a policy checkpoint."""
+    if checkpoint is None:
+        return {"name": "stub", "checkpoint": None}
+    
+    if not Path(checkpoint).exists():
+        return {"name": "stub", "checkpoint": str(checkpoint), "error": "checkpoint not found"}
+    
+    try:
+        import torch
+        ckpt = torch.load(checkpoint, map_location="cpu")
+        
+        info: Dict[str, Any] = {
+            "checkpoint": str(checkpoint),
+        }
+        
+        # Extract metadata if present
+        if isinstance(ckpt, dict):
+            info["has_encoder"] = "encoder" in ckpt
+            info["has_head"] = "head" in ckpt
+            info["has_delta_head"] = "delta_head" in ckpt
+            if "cam" in ckpt:
+                info["cam"] = ckpt["cam"]
+            if "horizon_steps" in ckpt:
+                info["horizon_steps"] = int(ckpt["horizon_steps"])
+            if "out_dim" in ckpt:
+                info["out_dim"] = int(ckpt["out_dim"])
+        
+        return info
+    except Exception as e:
+        return {"name": "stub", "checkpoint": str(checkpoint), "error": str(e)}
+
+
 def _find_srunner_entrypoint(cfg: EvalConfig) -> Tuple[Optional[Path], Optional[str]]:
     root = cfg.scenario_runner_root
     if root is None:
@@ -152,13 +190,18 @@ def _write_metrics(
     git: Dict[str, Any],
     scenario_rows: List[Dict[str, Any]],
 ) -> None:
+    # Load policy checkpoint info
+    policy_info = _load_policy_info(
+        Path(cfg.policy_checkpoint) if cfg.policy_checkpoint else None
+    )
+    
     metrics: Dict[str, Any] = {
         "run_id": out_dir.name,
         "domain": "driving",
         "git": {k: v for k, v in git.items() if v is not None},
         "policy": {
             "name": cfg.policy_name,
-            **({"checkpoint": cfg.policy_checkpoint} if cfg.policy_checkpoint else {}),
+            **policy_info,
         },
         "scenarios": scenario_rows,
     }

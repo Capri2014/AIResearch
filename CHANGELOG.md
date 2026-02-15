@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Simulation
+- Added `WaypointPolicyWrapper` for CARLA closed-loop evaluation (`sim/driving/carla_srunner/policy_wrapper.py`)
+- Policy wrapper loads trained waypoint checkpoints and converts to CARLA control commands
+- Updated `run_srunner_eval.py` with policy checkpoint metadata extraction
+- Added `sim/driving/carla_srunner/README.md` with workflow docs
+
 ## [2026-02-15]
 
 ### RL (Reinforcement Learning)
