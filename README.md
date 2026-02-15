@@ -206,3 +206,10 @@ See `docs/branch-pr-workflow.md` for branch naming conventions and PR guidelines
 
 ## License
 Add a license in `LICENSE` (MIT/Apache-2.0 are common).
+### Kimi RL + LengthControl survey (Moonshot AI)
+- Survey Kimi's unique RL approach and LengthControl mechanism:
+  - Source: Kimi/Moonshot AI papers or technical reports on their RL training methodology
+  - LengthControl: understand their approach to managing output length in RL training
+  - RL design: extract unique insights in their RL algorithm design that differ from PPO/GRPO
+  - Applicability: assess which insights apply to autonomous driving (long-horizon planning, safety constraints)
+  - Comparison: compare with DeepSeek's RL pipeline approach
