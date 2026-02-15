@@ -23,6 +23,7 @@ import json
 from pathlib import Path
 from typing import Any, Dict, Iterator, List, Optional, Tuple
 
+from training.episodes.episode_index import load_index
 from training.episodes.episode_paths import glob_episode_paths, resolve_episode_asset_path
 from training.pretrain.image_loading import ImageConfig, load_image_tensor
 
@@ -255,3 +256,96 @@ def collate_batch(batch: List[Dict[str, Any]], *, stack_images: bool = False) ->
                 out["image_valid_by_cam"][cam] = valid
 
     return out
+
+
+class EpisodesFrameIndexDataset:
+    """Fast dataset that reads from a pre-built frame index (JSONL).
+
+    This avoids parsing full episode.json shards in each worker. Use
+    `training/episodes/episode_index.py` to build the index first:
+
+        python -m training.episodes.episode_index --output /path/to/index.jsonl \
+            "/path/to/episodes/*.json"
+
+    Then use this dataset:
+
+        dataset = EpisodesFrameIndexDataset(
+            index_path="/path/to/index.jsonl",
+            decode_images=False,
+        )
+    """
+
+    def __init__(
+        self,
+        index_path: str | Path,
+        *,
+        decode_images: bool = False,
+        image_cache_size: int = 2048,
+        image_size: tuple[int, int] = (224, 224),
+    ):
+        self._torch = _require_torch()
+        self.decode_images = bool(decode_images)
+        self.image_cache_size = int(image_cache_size)
+
+        self.index_path = Path(index_path)
+        self._frames = load_index(self.index_path)
+
+        # LRU cache for decoded images
+        self._img_cache: "OrderedDict[str, Any]" = OrderedDict()
+        self._img_cfg = ImageConfig(size=image_size)
+
+    def __len__(self) -> int:
+        return len(self._frames)
+
+    def __getitem__(self, idx: int) -> Dict[str, Any]:
+        torch = self._torch
+
+        fr = self._frames[idx]
+
+        # Resolve image paths relative to the episode shard
+        ep_path = Path(fr["episode_path"])
+        image_paths_by_cam: Dict[str, Optional[str]] = {}
+        for cam, p in fr.get("image_paths_by_cam", {}).items():
+            if p is None:
+                image_paths_by_cam[cam] = None
+                continue
+            img_path = resolve_episode_asset_path(ep_path, p)
+            image_paths_by_cam[cam] = str(img_path) if img_path else None
+
+        out: Dict[str, Any] = {
+            "image_paths_by_cam": image_paths_by_cam,
+            "state": {
+                "speed_mps": torch.tensor(fr.get("speed_mps", 0.0), dtype=torch.float32),
+                "yaw_rad": torch.tensor(fr.get("yaw_rad", 0.0), dtype=torch.float32),
+            },
+            "meta": {
+                "episode_id": fr.get("episode_id", ""),
+                "t": fr.get("t", 0.0),
+            },
+        }
+
+        if self.decode_images:
+            images_by_cam: Dict[str, Any] = {}
+            for cam, p in image_paths_by_cam.items():
+                if p is None:
+                    images_by_cam[cam] = None
+                    continue
+
+                key = p
+                cached = self._img_cache.get(key)
+                if cached is not None:
+                    self._img_cache.move_to_end(key)
+                    images_by_cam[cam] = cached
+                    continue
+
+                t_img = load_image_tensor(key, cfg=self._img_cfg)
+                images_by_cam[cam] = t_img
+                self._img_cache[key] = t_img
+                self._img_cache.move_to_end(key)
+
+                while len(self._img_cache) > self.image_cache_size:
+                    self._img_cache.popitem(last=False)
+
+            out["images_by_cam"] = images_by_cam
+
+        return out
