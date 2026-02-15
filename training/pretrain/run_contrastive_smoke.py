@@ -31,7 +31,11 @@ import argparse
 import time
 
 from models.encoders.tiny_multicam_encoder import TinyMultiCamEncoder
-from training.pretrain.dataloader_episodes import EpisodesFrameDataset, collate_batch
+from training.pretrain.dataloader_episodes import (
+    EpisodesFrameDataset,
+    EpisodesFrameIndexDataset,
+    collate_batch,
+)
 from training.pretrain.objectives.contrastive import info_nce_loss, multi_pair_info_nce_loss
 
 
@@ -46,6 +50,7 @@ def _require_torch():
 @dataclass
 class Config:
     episodes_glob: str
+    index_path: str = ""
     steps: int = 50
     batch_size: int = 16
     lr: float = 1e-3
@@ -70,6 +75,13 @@ class Config:
 def parse_args() -> Config:
     p = argparse.ArgumentParser()
     p.add_argument("--episodes-glob", type=str, default="out/episodes/**/*.json")
+    p.add_argument(
+        "--index-path",
+        type=str,
+        default="",
+        help="Pre-built frame index (JSONL). If provided, uses EpisodesFrameIndexDataset "
+        "instead of EpisodesFrameDataset for faster init with num-workers > 0.",
+    )
     p.add_argument("--steps", type=int, default=50)
     p.add_argument("--batch-size", type=int, default=16)
     p.add_argument("--lr", type=float, default=1e-3)
@@ -140,6 +152,7 @@ def parse_args() -> Config:
 
     return Config(
         episodes_glob=a.episodes_glob,
+        index_path=str(a.index_path).strip() if a.index_path else "",
         steps=a.steps,
         batch_size=a.batch_size,
         lr=a.lr,
@@ -177,7 +190,10 @@ def main() -> None:
 
     device = torch.device(cfg.device)
 
-    ds = EpisodesFrameDataset(cfg.episodes_glob, decode_images=True)
+    if cfg.index_path:
+        ds = EpisodesFrameIndexDataset(cfg.index_path, decode_images=True)
+    else:
+        ds = EpisodesFrameDataset(cfg.episodes_glob, decode_images=True)
     enc = TinyMultiCamEncoder(out_dim=128).to(device)
     opt = torch.optim.Adam(enc.parameters(), lr=cfg.lr)
 
