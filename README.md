@@ -88,6 +88,20 @@ When you're ready, we'll add:
   - Minimal: single-worker, CPU env, JSON metrics output
   - First target: improve waypoint accuracy beyond BC baseline
 
+### Drive-JEPA inspired pretrain (post-RL)
+- Implement **JEPA (Joint Embedding Predictive Architecture)** for driving SSL:
+  - Masked encoder training: predict future embeddings from past
+  - Proposal/scoring heads: learn which spatial regions matter most
+  - Multi-cam fusion: aggregate from multiple views with learned attention
+- Reference: XPeng Drive-JEPA (arXiv:2601.22032) for training recipe
+
+### Drive-JEPA waypoint head (post-RL)
+- Add **multi-step waypoint head** inspired by Drive-JEPA:
+  - Predict N waypoints (e.g., 20 @ 10Hz = 2s future)
+  - Per-waypoint confidence scores (proposal scoring)
+  - Ego-frame coordinate output (x, y in meters)
+- Integrates with BC → RL pipeline after baseline waypoint head works
+
 ### Driving world model (Waymo)
 - Add and review the **Waymo world model** paper:
   - distill: what's being modeled (BEV/occupancy/video), conditioning signals, rollout horizon
