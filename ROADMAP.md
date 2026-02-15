@@ -94,3 +94,14 @@ Checklist:
 - Reasoning SFT: add explicit CoT/Reasoning SFT stage before RL
 - GRPO integration: replace/supplement PPO with GRPO in RL stage
 - Iterative improvement: plan SFT/RLHF cycles for continuous refinement
+
+### Kimi RL + LengthControl survey (Moonshot AI)
+
+Goal: survey Kimi's unique RL approach and LengthControl mechanism.
+
+Checklist:
+- Source: Kimi/Moonshot AI papers or technical reports on their RL training methodology
+- LengthControl: understand their approach to managing output length in RL training
+- RL design: extract unique insights in their RL algorithm design that differ from PPO/GRPO
+- Applicability: assess which insights apply to autonomous driving (long-horizon planning, safety constraints)
+- Comparison: compare with DeepSeek's RL pipeline approach
