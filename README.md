@@ -132,6 +132,13 @@ When you're ready, we'll add:
 - Explore using **PySpark + Delta Lake** to improve data flywheel efficiency:
   - episode/frame indexing at scale (faster slicing/filtering than per-JSON scans)
   - incremental conversion + versioned datasets
+
+### Survey: GAIA-2 (Wayve)
+- Review **GAIA-2** (Wayve's video-generative world model):
+  - source: https://wayve.ai/thinking/gaia-2/
+  - extract: video tokenizer + latent diffusion architecture, conditioning (ego-action, weather, geometry), geographic diversity, safety-critical scenario generation
+  - compare vs DriveArena WorldDreamer vs SceneDiffuser: what's different in world model approach?
+  - decide: potential for synthetic data augmentation in our pipeline
   - simple dataset statistics/QA jobs (camera coverage, missing frames, label sanity)
 
 ### ClawBot LLM cost optimization
