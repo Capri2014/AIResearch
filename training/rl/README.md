@@ -1,22 +1,76 @@
-# RL (reinforcement learning) — skeleton
+# RL Training for Waypoint Policies
 
-RL is used to optimize task reward + constraints beyond imitation.
+This module provides RL training infrastructure for improving waypoint policies after SFT.
 
-## Variants to consider
+## Structure
 
-### Offline RL (from logs)
-- Pros: no simulator interaction required; safer.
-- Cons: algorithmic complexity; distributional shift; need well-logged rewards/costs.
+```
+training/rl/
+├── toy_waypoint_env.py       # Minimal 2D car environment for testing
+├── train_ppo_waypoint_delta.py  # PPO training for residual delta-waypoint head
+└── eval_metrics.py           # ADE/FDE metrics and policy comparison
+```
 
-### Online RL in simulation (e.g., PPO/SAC)
-- Pros: direct reward optimization; can improve beyond demonstrations.
-- Cons: requires a stable sim environment + careful safety constraints.
+## Quickstart
 
-### Preference optimization / RLHF-style (trajectory preferences)
-- Learn a reward model from comparisons, then optimize policy.
+### 1. Train SFT waypoint model first
 
-## What this repo provides now
-- An **environment interface contract** (so we can swap CARLA/MuJoCo/toy envs)
-- A **PPO training stub** to show wiring (not a complete implementation)
+```bash
+python -m training.sft.train_waypoint_bc_torch_v0 \
+  --episodes-glob "out/episodes/**/*.json" \
+  --batch-size 32 \
+  --num-steps 200
+```
 
-Once we choose the first runnable sim loop, we can implement one RL path fully.
+### 2. Train residual delta head with PPO
+
+```bash
+python -m training.rl.train_ppo_waypoint_delta \
+  --sft-model out/sft_waypoint_bc_torch_v0/model.pt \
+  --out-dir out/rl_delta_waypoint_v0 \
+  --episodes 1000
+```
+
+### 3. Evaluate and compare
+
+```bash
+# Compare SFT vs RL policies
+python -m training.rl.eval_metrics \
+  sft_predictions.json \
+  rl_predictions.json \
+  --compare \
+  --output comparison.json
+```
+
+## Design
+
+### Residual delta learning
+
+The PPO module learns a **residual correction** to the SFT policy:
+
+```
+final_waypoints = sft_waypoints + delta_head(z)
+```
+
+This keeps the pretrained SFT model fixed and only trains the delta head, which is:
+- More sample-efficient (fewer parameters)
+- Safer (SFT policy remains unchanged)
+- Modular (can swap SFT backbones)
+
+### Toy environment
+
+The `ToyWaypointEnv` is a minimal 2D car with:
+- Kinematic bicycle model
+- Random waypoint sequences
+- Simple reward: progress + goal bonus + time penalty
+
+Used for rapid prototyping before running expensive real-world/CARLA experiments.
+
+## Metrics
+
+- **ADE**: Average Displacement Error (mean distance across all waypoints)
+- **FDE**: Final Displacement Error (distance at final waypoint)
+- **Goal Reach Rate**: Fraction of episodes reaching final waypoint
+- **Waypoint Hit Rate**: Fraction of waypoints within threshold
+
+See `eval_metrics.py` for the full comparison utility.

@@ -33,8 +33,8 @@ Notes
 -----
 - ScenarioRunner CLI flags differ slightly across versions. We keep the runner
   conservative: we only pass common options and record the invoked command.
-- Result parsing is still best-effort; we always emit a schema-compatible
-  metrics.json even if we cannot parse detailed SR statistics.
+- Result parsing extracts completion, infractions, and comfort metrics from
+  ScenarioRunner's JSON output or structured log patterns.
 """
 
 from __future__ import annotations
@@ -45,6 +45,7 @@ from typing import Any, Dict, List, Optional, Tuple
 import argparse
 import json
 import os
+import re
 import subprocess
 import time
 
@@ -164,6 +165,93 @@ def _write_metrics(
     (out_dir / "metrics.json").write_text(json.dumps(metrics, indent=2) + "\n")
 
 
+def _parse_srunner_output(log_path: Path) -> Dict[str, Any]:
+    """Parse ScenarioRunner stdout/log for completion and infraction metrics.
+
+    ScenarioRunner outputs metrics in two common formats:
+    1. JSON report file (newer versions): looks for 'scenario_result.json' or
+       '**/results.json' in output dir.
+    2. Structured log patterns (older versions): extracts metrics from log lines
+       like "RouteCompletion: 0.85" or "Collisions: 2".
+
+    Returns a dict with keys: route_completion, collisions, offroad, red_light,
+    max_accel, max_jerk. Missing values are None.
+    """
+    result: Dict[str, Any] = {
+        "route_completion": None,
+        "collisions": None,
+        "offroad": None,
+        "red_light": None,
+        "comfort": None,
+    }
+
+    # Try to find a JSON results file in output dir (ScenarioRunner 0.9+)
+    results_patterns = ["scenario_result.json", "results.json", "evaluation.json"]
+    log_dir = log_path.parent
+
+    for pattern in results_patterns:
+        results_file = log_dir / pattern
+        if results_file.exists():
+            try:
+                data = json.loads(results_file.read_text())
+                # Extract common SR result fields
+                if isinstance(data, dict):
+                    result["route_completion"] = data.get("route_completion") or data.get("completion_rate")
+                    result["collisions"] = data.get("collisions") or data.get("collision_count")
+                    result["offroad"] = data.get("offroad") or data.get("off_track")
+                    result["red_light"] = data.get("red_light") or data.get("red_light_violations")
+
+                    # Comfort metrics
+                    comfort_fields = {}
+                    for field in ["max_accel", "max_jerk", "avg_accel", "avg_jerk"]:
+                        if field in data:
+                            comfort_fields[field] = data[field]
+                    if comfort_fields:
+                        result["comfort"] = comfort_fields
+                return result
+            except (json.JSONDecodeError, OSError):
+                pass
+
+    # Fallback: parse structured log patterns from stdout
+    if not log_path.exists():
+        return result
+
+    text = log_path.read_text(errors="replace")
+
+    # Route completion patterns
+    rc_match = re.search(r"RouteCompletion[:\s]+([0-9.]+)", text, re.I)
+    if rc_match:
+        result["route_completion"] = float(rc_match.group(1))
+
+    # Infraction patterns
+    coll_match = re.search(r"Collisions?[:\s]+(\d+)", text, re.I)
+    if coll_match:
+        result["collisions"] = int(coll_match.group(1))
+
+    offroad_match = re.search(r"Off[- ]?road[:\s]+(\d+)", text, re.I)
+    if offroad_match:
+        result["offroad"] = int(offroad_match.group(1))
+
+    redlight_match = re.search(r"Red[- ]?light[:\s]+(\d+)", text, re.I)
+    if redlight_match:
+        result["red_light"] = int(redlight_match.group(1))
+
+    # Comfort metrics from log
+    comfort_fields = {}
+    accel_match = re.search(r"MaxAcceleration[:\s]+([0-9.]+)", text, re.I)
+    if accel_match:
+        comfort_fields["max_accel"] = float(accel_match.group(1))
+
+    jerk_match = re.search(r"MaxJerk[:\s]+([0-9.]+)", text, re.I)
+    if jerk_match:
+        comfort_fields["max_jerk"] = float(jerk_match.group(1))
+
+    if comfort_fields:
+        result["comfort"] = comfort_fields
+
+    return result
+
+
 def main() -> None:
     p = argparse.ArgumentParser()
     p.add_argument("--out-root", type=Path, default=Path("out/eval"))
@@ -274,27 +362,38 @@ def main() -> None:
         log_path.write_bytes(proc.stdout or b"")
         dt = time.time() - t0
 
-        # Best-effort: we do not yet parse detailed SR statistics. We at least
-        # preserve the run command + return code for debugging.
+        # Parse ScenarioRunner output for completion/infraction metrics
+        parsed = _parse_srunner_output(log_path)
+
+        # Preserve run command + return code for debugging
         raw = {
-            "note": "ScenarioRunner invoked (metrics parsing best-effort)",
+            "note": "ScenarioRunner invoked",
             "cmd": cmd,
             "returncode": int(proc.returncode),
             "stdout_log": str(log_path),
             "duration_s": float(dt),
         }
 
+        # Build scenario row with parsed metrics where available
+        scenario_row = {
+            "scenario_id": f"{cfg.suite}:{scenario_id}",
+            "success": bool(proc.returncode == 0),
+            "raw": raw,
+        }
+
+        # Wire in parsed metrics (only include non-None values)
+        for key in ["route_completion", "collisions", "offroad", "red_light"]:
+            if parsed[key] is not None:
+                scenario_row[key] = parsed[key]
+
+        if parsed.get("comfort"):
+            scenario_row["comfort"] = parsed["comfort"]
+
         _write_metrics(
             out_dir=out_dir,
             cfg=cfg,
             git=git,
-            scenario_rows=[
-                {
-                    "scenario_id": f"{cfg.suite}:{scenario_id}",
-                    "success": bool(proc.returncode == 0),
-                    "raw": raw,
-                }
-            ],
+            scenario_rows=[scenario_row],
         )
         print(f"[carla_srunner] wrote: {out_dir / 'metrics.json'}")
     except subprocess.TimeoutExpired:

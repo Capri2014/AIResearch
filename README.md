@@ -164,6 +164,13 @@ When you're ready, we'll add:
   - project: https://horizonrobotics.github.io/robot_lab/holobrain
   - extract: data recipe, model interface (obs/action), training stages, evaluation on real hardware
 
+### PPO improvements for large models
+- Improve PPO stability and explore model-based RL approaches that scale well with large foundation models:
+  - Implement stable PPO advances (clipping tricks, value function centering, advantage normalization, GAE tuning)
+  - Explore model-based RL integration (e.g., GAIA-2 style latent dynamics) for sample-efficient policy learning
+  - Ensure delta-waypoint head works with scaled encoders/backbones; consider LoRA for RL head
+  - Add KL divergence constraints, learning rate scheduling, checkpoint selection by policy entropy
+
 ---
 
 ## Maintenance
