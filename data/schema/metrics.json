@@ -6,7 +6,7 @@
   "required": ["run_id", "domain", "scenarios"],
   "properties": {
     "run_id": {"type": "string"},
-    "domain": {"type": "string", "enum": ["driving", "robotics"]},
+    "domain": {"type": "string", "enum": ["driving", "robotics", "rl"]},
     "git": {
       "type": "object",
       "properties": {

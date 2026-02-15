@@ -12,6 +12,7 @@ Driving-first pipeline: **Waymo episodes → PyTorch SSL pretrain → waypoint B
 - Waypoint BC (PyTorch, image-conditioned): `EpisodesWaypointBCDataset` + `train_waypoint_bc_torch_v0.py` (TinyMultiCamEncoder + MLP head, MSE) with optional `--pretrained-encoder` init.
 - Training script hardening: `--device auto` (CUDA→CPU fallback), `--seed`, and periodic checkpoints (`out_dir/checkpoints/latest.pt`) shared by temporal SSL + waypoint BC; BC also supports `--freeze-encoder`.
 - CARLA ScenarioRunner eval harness (v0): `sim/driving/carla_srunner/run_srunner_eval.py` can now invoke ScenarioRunner (when available), writes `config.json` + stdout log, and always emits schema-compatible `metrics.json` with git metadata.
+- RL eval/metrics hardening (toy waypoint env): deterministic seeded eval runner writes `out/eval/<run_id>/metrics.json` with `domain=rl`, plus a tiny comparer for SFT vs RL-refined runs.
 
 ## Next (top 3)
 1) Run SSL pretrain end-to-end on real Waymo episode shards and record throughput/memory; tune dataloader knobs + cache sizing.
