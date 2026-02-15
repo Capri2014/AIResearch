@@ -44,6 +44,8 @@ import json
 
 from models.encoders.tiny_multicam_encoder import TinyMultiCamEncoder
 from training.sft.dataloader_waypoint_bc import EpisodesWaypointBCDataset, collate_waypoint_bc_batch
+from training.utils.checkpointing import save_checkpoint
+from training.utils.device import resolve_torch_device
 
 
 def _require_torch():
@@ -117,13 +119,17 @@ class Config:
     lr: float = 1e-3
     weight_decay: float = 1e-4
 
+    seed: int = 0
+    save_every: int = 100
+    freeze_encoder: bool = False
+
     num_workers: int = 4
     prefetch_factor: int = 2
     pin_memory: bool = True
     persistent_workers: bool = True
     drop_last: bool = True
 
-    device: str = "cuda"
+    device: str = "auto"
 
     # Optional: init encoder weights from SSL.
     pretrained_encoder: Path | None = None
@@ -145,7 +151,10 @@ def parse_args() -> Config:
     p.add_argument("--no-pin-memory", action="store_true")
     p.add_argument("--persistent-workers", action="store_true")
     p.add_argument("--no-persistent-workers", action="store_true")
-    p.add_argument("--device", type=str, default="cuda")
+    p.add_argument("--device", type=str, default="auto")
+    p.add_argument("--seed", type=int, default=0)
+    p.add_argument("--save-every", type=int, default=100)
+    p.add_argument("--freeze-encoder", action="store_true")
     p.add_argument("--drop-last", action="store_true")
     p.add_argument("--no-drop-last", action="store_true")
     p.add_argument("--pretrained-encoder", type=Path, default=None)
@@ -190,6 +199,9 @@ def parse_args() -> Config:
         persistent_workers=bool(persistent_workers),
         drop_last=bool(drop_last),
         device=a.device,
+        seed=int(a.seed),
+        save_every=int(a.save_every),
+        freeze_encoder=bool(a.freeze_encoder),
         pretrained_encoder=a.pretrained_encoder,
     )
 
@@ -207,7 +219,12 @@ def main() -> None:
         decode_images=True,
     )
 
-    device = torch.device(cfg.device)
+    # Repro.
+    torch.manual_seed(int(cfg.seed))
+    if bool(torch.cuda.is_available()):
+        torch.cuda.manual_seed_all(int(cfg.seed))
+
+    device = resolve_torch_device(torch=torch, device_str=cfg.device)
 
     enc = TinyMultiCamEncoder(out_dim=128).to(device)
     head = WaypointHead(torch=torch, in_dim=128, horizon_steps=cfg.horizon_steps).to(device)
@@ -220,8 +237,14 @@ def main() -> None:
         missing, unexpected = enc.load_state_dict(sd, strict=False)
         print(f"[sft/waypoint_bc_torch] loaded encoder: missing={len(missing)} unexpected={len(unexpected)}")
 
+    if bool(cfg.freeze_encoder):
+        for p in enc.parameters():
+            p.requires_grad = False
+        print("[sft/waypoint_bc_torch] encoder frozen")
+
+    params = [p for p in list(enc.parameters()) + list(head.parameters()) if bool(getattr(p, "requires_grad", True))]
     opt = torch.optim.AdamW(
-        list(enc.parameters()) + list(head.parameters()),
+        params,
         lr=cfg.lr,
         weight_decay=cfg.weight_decay,
     )
@@ -291,6 +314,16 @@ def main() -> None:
 
         if step % 20 == 0:
             print(f"[sft/waypoint_bc_torch] step={step} loss={float(loss):.6f} n_valid={n_valid}")
+
+        if int(cfg.save_every) > 0 and (step + 1) % int(cfg.save_every) == 0:
+            save_checkpoint(
+                torch=torch,
+                out_dir=cfg.out_dir,
+                step=step + 1,
+                cfg=cfg,
+                model_state={"encoder": enc.state_dict(), "head": head.state_dict()},
+                optim_state=opt.state_dict(),
+            )
 
         step += 1
 
