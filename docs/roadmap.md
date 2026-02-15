@@ -51,3 +51,35 @@ Planned follow-up:
 - **Large model compatibility**: Ensure delta-waypoint head works with scaled encoders/backbones; consider LoRA for the RL head
 - **Training stability**: Add KL divergence constraints, learning rate scheduling, checkpoint selection by policy entropy
 
+## CoT data generation and finetuning for autonomous driving
+
+Goal: explore Chain-of-Thought reasoning data generation and finetuning for improved driving decisions.
+
+Planned follow-up:
+- **CoT data synthesis**: Generate reasoning traces from expert drivers or rule-based planners
+- **Structured trace format**: Define schema for driving reasoning (perception → prediction → planning → action)
+- **Finetuning**: Fine-tune vision-language or action models on CoT-augmented data
+- **Evaluation**: Measure decision quality improvements from CoT reasoning
+
+## RL algorithm upgrade: GRPO / Agent RL
+
+Goal: move beyond basic PPO to more capable RL algorithms suitable for autonomous driving.
+
+Planned follow-up:
+- **GRPO (Group Relative Policy Optimization)**: Implement GRPO for autonomous driving tasks
+- **Agent RL**: Explore agent-centric RL formulations for long-horizon driving decisions
+- **Benchmark**: Compare PPO vs GRPO on waypoint prediction and control tasks
+- **Scaling**: Ensure algorithm works with large foundation models and high-dimensional inputs
+
+## DeepSeek RL pipeline: Pre-train → Reasoning SFT → RL → SFT/RLHF
+
+Goal: survey DeepSeek's RL pipeline and upgrade our current pipeline accordingly.
+
+Planned follow-up:
+- **Survey DeepSeek RL**: Study DeepSeek's training recipe (pre-train → reasoning SFT → RL → SFT/RLHF)
+- **Gap analysis**: Compare current pipeline (SFT → RL refinement) with DeepSeek's approach
+- **Reasoning SFT**: Add explicit CoT/Reasoning SFT stage before RL
+- **GRPO integration**: Replace or supplement PPO with GRPO in the RL stage
+- **Iterative improvement**: Plan SFT/RLHF cycles for continuous refinement
+- **Evaluation**: Define metrics for reasoning quality and driving safety
+

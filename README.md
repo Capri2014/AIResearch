@@ -166,10 +166,32 @@ When you're ready, we'll add:
 
 ### PPO improvements for large models
 - Improve PPO stability and explore model-based RL approaches that scale well with large foundation models:
-  - Implement stable PPO advances (clipping tricks, value function centering, advantage normalization, GAE tuning)
-  - Explore model-based RL integration (e.g., GAIA-2 style latent dynamics) for sample-efficient policy learning
-  - Ensure delta-waypoint head works with scaled encoders/backbones; consider LoRA for RL head
-  - Add KL divergence constraints, learning rate scheduling, checkpoint selection by policy entropy
+  - Implement stable PPO advances (clipping tricks, value centering, GAE tuning)
+  - Explore model-based RL integration (GAIA-2 style latent dynamics)
+  - Ensure delta-waypoint head works with scaled encoders; consider LoRA for RL head
+  - Add KL divergence constraints, LR scheduling, entropy-based checkpointing
+
+### CoT data generation and finetuning for autonomous driving
+- Explore Chain-of-Thought reasoning data generation and finetuning for improved driving decisions:
+  - CoT data synthesis: generate reasoning traces from expert drivers or rule-based planners
+  - Structured trace format: define schema for driving reasoning (perception → prediction → planning → action)
+  - Finetuning: fine-tune vision-language or action models on CoT-augmented data
+  - Evaluation: measure decision quality improvements from CoT reasoning
+
+### RL algorithm upgrade: GRPO / Agent RL
+- Move beyond basic PPO to more capable RL algorithms suitable for autonomous driving:
+  - GRPO (Group Relative Policy Optimization): implement for driving tasks
+  - Agent RL: explore agent-centric formulations for long-horizon decisions
+  - Benchmark: compare PPO vs GRPO on waypoint prediction and control
+  - Scaling: ensure algorithm works with large foundation models
+
+### DeepSeek RL pipeline upgrade
+- Survey DeepSeek's training recipe and upgrade our pipeline accordingly:
+  - Survey DeepSeek RL: pre-train → reasoning SFT → RL → SFT/RLHF
+  - Gap analysis: compare current pipeline (SFT → RL) with DeepSeek's approach
+  - Reasoning SFT: add explicit CoT/Reasoning SFT stage before RL
+  - GRPO integration: replace/supplement PPO with GRPO in RL stage
+  - Iterative improvement: plan SFT/RLHF cycles for continuous refinement
 
 ---
 
