@@ -1,6 +1,6 @@
 # Digest Comparison: Driving AI / VLA / Simulation
 
-| Aspect | Drive-JEPA (XPeng) | Waymo World Model | 3DGS | Tesla Foundational | DriveArena (PJLab) | HoloBrain-0 |
+| Aspect | Drive-JEPA (XPeng) | Waymo World Model | 3D Gaussian Splatting | Tesla Foundational | DriveArena (PJLab) | HoloBrain-0 |
 |--------|-------------------|-------------------|------|---------------------|-------------------|-------------|
 | **Paper** | arXiv:2601.22032 | arXiv:... | Kerbl et al. 2023 | - | arXiv:2408.00415 | arXiv:2602.12062 |
 | **Domain** | Driving (EV) | Driving (Waymo) | 3D Reconstruction | Driving (Tesla) | Driving Sim | Robotics |
