@@ -14,10 +14,11 @@ Driving-first pipeline: **Waymo episodes → PyTorch SSL pretrain → waypoint B
 - Centralized episode path plumbing: `training/episodes/episode_paths.py` + refactors so both the SSL-pretrain and waypoint-BC dataloaders resolve `image_path` relative to the episode shard directory the same way.
 - Temporal SSL pretrain path: `EpisodesTemporalPairDataset` + `train_ssl_temporal_contrastive_v0.py` for InfoNCE on (t, t+k) within the same camera.
 - Added a fast temporal SSL smoke runner: `training/pretrain/run_temporal_smoke.py` (throughput/skip stats + GPU mem).
-- Waypoint BC (PyTorch, image-conditioned): `EpisodesWaypointBCDataset` + `train_waypoint_bc_torch_v0.py` (TinyMultiCamEncoder + MLP head, MSE) with optional `--pretrained-encoder` init.
+- **Waypoint BC (PyTorch, image-conditioned)**: `EpisodesWaypointBCDataset` + `train_waypoint_bc_torch_v0.py` (TinyMultiCamEncoder + MLP head, MSE) with optional `--pretrained-encoder` init.
+- **Added ADE/FDE evaluation metrics** to waypoint BC trainer for trajectory prediction quality assessment.
 - Training script hardening: `--device auto` (CUDA→CPU fallback), `--seed`, and periodic checkpoints (`out_dir/checkpoints/latest.pt`) shared by temporal SSL + waypoint BC; BC also supports `--freeze-encoder`.
 - CARLA ScenarioRunner eval harness: `run_srunner_eval.py` now parses SR outputs for `route_completion`, `collisions`, `offroad`, `red_light`, and `comfort` metrics. Schema-compatible `metrics.json` populated with real evaluation data.
-- RL eval/metrics hardening (toy waypoint env): deterministic seeded eval runner writes `out/eval/<run_id>/metrics.json` with `domain=rl`, plus a tiny comparer for SFT vs RL-refined runs.
+- RL infrastructure (PPO delta-head + toy env + eval): Added `training/rl/toy_waypoint_env.py`, `train_ppo_waypoint_delta.py`, `waypoint_policy_torch.py`, `select_checkpoint.py`, and `eval_metrics.py` for residual waypoint learning.
 
 ## Next (top 3)
 1) Wire Torch `WaypointPolicyTorch` into closed-loop ScenarioRunner runs (policy serves waypoints to SR)
