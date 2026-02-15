@@ -83,3 +83,14 @@ Planned follow-up:
 - **Iterative improvement**: Plan SFT/RLHF cycles for continuous refinement
 - **Evaluation**: Define metrics for reasoning quality and driving safety
 
+
+## Survey: Kimi RL + LengthControl (Moonshot AI)
+
+Goal: survey Kimi's unique RL approach and LengthControl mechanism.
+
+Planned follow-up:
+- **Source**: Kimi/Moonshot AI papers or technical reports on their RL training methodology
+- **LengthControl**: Understand their approach to managing output length in RL training
+- **RL design**: Extract unique insights in their RL algorithm design that differ from PPO/GRPO
+- **Applicability**: Assess which insights apply to autonomous driving (long-horizon planning, safety constraints)
+- **Comparison**: Compare with DeepSeek's RL pipeline approach
