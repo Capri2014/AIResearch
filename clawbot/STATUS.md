@@ -1,6 +1,6 @@
 # Status (ClawBot)
 
-_Last updated: 2026-02-14_
+_Last updated: 2026-02-15_
 
 ## Current focus
 Driving-first pipeline: **Waymo episodes → PyTorch SSL pretrain → waypoint BC → CARLA ScenarioRunner eval**.
@@ -11,13 +11,13 @@ Driving-first pipeline: **Waymo episodes → PyTorch SSL pretrain → waypoint B
 - Added a fast temporal SSL smoke runner: `training/pretrain/run_temporal_smoke.py` (throughput/skip stats + GPU mem).
 - Waypoint BC (PyTorch, image-conditioned): `EpisodesWaypointBCDataset` + `train_waypoint_bc_torch_v0.py` (TinyMultiCamEncoder + MLP head, MSE) with optional `--pretrained-encoder` init.
 - Training script hardening: `--device auto` (CUDA→CPU fallback), `--seed`, and periodic checkpoints (`out_dir/checkpoints/latest.pt`) shared by temporal SSL + waypoint BC; BC also supports `--freeze-encoder`.
-- CARLA ScenarioRunner eval harness (v0): `sim/driving/carla_srunner/run_srunner_eval.py` can now invoke ScenarioRunner (when available), writes `config.json` + stdout log, and always emits schema-compatible `metrics.json` with git metadata.
+- CARLA ScenarioRunner eval harness: `run_srunner_eval.py` now parses SR outputs for `route_completion`, `collisions`, `offroad`, `red_light`, and `comfort` metrics. Schema-compatible `metrics.json` populated with real evaluation data.
 - RL eval/metrics hardening (toy waypoint env): deterministic seeded eval runner writes `out/eval/<run_id>/metrics.json` with `domain=rl`, plus a tiny comparer for SFT vs RL-refined runs.
 
 ## Next (top 3)
-1) Run SSL pretrain end-to-end on real Waymo episode shards and record throughput/memory; tune dataloader knobs + cache sizing.
-2) Add waypoint BC eval metrics (ADE/FDE) + checkpoint selection; wire a `WaypointPolicyTorch` wrapper for rollouts.
-3) Parse ScenarioRunner outputs into `metrics.json` (completion + infractions), and wire the Torch policy into closed-loop SR runs.
+1) Wire Torch `WaypointPolicyTorch` into closed-loop ScenarioRunner runs (policy serves waypoints to SR)
+2) Run SSL pretrain end-to-end on real Waymo episode shards and record throughput/memory; tune dataloader knobs + cache sizing.
+3) Add waypoint BC eval metrics (ADE/FDE) + checkpoint selection; wire `--policy-checkpoint` loading
 
 ## Blockers / questions for owner
 - Confirm sim stack priority for the first runnable demo:
