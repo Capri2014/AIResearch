@@ -6,9 +6,11 @@ This module provides RL training infrastructure for improving waypoint policies 
 
 ```
 training/rl/
-├── toy_waypoint_env.py       # Minimal 2D car environment for testing
-├── train_ppo_waypoint_delta.py  # PPO training for residual delta-waypoint head
-└── eval_metrics.py           # ADE/FDE metrics and policy comparison
+├── toy_waypoint_env.py           # Minimal 2D car environment for testing
+├── train_ppo_waypoint_delta.py   # PPO training for residual delta-waypoint learning
+├── waypoint_policy_torch.py      # Policy wrapper: SFT base + delta head
+├── select_checkpoint.py          # Best checkpoint selection by ADE/FDE
+└── eval_metrics.py               # ADE/FDE metrics and policy comparison
 ```
 
 ## Quickstart
@@ -40,6 +42,27 @@ python -m training.rl.eval_metrics \
   rl_predictions.json \
   --compare \
   --output comparison.json
+```
+
+### 4. Policy wrapper for inference
+
+```python
+from training.rl.waypoint_policy_torch import WaypointPolicyTorch, WaypointPolicyConfig
+
+cfg = WaypointPolicyConfig(checkpoint="out/sft_waypoint_bc_torch_v0/model.pt")
+policy = WaypointPolicyTorch(cfg)
+
+waypoints = policy({"front": images}, image_valid={"front": valid_mask})
+```
+
+### 5. Select best checkpoint by ADE/FDE
+
+```bash
+python -m training.rl.select_checkpoint \
+  --checkpoints "out/rl_delta_waypoint_v0/checkpoint_*.pt" \
+  --eval-data "out/episodes/**/*.json" \
+  --metric ade \
+  --output-best out/rl_delta_waypoint_v0/best.pt
 ```
 
 ## Design
