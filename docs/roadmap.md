@@ -94,3 +94,26 @@ Planned follow-up:
 - **RL design**: Extract unique insights in their RL algorithm design that differ from PPO/GRPO
 - **Applicability**: Assess which insights apply to autonomous driving (long-horizon planning, safety constraints)
 - **Comparison**: Compare with DeepSeek's RL pipeline approach
+
+## Survey: DeepSeek Engram (Memory-Augmented Language Models)
+
+Goal: survey DeepSeek's Engram paper on efficient knowledge retrieval via N-gram embeddings and hash lookup.
+
+Context: DeepSeek Engram builds on two research lines:
+- **Memory research**: Transformer FFN as KV Memory, Product Key Memory, RETRO, External Memory
+- **N-gram research**: N-Grammer, Scaling Embedding Layer
+
+Core ideas:
+- **N-gram Embedding + Hash lookup**: O(1) complexity knowledge retrieval
+- **Sparsity**: Key to breaking "impossible triangle" (Performance / Compute / Model Size)
+- **Gating + Memory Hierarchy**: Efficient knowledge storage and retrieval
+- **Relationship to MoE**: Engram complements MoE architectures
+
+Planned follow-up:
+- **Survey Engram paper**: Study the core idea of N-gram Embedding + Hash for efficient retrieval
+- **Technical points**: Understand Sparsity, Gating mechanisms, Memory Hierarchy
+- **Applicability**: Assess relevance to autonomous driving (scene understanding, rule retrieval, safety knowledge)
+- **Implementation**: Explore adding external memory to vision backbone for efficient knowledge access
+- **Comparison**: Contrast with traditional FFN as implicit memory
+
+Source: https://www.bilibili.com/video/BV1x3zWB6EU6/

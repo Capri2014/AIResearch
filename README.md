@@ -213,3 +213,11 @@ Add a license in `LICENSE` (MIT/Apache-2.0 are common).
   - RL design: extract unique insights in their RL algorithm design that differ from PPO/GRPO
   - Applicability: assess which insights apply to autonomous driving (long-horizon planning, safety constraints)
   - Comparison: compare with DeepSeek's RL pipeline approach
+
+### DeepSeek Engram survey (Memory-Augmented Language Models)
+- Survey DeepSeek's Engram paper on efficient knowledge retrieval via N-gram embeddings + hash lookup:
+  - Core idea: N-gram Embedding + Hash for O(1) complexity knowledge retrieval
+  - Technical points: Sparsity, Gating, Memory Hierarchy
+  - Relationship to MoE: Engram complements MoE architectures
+  - Applicability: Efficient scene understanding, rule retrieval, safety knowledge storage
+  - Source: https://www.bilibili.com/video/BV1x3zWB6EU6/
