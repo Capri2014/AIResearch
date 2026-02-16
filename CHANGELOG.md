@@ -7,11 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Simulation
-- Added `WaypointPolicyWrapper` for CARLA closed-loop evaluation (`sim/driving/carla_srunner/policy_wrapper.py`)
+### RL (Reinforcement Learning)
+- **PPO training completed**: 500 episodes on toy waypoint environment
+- **RL vs SFT comparison**: RL policy shows +1% ADE improvement over SFT baseline
+- Added `WaypointPolicyWrapper` for CARLA closed-loop evaluation
 - Policy wrapper loads trained waypoint checkpoints and converts to CARLA control commands
 - Updated `run_srunner_eval.py` with policy checkpoint metadata extraction
+
+### Simulation
 - Added `sim/driving/carla_srunner/README.md` with workflow docs
+
+### Survey
+- Added GAIA-2 world model digest (`docs/digests/2026-02-15-gaia-2-world-model.md`)
+- Extracted: latent diffusion + video tokenizer, rich conditioning (ego-actions, weather, road), multi-camera consistency
+
+### Docs
+- Added `docs/learning/jepa-proposal-head-explained.md` - learning notes on JEPA and proposal head
 
 ## [2026-02-15]
 
