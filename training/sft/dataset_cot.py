@@ -2,6 +2,7 @@
 SFT Dataset with CoT (Chain of Thought) Reasoning Traces
 
 Creates training dataset that includes both waypoint labels and reasoning traces.
+Uses proper tokenizers (BERT) for text encoding instead of placeholder.
 
 Usage:
     python -m training.sft.dataset_cot --input waymo_episodes --cot cot_traces.jsonl --output sft_cot_dataset.pt
@@ -25,16 +26,16 @@ class CoTSample:
     
     # Input features (from Waymo)
     images: List[str]  # Image paths or base64 encoded
-    state_features: Dict[str, float]  # ego_speed, heading, etc.
+    state_features: Dict[str, float]
     
     # CoT reasoning trace (text)
-    cot_trace: Dict[str, str]  # perception, situation, prediction, planning, confidence
+    cot_trace: Dict[str, str]
     
     # Target (waypoints)
-    waypoints: List[List[float]]  # [T, 3] -> [x, y, heading]
+    waypoints: List[List[float]]
     
     # Control command (optional)
-    control: Dict[str, float]  # steering, throttle, brake
+    control: Dict[str, float]
     
     def to_dict(self) -> Dict:
         return {
@@ -45,18 +46,148 @@ class CoTSample:
             'waypoints': self.waypoints,
             'control': self.control,
         }
+
+
+class CoTTokenizer:
+    """
+    Tokenizer for CoT reasoning traces.
     
-    @classmethod
-    def from_dict(cls, data: Dict) -> 'CoTSample':
-        return cls(
-            episode_id=data.get('episode_id', ''),
-            timestamp=data.get('timestamp', 0.0),
-            images=data.get('images', []),
-            state_features=data.get('state_features', {}),
-            cot_trace=data.get('cot_trace', {}),
-            waypoints=data.get('waypoints', []),
-            control=data.get('control', {}),
+    Uses HuggingFace transformers library for proper tokenization.
+    Supports BERT, GPT-2, and other tokenizers.
+    
+    Example:
+        >>> tokenizer = CoTTokenizer('bert-base-uncased')
+        >>> tokens = tokenizer.encode_cot("I see a car ahead")
+        >>> tokens.shape
+        torch.Size([128])
+    """
+    
+    def __init__(
+        self,
+        tokenizer_name: str = 'bert-base-uncased',
+        max_length: int = 128,
+        padding: str = 'max_length',
+        truncation: bool = True,
+    ):
+        """
+        Initialize tokenizer.
+        
+        Args:
+            tokenizer_name: HuggingFace tokenizer name
+            max_length: Maximum sequence length
+            padding: Padding strategy ('max_length' or 'do_not_pad')
+            truncation: Whether to truncate long sequences
+        """
+        self.max_length = max_length
+        self.padding = padding
+        self.truncation = truncation
+        
+        # Try to load tokenizer from transformers
+        try:
+            from transformers import AutoTokenizer
+            self.tokenizer = AutoTokenizer.from_pretrained(tokenizer_name)
+            self.is_loaded = True
+            print(f"Loaded tokenizer: {tokenizer_name}")
+        except ImportError:
+            print("Warning: transformers not installed. Using simple tokenizer.")
+            self.tokenizer = None
+            self.is_loaded = False
+        except Exception as e:
+            print(f"Warning: Could not load tokenizer {tokenizer_name}: {e}")
+            print("Using simple tokenizer.")
+            self.tokenizer = None
+            self.is_loaded = False
+    
+    def encode_cot(
+        self,
+        cot_trace: Dict[str, str],
+        return_tensors: bool = True
+    ) -> Dict[str, torch.Tensor]:
+        """
+        Encode CoT trace to token indices.
+        
+        Args:
+            cot_trace: Dict with reasoning steps
+            return_tensors: Return PyTorch tensors
+            
+        Returns:
+            Dict with 'input_ids' and 'attention_mask'
+        """
+        if not self.is_loaded or self.tokenizer is None:
+            # Fallback to simple encoding
+            return self._simple_encode(cot_trace)
+        
+        # Concatenate reasoning steps with separator
+        text_parts = []
+        for key in ['perception', 'situation_understanding', 'behavior_prediction', 
+                    'trajectory_planning', 'confidence']:
+            if key in cot_trace and cot_trace[key]:
+                text_parts.append(cot_trace[key])
+        
+        if not text_parts:
+            text_parts = ["No reasoning provided."]
+        
+        full_text = " [SEP] ".join(text_parts)
+        
+        # Tokenize
+        encoding = self.tokenizer(
+            full_text,
+            max_length=self.max_length,
+            padding=self.padding,
+            truncation=self.truncation,
+            return_tensors='pt' if return_tensors else None,
         )
+        
+        if return_tensors:
+            # Convert to tensors
+            return {
+                'input_ids': encoding['input_ids'].squeeze(0),
+                'attention_mask': encoding['attention_mask'].squeeze(0),
+            }
+        else:
+            return encoding
+    
+    def _simple_encode(
+        self,
+        cot_trace: Dict[str, str],
+    ) -> Dict[str, torch.Tensor]:
+        """
+        Simple fallback encoding when tokenizer not available.
+        
+        Uses basic character encoding.
+        """
+        # Concatenate reasoning steps
+        text_parts = []
+        for key in ['perception', 'situation_understanding', 'behavior_prediction', 
+                    'trajectory_planning', 'confidence']:
+            if key in cot_trace and cot_trace[key]:
+                text_parts.append(cot_trace[key])
+        
+        full_text = " ".join(text_parts)
+        
+        # Simple character encoding
+        input_ids = []
+        for char in full_text[:self.max_length - 2]:  # Reserve for special tokens
+            input_ids.append(ord(char) % 1000)
+        
+        # Pad
+        while len(input_ids) < self.max_length:
+            input_ids.append(0)
+        
+        # Create attention mask (1 for real tokens, 0 for padding)
+        attention_mask = [1 if i < len([c for c in full_text[:self.max_length - 2] if c != ' ']) else 0 
+                         for i in range(self.max_length)]
+        
+        return {
+            'input_ids': torch.tensor(input_ids[:self.max_length], dtype=torch.long),
+            'attention_mask': torch.tensor(attention_mask, dtype=torch.long),
+        }
+    
+    def decode(self, input_ids: torch.Tensor) -> str:
+        """Decode token indices back to text."""
+        if self.is_loaded and self.tokenizer is not None:
+            return self.tokenizer.decode(input_ids, skip_special_tokens=True)
+        return "".join([chr(i % 1000) for i in input_ids.tolist()])
 
 
 class CoTDataset(Dataset):
@@ -65,6 +196,16 @@ class CoTDataset(Dataset):
     
     Combines Waymo-style perception data with reasoning traces
     for training models that predict both waypoints and reasoning.
+    
+    Example:
+        >>> dataset = CoTDataset(
+        ...     data_dir='waymo_episodes',
+        ...     cot_file='cot_traces.jsonl',
+        ...     tokenizer_name='bert-base-uncased'
+        ... )
+        >>> sample = dataset[0]
+        >>> sample['cot_text']['input_ids'].shape
+        torch.Size([128])
     """
     
     def __init__(
@@ -72,12 +213,31 @@ class CoTDataset(Dataset):
         data_dir: str,
         cot_file: Optional[str] = None,
         max_seq_len: int = 16,
+        max_cot_len: int = 128,
+        tokenizer_name: str = 'bert-base-uncased',
         transform: Optional[callable] = None,
     ):
+        """
+        Initialize dataset.
+        
+        Args:
+            data_dir: Directory with episode data
+            cot_file: JSONL file with CoT traces
+            max_seq_len: Maximum waypoint sequence length
+            max_cot_len: Maximum CoT token length
+            tokenizer_name: HuggingFace tokenizer name
+            transform: Optional transform for data augmentation
+        """
         self.data_dir = Path(data_dir)
-        self.cot_file = cot_file
         self.max_seq_len = max_seq_len
+        self.max_cot_len = max_cot_len
         self.transform = transform
+        
+        # Initialize tokenizer
+        self.tokenizer = CoTTokenizer(
+            tokenizer_name=tokenizer_name,
+            max_length=max_cot_len,
+        )
         
         # Load CoT traces if provided
         self.cot_traces = {}
@@ -111,7 +271,7 @@ class CoTDataset(Dataset):
         for episode_dir in self.episodes:
             episode_id = episode_dir.name
             
-            # Load perception data (placeholder - implement based on your format)
+            # Load perception data
             frames = self._load_frames(episode_dir)
             
             for frame in frames:
@@ -138,8 +298,6 @@ class CoTDataset(Dataset):
     
     def _load_frames(self, episode_dir: Path) -> List[Dict]:
         """Load frames from episode directory."""
-        # Placeholder - implement based on your data format
-        # This would parse Waymo TFRecords or your preferred format
         frames_file = episode_dir / 'frames.json'
         if frames_file.exists():
             with open(frames_file, 'r') as f:
@@ -159,8 +317,8 @@ class CoTDataset(Dataset):
         # Waypoints
         waypoints = self._encode_waypoints(sample.waypoints)
         
-        # CoT trace (concatenated text)
-        cot_text = self._encode_cot(sample.cot_trace)
+        # CoT trace (proper tokenization)
+        cot_encoding = self.tokenizer.encode_cot(sample.cot_trace)
         
         # Control (optional)
         control = self._encode_control(sample.control)
@@ -170,7 +328,8 @@ class CoTDataset(Dataset):
             'timestamp': sample.timestamp,
             'state': state,
             'waypoints': waypoints,
-            'cot_text': cot_text,
+            'cot_input_ids': cot_encoding['input_ids'],
+            'cot_attention_mask': cot_encoding['attention_mask'],
             'control': control,
         }
         
@@ -206,36 +365,6 @@ class CoTDataset(Dataset):
         
         return torch.tensor(wp, dtype=torch.float32)
     
-    def _encode_cot(self, cot_trace: Dict[str, str]) -> torch.Tensor:
-        """
-        Encode CoT trace to tensor.
-        
-        Concatenate all reasoning steps and tokenize.
-        For simplicity, we use a fixed-size encoding.
-        """
-        # Concatenate all reasoning steps
-        text_parts = []
-        for key in ['perception', 'situation_understanding', 'behavior_prediction', 
-                    'trajectory_planning', 'confidence']:
-            if key in cot_trace:
-                text_parts.append(cot_trace[key])
-        
-        full_text = " [SEP] ".join(text_parts)
-        
-        # Simple hash-based encoding for now
-        # In practice, would use actual tokenizer
-        encoding = self._simple_encode(full_text, max_len=128)
-        
-        return torch.tensor(encoding, dtype=torch.long)
-    
-    def _simple_encode(self, text: str, max_len: int = 128) -> List[int]:
-        """Simple encoding based on character ord values."""
-        encoded = [ord(c) % 1000 for c in text[:max_len]]
-        # Pad
-        while len(encoded) < max_len:
-            encoded.append(0)
-        return encoded[:max_len]
-    
     def _encode_control(self, control: Dict[str, float]) -> torch.Tensor:
         """Encode control command to tensor."""
         features = [
@@ -247,18 +376,32 @@ class CoTDataset(Dataset):
 
 
 class CoTCollator:
-    """Collator for batching CoT samples."""
+    """
+    Collator for batching CoT samples.
     
-    def __init__(self, tokenizer: Optional[callable] = None, max_length: int = 128):
-        self.tokenizer = tokenizer
+    Handles padding for variable-length sequences.
+    
+    Example:
+        >>> collator = CoTCollator(max_length=128)
+        >>> batch = collator([dataset[0], dataset[1], dataset[2]])
+        >>> batch['cot_input_ids'].shape
+        torch.Size([3, 128])
+    """
+    
+    def __init__(self, max_length: int = 128):
+        """
+        Initialize collator.
+        
+        Args:
+            max_length: Maximum CoT sequence length
+        """
         self.max_length = max_length
     
     def __call__(self, batch: List[Dict]) -> Dict[str, torch.Tensor]:
         """Collate a batch of samples."""
         
-        # Find max sequence lengths
+        # Find max waypoint length
         max_wp_len = max([s['waypoints'].shape[0] for s in batch])
-        max_cot_len = max([s['cot_text'].shape[0] for s in batch])
         
         # Pad waypoints
         padded_waypoints = []
@@ -269,19 +412,12 @@ class CoTCollator:
                 wp = torch.cat([wp, pad], dim=0)
             padded_waypoints.append(wp)
         
-        # Pad CoT text
-        padded_cot = []
-        for s in batch:
-            cot = s['cot_text']
-            if cot.shape[0] < max_cot_len:
-                pad = torch.zeros(max_cot_len - cot.shape[0], dtype=torch.long)
-                cot = torch.cat([cot, pad], dim=0)
-            padded_cot.append(cot)
-        
+        # Stack all tensors
         return {
             'state': torch.stack([s['state'] for s in batch]),
             'waypoints': torch.stack(padded_waypoints),
-            'cot_text': torch.stack(padded_cot),
+            'cot_input_ids': torch.stack([s['cot_input_ids'] for s in batch]),
+            'cot_attention_mask': torch.stack([s['cot_attention_mask'] for s in batch]),
             'control': torch.stack([s['control'] for s in batch]),
             'episode_ids': [s['episode_id'] for s in batch],
             'timestamps': [s['timestamp'] for s in batch],
@@ -295,6 +431,9 @@ def create_cot_dataset_parser() -> argparse.ArgumentParser:
     parser.add_argument('--cot', type=str, default=None, help='CoT traces JSONL file')
     parser.add_argument('--output', type=str, required=True, help='Output dataset file')
     parser.add_argument('--max-seq-len', type=int, default=16, help='Max waypoint sequence length')
+    parser.add_argument('--max-cot-len', type=int, default=128, help='Max CoT token length')
+    parser.add_argument('--tokenizer', type=str, default='bert-base-uncased', 
+                       help='HuggingFace tokenizer name')
     parser.add_argument('--batch-size', type=int, default=32, help='Batch size for preview')
     return parser
 
@@ -309,35 +448,63 @@ def main():
     print(f"Input: {args.input}")
     print(f"CoT traces: {args.cot}")
     print(f"Output: {args.output}")
+    print(f"Tokenizer: {args.tokenizer}")
     print(f"Max seq len: {args.max_seq_len}")
+    print(f"Max CoT len: {args.max_cot_len}")
     
     # Create dataset
     dataset = CoTDataset(
         data_dir=args.input,
         cot_file=args.cot,
         max_seq_len=args.max_seq_len,
+        max_cot_len=args.max_cot_len,
+        tokenizer_name=args.tokenizer,
     )
     
-    # Save dataset
-    torch.save({
+    # Save dataset metadata
+    import pickle
+    dataset_info = {
         'samples': [s.to_dict() for s in dataset.samples],
         'config': {
             'data_dir': args.input,
             'cot_file': args.cot,
             'max_seq_len': args.max_seq_len,
+            'max_cot_len': args.max_cot_len,
+            'tokenizer_name': args.tokenizer,
         }
-    }, args.output)
+    }
+    
+    # Save as pickle
+    with open(args.output.replace('.pt', '.pkl'), 'wb') as f:
+        pickle.dump(dataset_info, f)
+    
+    # Save tokenized CoT traces separately for efficiency
+    cot_tokens = []
+    for sample in dataset.samples:
+        cot_encoding = dataset.tokenizer.encode_cot(sample.cot_trace)
+        cot_tokens.append({
+            'input_ids': cot_encoding['input_ids'].tolist(),
+            'attention_mask': cot_encoding['attention_mask'].tolist(),
+        })
+    
+    with open(args.output.replace('.pt', '_cot_tokens.pkl'), 'wb') as f:
+        pickle.dump(cot_tokens, f)
     
     print(f"\nDataset saved to: {args.output}")
     print(f"Total samples: {len(dataset)}")
     
-    # Preview a batch
-    collator = CoTCollator()
-    batch = collator([dataset[0], dataset[1], dataset[2]])
-    print(f"\nBatch preview:")
-    print(f"  state shape: {batch['state'].shape}")
-    print(f"  waypoints shape: {batch['waypoints'].shape}")
-    print(f"  cot_text shape: {batch['cot_text'].shape}")
+    # Preview
+    sample = dataset[0]
+    print(f"\nSample preview:")
+    print(f"  state shape: {sample['state'].shape}")
+    print(f"  waypoints shape: {sample['waypoints'].shape}")
+    print(f"  cot_input_ids shape: {sample['cot_input_ids'].shape}")
+    print(f"  cot_attention_mask shape: {sample['cot_attention_mask'].shape}")
+    
+    # Test tokenizer
+    print(f"\nTokenizer test:")
+    decoded = dataset.tokenizer.decode(sample['cot_input_ids'])
+    print(f"  Decoded text (first 100 chars): {decoded[:100]}...")
 
 
 if __name__ == "__main__":
