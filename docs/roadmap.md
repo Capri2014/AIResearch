@@ -117,3 +117,73 @@ Planned follow-up:
 - **Comparison**: Contrast with traditional FFN as implicit memory
 
 Source: https://www.bilibili.com/video/BV1x3zWB6EU6/
+
+---
+
+## Survey: GigaBrain (VLA + World Model RL)
+
+**Status:** **NEW** (added 2026-02-16)
+
+**Source:** https://arxiv.org/abs/2602.12099  
+**Project:** https://gigabrain05m.github.io/
+
+**TL;DR:** VLA model trained via world model-based RL with RAMP (Reinforcement leArning via world Model-conditioned Policy)
+
+**Key Results:**
+- Pre-trained on 10,000+ hours of robotic manipulation data
+- RAMP achieves ~30% improvement over RECAP baseline on Laundry Folding, Box Packing, Espresso Preparation
+- Reliable long-horizon execution for complex manipulation tasks
+
+**Core Innovation:**
+```
+GigaBrain-0.5 (pre-trained on 10K hours robot data)
+        │
+        ▼
+┌─────────────────┐
+│  World Model    │  Video-based world model for dynamics forecasting
+│  (pre-trained)  │
+└────────┬────────┘
+         │
+         ▼
+┌─────────────────┐
+│     RAMP        │  World Model-Conditioned Policy
+│                 │  (RL with world model conditioning)
+└────────┬────────┘
+         │
+         ▼
+GigaBrain-0.5M* (VLA with world model RL)
+```
+
+**Relevance to Our Pipeline:**
+
+| Our Component | GigaBrain Application |
+|--------------|----------------------|
+| **World Model** | Use pre-trained world model for trajectory forecasting |
+| **RAMP** | Conditioning policy on world model predictions |
+| **Long-horizon** | Apply to complex driving scenarios |
+| **VLA** | Vision-Language-Action for driving decisions |
+
+**Planned follow-up:**
+- **Survey RAMP**: Understand world model-conditioned policy learning
+- **World Model Integration**: Explore using world models (GAIA-2 style) for driving
+- **RAMP for Driving**: Adapt RAMP to autonomous driving scenarios
+- **Long-horizon Planning**: Use world model predictions for trajectory planning
+- **Comparison**: Contrast with our current PPO approach
+
+---
+
+## Survey Candidate Pipeline
+
+The following papers are queued for future survey:
+
+1. **GigaBrain** - VLA + World Model RL (NEW, 2026-02-16)
+2. **GenAD** - Generalized predictive model for driving (CVPR 2024)
+3. **VAD** - Vectorized autonomous driving planning
+4. **UniAD** - Unified autonomous driving framework
+5. **BEVFormer** - Bird's-eye view transformer
+
+**Selection Criteria:**
+- Relevance to driving/robotics
+- Novel methodology
+- Open-source implementation
+- Scalability to our pipeline
