@@ -99,6 +99,196 @@ Planned follow-up:
 
 Goal: survey DeepSeek's Engram paper on efficient knowledge retrieval via N-gram embeddings and hash lookup.
 
+---
+
+## TODO: Autoregressive Decoder for Waypoints
+
+**Question:** Can we upgrade the current decoder to Autoregressive (AR)?
+
+### Current vs Autoregressive Decoder
+
+| Aspect | Current (Parallel) | Autoregressive |
+|--------|-------------------|----------------|
+| **Output** | All waypoints at once | One at a time |
+| **Speed** | Fast (parallel) | Slow (sequential) |
+| **Consistency** | May not respect order | Sequential consistency |
+| **Error Propagation** | None | Can accumulate |
+| **Training** | Simple MSE | Teacher forcing needed |
+
+### Why Autoregressive COULD Work
+
+```
+✓ Waypoints are SEQUENTIAL: w_{t+1} depends on w_t
+✓ CoT reasoning is STEP-BY-STEP: similar pattern
+✓ Natural for long sequences: avoid fixed length
+✓ Variable output length: stop when confident
+
+Example AR Generation:
+
+Input: Images + State + CoT Text
+       │
+       ▼
+┌─────────────────────────┐
+│   Encoder (BERT/SSL)   │
+└─────────────────────────┘
+       │
+       ▼
+┌─────────────────────────┐
+│   AR Decoder           │
+│                        │
+│ Step 1: w1 = f(enc)   │
+│ Step 2: w2 = f(enc, w1) │
+│ Step 3: w3 = f(enc, w1, w2) │
+│ Step 4: w4 = f(enc, w1, w2, w3) │
+│ ... until stop token   │
+└─────────────────────────┘
+```
+
+### Why Autoregressive MIGHT NOT Work
+
+```
+✗ Speed: Real-time driving needs fast inference
+✗ Error accumulation: Bad w1 → bad w2 → worse w3
+✗ Training complexity: Teacher forcing, scheduled sampling
+✗ Overfitting: May memorize training sequences
+✗ Latency: Each waypoint adds delay
+```
+
+### Analysis: Can We Upgrade?
+
+**YES, but with caveats:**
+
+| Use Case | Recommendation |
+|----------|---------------|
+| **Training** | AR decoder useful for learning sequential structure |
+| **Inference (real-time)** | Keep parallel decoder (speed critical) |
+| **Planning (offline)** | AR decoder acceptable (can be slow) |
+
+**Verdict:** Upgrade is possible and useful for training, but keep parallel decoder for real-time inference.
+
+---
+
+## TODO: Combining AR Decoder + CoT Reasoning
+
+**Question:** If we have AR decoder + CoT, do they complement each other?
+
+### Similarities and Differences
+
+| Aspect | AR Decoder | CoT Reasoning |
+|--------|------------|---------------|
+| **Sequential** | ✅ Yes | ✅ Yes |
+| **Step-by-step** | ✅ Yes | ✅ Yes |
+| **Context** | Previous outputs | Full context |
+| **Purpose** | Predict waypoints | Explain reasoning |
+| **Input** | Encoded features | Reasoning text |
+
+### How They Could Combine
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                    Combined AR + CoT Architecture                    │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                 │
+│  Input: Images + State                                           │
+│         │                                                       │
+│         ▼                                                       │
+│  ┌─────────────────────────┐                                    │
+│  │   Encoder (BERT/SSL)   │                                    │
+│  └─────────────────────────┘                                    │
+│         │                                                       │
+│         ▼                                                       │
+│  ┌─────────────────────────┐                                    │
+│  │   CoT Encoder (BERT)   │                                    │
+│  │                         │                                    │
+│  │   Reasoning:            │                                    │
+│  │   "I see a car..."    │                                    │
+│  └─────────────────────────┘                                    │
+│         │                                                       │
+│         ▼                                                       │
+│  ┌─────────────────────────────────────────────────────────┐ │
+│  │                    AR Decoder                             │ │
+│  │                                                          │ │
+│  │   At each step:                                          │ │
+│  │   w_t = f(encoder_features, w_{<t}, cot_features)       │ │
+│  │                                                          │ │
+│  │   Benefits:                                             │ │
+│  │   • Waypoint w_t uses CoT reasoning                     │ │
+│  │   • CoT "explains" why w_t was chosen                 │ │
+│  │   • Sequential consistency maintained                   │ │
+│  │                                                          │ │
+│  └─────────────────────────────────────────────────────────┘ │
+│                                                                 │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+### Is Combining a Good Idea?
+
+**Pros:**
+```
+✅ Complementary strengths:
+   - AR: Sequential prediction
+   - CoT: Contextual reasoning
+
+✅ Unified framework:
+   - Both are step-by-step
+   - Can share encoder
+
+✅ Interpretability:
+   - CoT explains each step
+   - AR generates sequentially
+
+✅ Better learning:
+   - CoT guides AR
+   - AR enforces consistency
+```
+
+**Cons:**
+```
+⚠️ Complexity:
+   - More complex architecture
+   - Harder to train
+
+⚠️ Latency:
+   - Both are sequential
+   - Slower inference
+
+⚠️ Overkill:
+   - May be redundant
+   - Simple waypoints may not need both
+```
+
+### Recommendation
+
+| Scenario | Recommendation |
+|----------|---------------|
+| **Simple driving** | Parallel decoder (fast) |
+| **Complex maneuvers** | AR decoder + CoT |
+| **Planning tasks** | AR decoder + CoT |
+| **Real-time control** | Keep parallel |
+
+**Verdict:** Combining is a GOOD IDEA for complex/interpretable scenarios, but may be overkill for real-time control.
+
+---
+
+## Action Items
+
+1. **Prototype AR decoder** on toy domain
+2. **Compare** parallel vs AR decoder quality
+3. **Evaluate** CoT + AR combination
+4. **Benchmark** inference speed for real-time use
+
+---
+
+## Further Reading
+
+| Topic | Reference |
+|-------|-----------|
+| Autoregressive LLMs | GPT, Transformer-XL |
+| Sequential VAE | Sequential VAE for trajectories |
+| CoT + AR | Language models as reasoners |
+
+Goal: survey DeepSeek's Engram paper on efficient knowledge retrieval via N-gram embeddings and hash lookup.
+
 Context: DeepSeek Engram builds on two research lines:
 - **Memory research**: Transformer FFN as KV Memory, Product Key Memory, RETRO, External Memory
 - **N-gram research**: N-Grammer, Scaling Embedding Layer
