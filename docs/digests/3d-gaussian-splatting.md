@@ -1,7 +1,7 @@
 # 3D Gaussian Splatting Survey Digest
 
 **Survey:** 3D Gaussian Splatting for Real-Time Neural Rendering (Kerbl et al., 2023)  
-**Date:** 2026-02-15  
+**Date:** 2026-02-16  
 **Author:** Auto-generated digest
 
 ---
@@ -75,6 +75,7 @@ Near-term: Evaluate GS as a rendering backend for any 3D reconstruction work. Lo
 ### Reference Implementations
 - **Original (INRIA/GraphDeco):** https://github.com/graphdeco-inria/gaussian-splatting
 - **SplaTAM (CMU/RIT):** https://github.com/cv-rits/SplaTAM - SLAM-focused GS with tracking and mapping
+- **Compact Gaussian Splatting:** Optimized implementations with reduced memory footprint
 - **Original Project Page:** https://repo-sam.inria.fr/fungraph/3d-gaussian-splatting/
 
 ### Generative GS Follow-ups
@@ -82,9 +83,10 @@ Near-term: Evaluate GS as a rendering backend for any 3D reconstruction work. Lo
   https://github.com/dreamgaussian/dreamgaussian
 - **GaussianDreamer (2023)** - Enhanced generative 3D with Gaussian propagation  
   https://github.com/harryham/gaussian-dreamer
+- **GSgen (2024)** - Recent advances in text-to-3D Gaussian generation
 - **Score Jacobian Chaining for 3D (2023)** - Foundational work on 3D-aware diffusion
 
 ---
 
-*PR: Survey PR #1: 3D Gaussian Splatting Digest*  
-*Summary: Created 3D Gaussian Splatting survey digest under docs/digests/3d-gaussian-splatting.md covering method (fast splatting rasterization), generative extensions needed (priors, decoders, consistency), and roadmap connections for world-sim/AV sensor simulation.*
+*PR: Survey PR #1 (9:00am PT): 3D Gaussian Splatting Digest Update*  
+*Summary: Updated 3D Gaussian Splatting survey digest (docs/digests/3d-gaussian-splatting.md). Key points: (1) Fast splatting rasterization enables 30-100+ FPS vs. NeRF's seconds/frame, (2) Generative GS requires learned priors/neural decoders + multi-view consistency, (3) Plug-in path: real-time sensor simulation for AV, SLAM integration, and editable 3D scene storage for world models.*
