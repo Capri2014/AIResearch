@@ -172,6 +172,48 @@ GigaBrain-0.5M* (VLA with world model RL)
 
 ---
 
+## Survey: MoE for Autonomous Driving (Driving + Parking)
+
+**Status:** **NEW** (added 2026-02-16)
+
+**Goal:** Survey Mixture of Experts (MoE) approaches for supporting both **driving** and **parking** scenarios in autonomous systems.
+
+**Motivation:**
+- Driving and parking require different skills
+- MoE can route to specialist experts based on scenario
+- Efficient: only activate relevant experts per input
+
+**Survey Focus:**
+
+| Scenario | Expert Specialist | Key Differences |
+|----------|------------------|-----------------|
+| **Highway driving** | Highway Expert | High speed, lane keeping, lane changes |
+| **Urban driving** | Urban Expert | Traffic lights, pedestrians, stop signs |
+| **Parking** | Parking Expert | Fine-grained control, reverse maneuvers |
+| **Emergency** | Safety Expert | Quick reactions, safety margins |
+
+**Core Questions:**
+1. **Gating Design:** How to route inputs to appropriate experts?
+2. **Expert Architecture:** Shared backbone vs separate specialists?
+3. **Training:** Joint training vs separate pretraining + routing?
+4. **Efficiency:** How many experts to activate per forward pass?
+5. **Safety:** What if routing fails? Fallback mechanism?
+
+**Related MoE Papers to Survey:**
+- **Switch Transformer** (Google): Efficient routing, top-1 expert selection
+- **Mixtral** (Mistral): Open-source sparse MoE
+- **DeepSeek MoE**: Expert specialization patterns
+- **V-MoE** (Google): Vision MoE for perception
+
+**Planned follow-up:**
+- **Survey MoE papers**: Understand routing, expert design, training dynamics
+- **Gating design**: Design gating network for scenario classification
+- **Expert specialization**: Define expert architectures for each scenario
+- **Implementation**: Prototype MoE architecture for driving+parking
+- **Evaluation**: Compare with unified model (efficiency, quality)
+
+---
+
 ## Survey Candidate Pipeline
 
 The following papers are queued for future survey:
