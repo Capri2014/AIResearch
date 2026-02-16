@@ -96,7 +96,7 @@ class ToyWaypointEnv:
         self.step_count += 1
         
         # Detect action type based on magnitude
-       rottle: # Steering/th values typically in [-1, 1]
+        # Steering/throttle values typically in [-1, 1]
         # Waypoint deltas: could be larger
         if np.abs(action).max() <= 1.0:
             # Interpret as (steer, throttle)
@@ -181,14 +181,17 @@ class ToyWaypointEnv:
         x, y, heading, speed = self.state
         
         # Apply first delta as movement
-        dx, dy = delta_waypoints[0], delta_waypoints[1]
-        x += dx * 0.1  # scale down for safety
-        y += dy * 0.1
+        delta_waypoints = np.asarray(delta_waypoints)
+        dx = float(delta_waypoints[0, 0]) if delta_waypoints.ndim == 2 else float(delta_waypoints[0])
+        dy = float(delta_waypoints[0, 1]) if delta_waypoints.ndim == 2 else float(delta_waypoints[1])
+        x = float(x) + dx * 0.1  # scale down for safety
+        y = float(y) + dy * 0.1
         
         # Update heading toward next waypoint
-        target = self.waypoints[min(self.current_waypoint_idx + 1, len(self.waypoints) - 1)]
-        angle_to_target = math.atan2(target[1] - y, target[0] - x)
-        heading = heading * 0.9 + angle_to_target * 0.1
+        target_idx = min(self.current_waypoint_idx + 1, len(self.waypoints) - 1)
+        target = self.waypoints[target_idx]
+        angle_to_target = math.atan2(float(target[1]) - y, float(target[0]) - x)
+        heading = float(heading) * 0.9 + angle_to_target * 0.1
         
         # Clamp to world bounds
         half = self.config.world_size / 2
