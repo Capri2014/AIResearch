@@ -105,3 +105,16 @@ Checklist:
 - RL design: extract unique insights in their RL algorithm design that differ from PPO/GRPO
 - Applicability: assess which insights apply to autonomous driving (long-horizon planning, safety constraints)
 - Comparison: compare with DeepSeek's RL pipeline approach
+
+### DeepSeek Engram survey (Memory-Augmented Language Models)
+
+Goal: survey DeepSeek's Engram paper on efficient knowledge retrieval via N-gram embeddings and hash lookup.
+
+Checklist:
+- Survey Engram paper: Study the core idea of N-gram Embedding + Hash for efficient retrieval
+- Technical points: Understand Sparsity, Gating mechanisms, Memory Hierarchy
+- Applicability: Assess relevance to autonomous driving (scene understanding, rule retrieval, safety knowledge)
+- Implementation: Explore adding external memory to vision backbone for efficient knowledge access
+- Comparison: Contrast with traditional FFN as implicit memory
+
+Source: https://www.bilibili.com/video/BV1x3zWB6EU6/
