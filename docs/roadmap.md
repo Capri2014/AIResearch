@@ -99,6 +99,548 @@ Planned follow-up:
 
 Goal: survey DeepSeek's Engram paper on efficient knowledge retrieval via N-gram embeddings and hash lookup.
 
+---
+
+## TODO: Autoregressive Decoder for Waypoints
+
+**Question:** Can we upgrade the current decoder to Autoregressive (AR)?
+
+### Current vs Autoregressive Decoder
+
+| Aspect | Current (Parallel) | Autoregressive |
+|--------|-------------------|----------------|
+| **Output** | All waypoints at once | One at a time |
+| **Speed** | Fast (parallel) | Slow (sequential) |
+| **Consistency** | May not respect order | Sequential consistency |
+| **Error Propagation** | None | Can accumulate |
+| **Training** | Simple MSE | Teacher forcing needed |
+
+### Why Autoregressive COULD Work
+
+```
+✓ Waypoints are SEQUENTIAL: w_{t+1} depends on w_t
+✓ CoT reasoning is STEP-BY-STEP: similar pattern
+✓ Natural for long sequences: avoid fixed length
+✓ Variable output length: stop when confident
+
+Example AR Generation:
+
+Input: Images + State + CoT Text
+       │
+       ▼
+┌─────────────────────────┐
+│   Encoder (BERT/SSL)   │
+└─────────────────────────┘
+       │
+       ▼
+┌─────────────────────────┐
+│   AR Decoder           │
+│                        │
+│ Step 1: w1 = f(enc)   │
+│ Step 2: w2 = f(enc, w1) │
+│ Step 3: w3 = f(enc, w1, w2) │
+│ Step 4: w4 = f(enc, w1, w2, w3) │
+│ ... until stop token   │
+└─────────────────────────┘
+```
+
+### Why Autoregressive MIGHT NOT Work
+
+```
+✗ Speed: Real-time driving needs fast inference
+✗ Error accumulation: Bad w1 → bad w2 → worse w3
+✗ Training complexity: Teacher forcing, scheduled sampling
+✗ Overfitting: May memorize training sequences
+✗ Latency: Each waypoint adds delay
+```
+
+### Analysis: Can We Upgrade?
+
+**YES, but with caveats:**
+
+| Use Case | Recommendation |
+|----------|---------------|
+| **Training** | AR decoder useful for learning sequential structure |
+| **Inference (real-time)** | Keep parallel decoder (speed critical) |
+| **Planning (offline)** | AR decoder acceptable (can be slow) |
+
+**Verdict:** Upgrade is possible and useful for training, but keep parallel decoder for real-time inference.
+
+---
+
+## TODO: Combining AR Decoder + CoT Reasoning
+
+**Question:** If we have AR decoder + CoT, do they complement each other?
+
+### Similarities and Differences
+
+| Aspect | AR Decoder | CoT Reasoning |
+|--------|------------|---------------|
+| **Sequential** | ✅ Yes | ✅ Yes |
+| **Step-by-step** | ✅ Yes | ✅ Yes |
+| **Context** | Previous outputs | Full context |
+| **Purpose** | Predict waypoints | Explain reasoning |
+| **Input** | Encoded features | Reasoning text |
+
+### How They Could Combine
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                    Combined AR + CoT Architecture                    │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                 │
+│  Input: Images + State                                           │
+│         │                                                       │
+│         ▼                                                       │
+│  ┌─────────────────────────┐                                    │
+│  │   Encoder (BERT/SSL)   │                                    │
+│  └─────────────────────────┘                                    │
+│         │                                                       │
+│         ▼                                                       │
+│  ┌─────────────────────────┐                                    │
+│  │   CoT Encoder (BERT)   │                                    │
+│  │                         │                                    │
+│  │   Reasoning:            │                                    │
+│  │   "I see a car..."    │                                    │
+│  └─────────────────────────┘                                    │
+│         │                                                       │
+│         ▼                                                       │
+│  ┌─────────────────────────────────────────────────────────┐ │
+│  │                    AR Decoder                             │ │
+│  │                                                          │ │
+│  │   At each step:                                          │ │
+│  │   w_t = f(encoder_features, w_{<t}, cot_features)       │ │
+│  │                                                          │ │
+│  │   Benefits:                                             │ │
+│  │   • Waypoint w_t uses CoT reasoning                     │ │
+│  │   • CoT "explains" why w_t was chosen                 │ │
+│  │   • Sequential consistency maintained                   │ │
+│  │                                                          │ │
+│  └─────────────────────────────────────────────────────────┘ │
+│                                                                 │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+### Is Combining a Good Idea?
+
+**Pros:**
+```
+✅ Complementary strengths:
+   - AR: Sequential prediction
+   - CoT: Contextual reasoning
+
+✅ Unified framework:
+   - Both are step-by-step
+   - Can share encoder
+
+✅ Interpretability:
+   - CoT explains each step
+   - AR generates sequentially
+
+✅ Better learning:
+   - CoT guides AR
+   - AR enforces consistency
+```
+
+**Cons:**
+```
+⚠️ Complexity:
+   - More complex architecture
+   - Harder to train
+
+⚠️ Latency:
+   - Both are sequential
+   - Slower inference
+
+⚠️ Overkill:
+   - May be redundant
+   - Simple waypoints may not need both
+```
+
+### Recommendation
+
+| Scenario | Recommendation |
+|----------|---------------|
+| **Simple driving** | Parallel decoder (fast) |
+| **Complex maneuvers** | AR decoder + CoT |
+| **Planning tasks** | AR decoder + CoT |
+| **Real-time control** | Keep parallel |
+
+**Verdict:** Combining is a GOOD IDEA for complex/interpretable scenarios, but may be overkill for real-time control.
+
+---
+
+## Action Items
+
+1. **Prototype AR decoder** on toy domain
+2. **Compare** parallel vs AR decoder quality
+3. **Evaluate** CoT + AR combination
+4. **Benchmark** inference speed for real-time use
+
+---
+
+## TODO: AR Survey and Implementation Plan
+
+### TODO 1: Survey Autoregressive Methods for Autonomous Driving and Robotics
+
+**Goal:** Survey AR papers and approaches for driving/robotics domains.
+
+**Survey Focus:**
+- **Autoregressive LLMs for planning:** GPT-based planners, LLM planners
+- **Sequential decision making:** AR policies, autoregressive action prediction
+- **Robotics:** RT-2, RT-X, PaLM-E style models
+- **Driving-specific:** PlannerLM, DriveGPT papers
+
+**Papers to Survey:**
+| Paper | Domain | Key Contribution |
+|-------|--------|-----------------|
+| RT-2 | Robotics | Vision-language-action models |
+| PaLM-E | Robotics | Embodied LLM planning |
+| PlannerLM | Driving | LLM-based planning |
+| DriveGPT | Driving | Autoregressive driving decisions |
+| VAD | Driving | Vectorized autonomous driving |
+| UniAD | Driving | Unified driving perception-planning |
+
+**Deliverable:** Survey document with comparison table and recommendations.
+
+---
+
+### TODO 2: Design AR Upgrade Plan for Current Pipeline
+
+**Goal:** Create implementation roadmap for upgrading pipeline to include AR decoder.
+
+**Current Pipeline:**
+```
+Waymo Data → JEPA Pre-train → SFT (CoT) → PPO RL → Deployment
+                      ↓
+              Parallel Decoder
+```
+
+**Proposed Pipeline (AR Upgrade):**
+```
+Waymo Data → JEPA Pre-train → SFT (CoT + AR Decoder) → PPO RL → Deployment
+                                         ↓
+                          AR Decoder (for complex scenarios)
+                                         ↓
+                          Parallel Decoder (for real-time)
+```
+
+**Design Questions:**
+| Question | Investigation |
+|----------|---------------|
+| When to use AR vs parallel? | Define decision criteria |
+| How to combine with CoT? | Joint training vs separate |
+| What training strategy? | Teacher forcing, scheduled sampling |
+| How to handle errors? | Error propagation mitigation |
+| Speed-accuracy tradeoff? | Benchmark different modes |
+
+**Implementation Phases:**
+| Phase | Task | Duration |
+|-------|------|----------|
+| Phase 1 | Survey papers, design architecture | 2 weeks |
+| Phase 2 | Implement AR decoder prototype | 3 weeks |
+| Phase 3 | Train with CoT reasoning | 2 weeks |
+| Phase 4 | Evaluate parallel vs AR | 1 week |
+| Phase 5 | Benchmark for deployment | 1 week |
+
+**Deliverable:** Implementation plan document with timeline.
+
+---
+
+### TODO 3: Code Implementation of AR Decoder (After Current Tasks)
+
+**Goal:** Implement AR decoder for waypoint prediction (after completing current pipeline).
+
+**Implementation Plan:**
+
+| Step | Task | Description |
+|------|------|-------------|
+| 3.1 | Modify decoder architecture | Replace parallel decoder with AR |
+| 3.2 | Add teacher forcing | During training |
+| 3.3 | Implement stop token | Auto-regressive termination |
+| 3.4 | Add CoT integration | Condition AR on reasoning |
+| 3.5 | Compare quality | AR vs Parallel |
+| 3.6 | Benchmark speed | Inference latency |
+
+**Architecture Sketch:**
+```python
+class ARDecoder(nn.Module):
+    """
+    Autoregressive decoder for waypoint prediction.
+    
+    Generates waypoints one at a time, conditioned on:
+    - Encoder features
+    - CoT reasoning
+    - Previous waypoints
+    """
+    
+    def __init__(self, config):
+        self.waypoint_embed = nn.Embedding(vocab_size, hidden_dim)
+        self.decoder = TransformerDecoder(...)
+        self.output_head = nn.Linear(hidden_dim, 3)  # x, y, heading
+    
+    def forward(self, encoder_out, cot_features, waypoints=None):
+        # During training: teacher forcing
+        # During inference: autoregressive generation
+        pass
+    
+    def generate(self, encoder_out, cot_features, max_len=16):
+        # Autoregressive generation
+        for t in range(max_len):
+            waypoint = self.predict_next(...)
+            if stop_token: break
+        return waypoints
+```
+
+**Success Metrics:**
+| Metric | Target |
+|--------|--------|
+| ADE improvement | +5% vs parallel |
+| CoT consistency | >0.8 reasoning score |
+| Inference speed | <50ms (planning mode) |
+| Real-time speed | <10ms (control mode) |
+
+---
+
+### TODO 4: Exploration: Speed Up CoT + AR Inference
+
+**Goal:** Explore techniques to accelerate inference when combining CoT and AR (both are sequential and slow).
+
+**Problem Statement:**
+```
+CoT + AR Inference (Current):
+
+Step 1: Encode images → 10ms
+Step 2: Generate CoT text (AR) → 100ms (100 tokens × 1ms each)
+Step 3: Generate waypoints (AR) → 50ms (16 waypoints × 3ms each)
+        │
+        └── Total: ~160ms (too slow for real-time!)
+
+Target: <20ms for real-time control
+```
+
+**Techniques to Explore:**
+
+| Category | Technique | Speedup | Quality Impact | Feasibility |
+|----------|-----------|---------|----------------|-------------|
+| **CoT Acceleration** |
+| | CoT distillation | 10× | -5% | High |
+| | Parallel CoT generation | 5× | -2% | High |
+| | CoT caching | 3× | 0% | High |
+| | Shorter CoT templates | 2× | 0% | High |
+| **AR Acceleration** |
+| | Speculative decoding | 2-3× | -1% | Medium |
+| | KV-cache optimization | 2× | 0% | High |
+| | Non-autoregressive (NAR) | 10× | -10% | High |
+| | Chunked autoregressive | 3× | -3% | Medium |
+| **Hardware** |
+| | Quantization (INT8) | 2× | -2% | High |
+| | GPU batching | 4× | 0% | High |
+| | Model distillation | 2× | -5% | Medium |
+
+**Detailed Technique Analysis:**
+
+1. **Speculative Decoding (Drafting)**
+
+```
+Idea: Use small fast model to draft, big model to verify
+
+┌─────────────────────────────────────────────────────────┐
+│                    Drafting Process                        │
+├─────────────────────────────────────────────────────────┤
+│                                                          │
+│  Draft Model (fast) → Draft tokens (speculative)       │
+│         │                                                    │
+│         ▼                                                    │
+│  Verify Model (slow) → Accept/reject each token        │
+│         │                                                    │
+│         ▼                                                    │
+│  Output: Mostly from draft model (fast)                  │
+│                                                          │
+└─────────────────────────────────────────────────────────┘
+
+Speedup: 2-3×
+Quality: Near-identical (with proper verification)
+```
+
+2. **KV-Cache Optimization**
+
+```
+Problem: AR models recompute attention for each new token
+
+Solution: Cache K and V vectors from previous tokens
+
+Without cache:
+  Token 1: compute K1, V1
+  Token 2: compute K2, V2, recompute K1, V1
+  Token 3: compute K3, V3, recompute K1, K2, V1, V2
+
+With cache:
+  Token 1: compute K1, V1, store in cache
+  Token 2: compute K2, V2, use cache[K1], cache[V1]
+  Token 3: compute K3, V3, use cache[K1], cache[K2], ...
+
+Speedup: 2-3×
+Quality: Identical
+```
+
+3. **Non-Autoregressive Decoding (NAR)**
+
+```
+Idea: Generate all tokens in parallel, iterate
+
+┌─────────────────────────────────────────────────────────┐
+│                 NAR vs AR Comparison                    │
+├─────────────────────────────────────────────────────────┤
+│                                                          │
+│  AR (sequential):                                       │
+│  w1 → w2 → w3 → w4 → w5                              │
+│  Time: 5 steps × 1ms = 5ms                            │
+│                                                          │
+│  NAR (parallel):                                        │
+│  ┌─────┐ ┌─────┐ ┌─────┐ ┌─────┐ ┌─────┐           │
+│  │w1= │ │w2= │ │w3= │ │w4= │ │w5= │           │
+│  └─┬─┘ └─┬─┘ └─┬─┘ └─┬─┘ └─┬─┘                       │
+│    └─────┴──────┴──────┴──────┴─────┘                 │
+│    All computed in parallel!                            │
+│  Time: 1 step × 1ms = 1ms                            │
+│                                                          │
+│  Iterative NAR (refinement):                           │
+│  ┌─────┐ → ┌─────┐ → ┌─────┐ → ┌─────┐            │
+│  │Iter1│   │Iter2│   │Iter3│   │Iter4│            │
+│  └─────┘   └─────┘   └─────┘   └─────┘               │
+│  Time: 4 steps × 1ms = 4ms                           │
+│                                                          │
+└─────────────────────────────────────────────────────────┘
+
+Speedup: 5-10×
+Quality: -5% to -15% (depends on iterations)
+```
+
+4. **Chunked Autoregressive**
+
+```
+Idea: Generate chunks of tokens in parallel
+
+┌─────────────────────────────────────────────────────────┐
+│                 Chunked Generation                       │
+├─────────────────────────────────────────────────────────┤
+│                                                          │
+│  Input: [w1, w2, w3, w4, w5, w6, w7, w8]              │
+│                                                          │
+│  Chunk 1: [w1, w2] → [w3, w4] (predict)              │
+│  Chunk 2: [w3, w4] → [w5, w6] (predict)              │
+│  Chunk 3: [w5, w6] → [w7, w8] (predict)              │
+│                                                          │
+│  Speedup: 2-3×                                          │
+│  Quality: -2% to -5%                                    │
+│                                                          │
+└─────────────────────────────────────────────────────────┘
+```
+
+5. **Quantization**
+
+```
+Idea: Use lower precision (INT8) instead of FP32
+
+FP32 (32-bit):  0.123456789
+INT8 (8-bit):   0.12 (rounded)
+
+Memory: 4× reduction
+Compute: 2-4× speedup
+Quality: -1% to -3%
+```
+
+6. **CoT Distillation**
+
+```
+Idea: Train smaller model to mimic CoT output
+
+┌─────────────────────────────────────────────────────────┐
+│                 CoT Distillation                      │
+├─────────────────────────────────────────────────────────┤
+│                                                          │
+│  Teacher (big BERT):                                     │
+│  Input: "I see a car"                                  │
+│  Output: "The car is ahead, I should maintain lane"   │
+│                                                          │
+│  Student (small):                                       │
+│  Input: "I see a car"                                  │
+│  Output: "Car ahead, maintain lane" (distilled)        │
+│                                                          │
+│  Speedup: 5-10× (smaller model)                       │
+│  Quality: -3% to -5%                                   │
+│                                                          │
+└─────────────────────────────────────────────────────────┘
+```
+
+**Proposed Speed-Up Pipeline:**
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                    Optimized CoT + AR Pipeline                    │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                  │
+│  Stage 1: Image Encoding                                        │
+│  • Quantized encoder (INT8)                                   │
+│  • Time: 5ms (was 10ms)                                      │
+│                                                                  │
+│  Stage 2: CoT Generation (Optimized)                           │
+│  • Use distilled CoT model                                     │
+│  • KV-cache enabled                                           │
+│  • Shorter CoT templates (concise)                            │
+│  • Time: 10ms (was 100ms)                                     │
+│                                                                  │
+│  Stage 3: AR Waypoint Generation (Optimized)                   │
+│  • KV-cache enabled                                           │
+│  • Chunked generation (4 tokens at a time)                      │
+│  • Time: 8ms (was 50ms)                                       │
+│                                                                  │
+│  Total: 23ms (was 160ms) ✅ < 30ms target!                   │
+│                                                                  │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+**Research Questions:**
+
+1. **Optimal CoT Length?**
+   - How short can CoT be while maintaining quality?
+   - What reasoning steps are essential?
+
+2. **CoT + AR Interaction?**
+   - Does shorter CoT hurt AR quality?
+   - Can AR compensate for shorter CoT?
+
+3. **Hybrid Approach?**
+   - Use AR for complex, parallel for simple?
+   - Adaptive selection mechanism?
+
+4. **Hardware Optimization?**
+   - TPU vs GPU differences?
+   - Batching strategies?
+
+**Deliverables:**
+
+| Deliverable | Description |
+|------------|-------------|
+| Speed benchmark | Measure latency at each stage |
+| Technique comparison | Evaluate all techniques |
+| Recommended pipeline | Best speed-quality tradeoff |
+| Implementation code | Optimized inference |
+| Evaluation report | Quality vs speed analysis |
+
+---
+
+## Further Reading
+
+| Topic | Reference |
+|-------|-----------|
+| Autoregressive LLMs | GPT, Transformer-XL |
+| Sequential VAE | Sequential VAE for trajectories |
+| CoT + AR | Language models as reasoners |
+
+Goal: survey DeepSeek's Engram paper on efficient knowledge retrieval via N-gram embeddings and hash lookup.
+
 Context: DeepSeek Engram builds on two research lines:
 - **Memory research**: Transformer FFN as KV Memory, Product Key Memory, RETRO, External Memory
 - **N-gram research**: N-Grammer, Scaling Embedding Layer
