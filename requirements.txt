@@ -1,0 +1,80 @@
+# AIResearch Dependencies
+# Generated: 2026-02-16
+
+# Core ML Framework
+torch>=2.0.0
+torchvision>=0.15.0
+torchaudio>=2.0.0
+
+# Transformers for NLP/Cot Tokenizer
+transformers>=4.30.0
+
+# HuggingFace Hub
+huggingface-hub>=0.16.0
+
+# NumPy and Scientific Computing
+numpy>=1.24.0
+scipy>=1.10.0
+pandas>=2.0.0
+
+# Computer Vision
+opencv-python>=4.7.0
+Pillow>=9.5.0
+imageio>=2.25.0
+
+# Waymo Data Processing
+waymo-open-dataset-tf-2-12-0  # Check version compatibility with your TF
+
+# Visualization
+matplotlib>=3.7.0
+seaborn>=0.12.0
+
+# Logging and Progress
+tqdm>=4.65.0
+wandb>=0.15.0  # Optional: experiment tracking
+
+# Code Quality
+black>=23.0.0
+isort>=5.12.0
+flake8>=6.0.0
+mypy>=1.4.0
+
+# Type Checking
+types-requests>=2.31.0
+
+# Testing
+pytest>=7.3.0
+pytest-cov>=4.1.0
+
+# Jupyter (Optional)
+jupyter>=1.0.0
+ipython>=8.0.0
+
+# ─────────────────────────────────────────────────────────────────
+# Platform-Specific Notes:
+# ─────────────────────────────────────────────────────────────────
+
+# For Apple Silicon (M1/M2):
+# torch>=2.0.0 already supports MPS on Apple Silicon
+# No special installation needed
+
+# For NVIDIA GPU (CUDA):
+# Ensure CUDA version matches PyTorch
+# pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu118
+
+# For Waymo Open Dataset:
+# TF 2.12.0 is commonly used, but check:
+# https://github.com/waymo-research/waymo-open-dataset
+
+# ─────────────────────────────────────────────────────────────────
+# Installation Instructions
+# ─────────────────────────────────────────────────────────────────
+
+# Full install:
+# pip install -r requirements.txt
+
+# Minimal install (without visualization):
+# pip install torch torchvision transformers numpy scipy pandas opencv-python tqdm
+
+# Development install:
+# pip install -r requirements.txt black isort flake8 mypy pytest pytest-cov
