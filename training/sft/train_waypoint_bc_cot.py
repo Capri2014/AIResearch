@@ -577,7 +577,8 @@ class WaypointBCWithCoT(nn.Module):
         self,
         images: torch.Tensor,
         state: torch.Tensor,
-        cot_tokens: Optional[torch.Tensor] = None,
+        cot_input_ids: Optional[torch.Tensor] = None,
+        cot_attention_mask: Optional[torch.Tensor] = None,
         waypoint_mask: Optional[torch.Tensor] = None
     ) -> Dict[str, torch.Tensor]:
         """
@@ -586,7 +587,8 @@ class WaypointBCWithCoT(nn.Module):
         Args:
             images: [B, C, H, W] input images
             state: [B, state_input_dim] numerical features
-            cot_tokens: [B, L] CoT token indices (optional)
+            cot_input_ids: [B, L] CoT token indices (optional)
+            cot_attention_mask: [B, L] attention mask for CoT (optional)
             waypoint_mask: [B, T] mask for valid waypoints
             
         Returns:
@@ -603,8 +605,8 @@ class WaypointBCWithCoT(nn.Module):
         
         # 3. CoT Encoder
         cot_features = None
-        if cot_tokens is not None:
-            cot_features = self.cot_encoder(cot_tokens)  # [B, cot_hidden_dim]
+        if cot_input_ids is not None:
+            cot_features = self.cot_encoder(cot_input_ids)  # [B, cot_hidden_dim]
         
         # 4. Fusion
         fused_features = self.fusion(ssl_features, state_features, cot_features)
@@ -681,11 +683,16 @@ class SFTWithCoTTrainer:
             images = batch['images'].to(self.device)
             state = batch['state'].to(self.device)
             waypoints = batch['waypoints'].to(self.device)
-            cot_tokens = batch.get('cot_text')
+            
+            # CoT inputs (now with separate input_ids and attention_mask)
+            cot_input_ids = batch.get('cot_input_ids')
+            cot_attention_mask = batch.get('cot_attention_mask')
             control = batch.get('control')
             
-            if cot_tokens is not None:
-                cot_tokens = cot_tokens.to(self.device)
+            if cot_input_ids is not None:
+                cot_input_ids = cot_input_ids.to(self.device)
+            if cot_attention_mask is not None:
+                cot_attention_mask = cot_attention_mask.to(self.device)
             if control is not None:
                 control = control.to(self.device)
             
@@ -693,7 +700,7 @@ class SFTWithCoTTrainer:
             waypoint_mask = (waypoints.abs().sum(dim=-1) > 0).float()
             
             # Forward pass
-            outputs = self.model(images, state, cot_tokens, waypoint_mask)
+            outputs = self.model(images, state, cot_input_ids, cot_attention_mask, waypoint_mask)
             
             # Compute losses
             wp_loss = self.waypoint_loss_fn(
