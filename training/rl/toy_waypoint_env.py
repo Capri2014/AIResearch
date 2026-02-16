@@ -57,8 +57,11 @@ class WaypointEnvConfig:
 class ToyWaypointEnv:
     """Minimal 2D car environment that consumes predicted waypoints."""
     
-    def __init__(self, config: WaypointEnvConfig | None = None):
+    def __init__(self, config: WaypointEnvConfig | None = None, seed: int | None = None):
         self.config = config or WaypointEnvConfig()
+        if seed is not None:
+            random.seed(seed)
+            np.random.seed(seed)
         self.reset()
     
     def reset(self) -> Tuple[np.ndarray, dict]:
@@ -96,7 +99,7 @@ class ToyWaypointEnv:
         self.step_count += 1
         
         # Detect action type based on magnitude
-       rottle: # Steering/th values typically in [-1, 1]
+        # Steering/throttle values typically in [-1, 1]
         # Waypoint deltas: could be larger
         if np.abs(action).max() <= 1.0:
             # Interpret as (steer, throttle)
@@ -181,14 +184,17 @@ class ToyWaypointEnv:
         x, y, heading, speed = self.state
         
         # Apply first delta as movement
-        dx, dy = delta_waypoints[0], delta_waypoints[1]
-        x += dx * 0.1  # scale down for safety
-        y += dy * 0.1
+        delta_waypoints = np.asarray(delta_waypoints)
+        dx = float(delta_waypoints[0, 0]) if delta_waypoints.ndim == 2 else float(delta_waypoints[0])
+        dy = float(delta_waypoints[0, 1]) if delta_waypoints.ndim == 2 else float(delta_waypoints[1])
+        x = float(x) + dx * 0.1  # scale down for safety
+        y = float(y) + dy * 0.1
         
         # Update heading toward next waypoint
-        target = self.waypoints[min(self.current_waypoint_idx + 1, len(self.waypoints) - 1)]
-        angle_to_target = math.atan2(target[1] - y, target[0] - x)
-        heading = heading * 0.9 + angle_to_target * 0.1
+        target_idx = min(self.current_waypoint_idx + 1, len(self.waypoints) - 1)
+        target = self.waypoints[target_idx]
+        angle_to_target = math.atan2(float(target[1]) - y, float(target[0]) - x)
+        heading = float(heading) * 0.9 + angle_to_target * 0.1
         
         # Clamp to world bounds
         half = self.config.world_size / 2
@@ -273,6 +279,153 @@ class ToyWaypointEnv:
         """Return action space shape."""
         # Can be (steer, throttle) or waypoint deltas
         return (2,)
+
+
+# === Toy Environment Policies ===
+
+def policy_sft(obs: tuple | np.ndarray) -> np.ndarray:
+    """
+    SFT-only heuristic policy for toy waypoint environment.
+    
+    Simply drives toward the current target waypoint with simple steering.
+    This represents the "before RL" baseline.
+    
+    Args:
+        obs: Either a tuple of (state, info) from ToyWaypointEnv.reset()/step(),
+             or an observation array from get_observation()
+    
+    Returns:
+        Action array (steer, throttle)
+    """
+    # Handle both tuple format and observation array format
+    if isinstance(obs, tuple) and len(obs) == 2:
+        state, info = obs
+        x, y, heading, speed = float(state[0]), float(state[1]), float(state[2]), float(state[3])
+        waypoints = info.get("waypoints")
+        current_waypoint_idx = info.get("current_waypoint_idx", 0)
+    elif isinstance(obs, np.ndarray):
+        # New format from get_observation()
+        x, y, heading, speed = float(obs[0]), float(obs[1]), float(obs[2]), float(obs[3])
+        waypoints_start = 4
+        horizon = 20
+        target_idx = int(obs[-1] * horizon) if horizon > 0 else 0
+        target_idx = max(0, min(target_idx, horizon - 1))
+        waypoints = obs[waypoints_start:waypoints_start + horizon * 2].reshape(horizon, 2)
+        current_waypoint_idx = target_idx
+    else:
+        raise ValueError(f"Unknown observation format: {type(obs)}")
+    
+    # Get current target waypoint
+    if waypoints is not None and len(waypoints) > 0:
+        if current_waypoint_idx < len(waypoints):
+            target_wp = waypoints[current_waypoint_idx]
+        else:
+            target_wp = waypoints[-1] if len(waypoints) > 0 else np.array([x, y])
+    else:
+        # Fallback: drive in circles
+        target_wp = np.array([x + np.cos(heading) * 10, y + np.sin(heading) * 10])
+    
+    # Compute angle to target
+    dx = target_wp[0] - x
+    dy = target_wp[1] - y
+    target_angle = np.arctan2(dy, dx)
+    
+    # Steering toward target
+    angle_diff = target_angle - heading
+    # Normalize to [-pi, pi]
+    while angle_diff > np.pi:
+        angle_diff -= 2 * np.pi
+    while angle_diff < -np.pi:
+        angle_diff += 2 * np.pi
+    
+    steer = np.clip(angle_diff / (np.pi / 4), -1.0, 1.0)
+    
+    # Throttle: slow down if far, speed up if close
+    dist = np.sqrt(dx**2 + dy**2)
+    throttle = np.clip(1.0 - dist / 20.0, 0.0, 1.0)
+    
+    return np.array([steer, throttle], dtype=np.float32)
+
+
+def policy_rl_refined(obs: tuple | np.ndarray) -> np.ndarray:
+    """
+    RL-refined heuristic policy for toy waypoint environment.
+    
+    Adds predictive behavior: looks ahead at future waypoints,
+    smooths the trajectory, and adjusts speed proactively.
+    This represents the "after RL" improvement.
+    
+    Args:
+        obs: Either a tuple of (state, info) from ToyWaypointEnv.reset()/step(),
+             or an observation array from get_observation()
+    
+    Returns:
+        Action array (steer, throttle)
+    """
+    # Handle both tuple format and observation array format
+    if isinstance(obs, tuple) and len(obs) == 2:
+        state, info = obs
+        x, y, heading, speed = float(state[0]), float(state[1]), float(state[2]), float(state[3])
+        waypoints = info.get("waypoints")
+        current_waypoint_idx = info.get("current_waypoint_idx", 0)
+    elif isinstance(obs, np.ndarray):
+        # New format from get_observation()
+        x, y, heading, speed = float(obs[0]), float(obs[1]), float(obs[2]), float(obs[3])
+        waypoints_start = 4
+        horizon = 20
+        target_idx = int(obs[-1] * horizon) if horizon > 0 else 0
+        target_idx = max(0, min(target_idx, horizon - 1))
+        waypoints = obs[waypoints_start:waypoints_start + horizon * 2].reshape(horizon, 2)
+        current_waypoint_idx = target_idx
+    else:
+        raise ValueError(f"Unknown observation format: {type(obs)}")
+    
+    # Get waypoints list or array length
+    horizon = len(waypoints) if waypoints is not None else 20
+    
+    # Get current target waypoint
+    if waypoints is not None and len(waypoints) > 0:
+        if current_waypoint_idx < len(waypoints):
+            target_wp = waypoints[current_waypoint_idx]
+        else:
+            target_wp = waypoints[-1] if len(waypoints) > 0 else np.array([x, y])
+    else:
+        # Fallback: drive in circles
+        target_wp = np.array([x + np.cos(heading) * 10, y + np.sin(heading) * 10])
+    
+    # Look ahead: blend current target with next target for smoother path
+    lookahead_weight = 0.7
+    if waypoints is not None and current_waypoint_idx < horizon - 1:
+        next_wp = waypoints[current_waypoint_idx + 1]
+        blended_x = lookahead_weight * target_wp[0] + (1 - lookahead_weight) * next_wp[0]
+        blended_y = lookahead_weight * target_wp[1] + (1 - lookahead_weight) * next_wp[1]
+        target_wp = np.array([blended_x, blended_y])
+    
+    # Compute angle to blended target
+    dx = target_wp[0] - x
+    dy = target_wp[1] - y
+    target_angle = np.arctan2(dy, dx)
+    
+    # Steering with predictive correction
+    angle_diff = target_angle - heading
+    # Normalize to [-pi, pi]
+    while angle_diff > np.pi:
+        angle_diff -= 2 * np.pi
+    while angle_diff < -np.pi:
+        angle_diff += 2 * np.pi
+    
+    # Add slight lead for smoother turning
+    steer = np.clip(angle_diff / (np.pi / 4) * 0.9, -1.0, 1.0)
+    
+    # RL refinement: smoother throttle based on upcoming curvature
+    dist = np.sqrt(dx**2 + dy**2)
+    
+    # Predictive speed: slow down before turns (using lookahead info)
+    turn_severity = abs(angle_diff)
+    speed_factor = max(0.3, 1.0 - turn_severity / np.pi * 0.5)
+    throttle = np.clip((1.0 - dist / 25.0) * speed_factor, 0.2, 1.0)
+    
+    return np.array([steer, throttle], dtype=np.float32)
 
 
 def main():
