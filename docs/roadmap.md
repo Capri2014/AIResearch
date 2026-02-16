@@ -402,6 +402,235 @@ class ARDecoder(nn.Module):
 
 ---
 
+### TODO 4: Exploration: Speed Up CoT + AR Inference
+
+**Goal:** Explore techniques to accelerate inference when combining CoT and AR (both are sequential and slow).
+
+**Problem Statement:**
+```
+CoT + AR Inference (Current):
+
+Step 1: Encode images → 10ms
+Step 2: Generate CoT text (AR) → 100ms (100 tokens × 1ms each)
+Step 3: Generate waypoints (AR) → 50ms (16 waypoints × 3ms each)
+        │
+        └── Total: ~160ms (too slow for real-time!)
+
+Target: <20ms for real-time control
+```
+
+**Techniques to Explore:**
+
+| Category | Technique | Speedup | Quality Impact | Feasibility |
+|----------|-----------|---------|----------------|-------------|
+| **CoT Acceleration** |
+| | CoT distillation | 10× | -5% | High |
+| | Parallel CoT generation | 5× | -2% | High |
+| | CoT caching | 3× | 0% | High |
+| | Shorter CoT templates | 2× | 0% | High |
+| **AR Acceleration** |
+| | Speculative decoding | 2-3× | -1% | Medium |
+| | KV-cache optimization | 2× | 0% | High |
+| | Non-autoregressive (NAR) | 10× | -10% | High |
+| | Chunked autoregressive | 3× | -3% | Medium |
+| **Hardware** |
+| | Quantization (INT8) | 2× | -2% | High |
+| | GPU batching | 4× | 0% | High |
+| | Model distillation | 2× | -5% | Medium |
+
+**Detailed Technique Analysis:**
+
+1. **Speculative Decoding (Drafting)**
+
+```
+Idea: Use small fast model to draft, big model to verify
+
+┌─────────────────────────────────────────────────────────┐
+│                    Drafting Process                        │
+├─────────────────────────────────────────────────────────┤
+│                                                          │
+│  Draft Model (fast) → Draft tokens (speculative)       │
+│         │                                                    │
+│         ▼                                                    │
+│  Verify Model (slow) → Accept/reject each token        │
+│         │                                                    │
+│         ▼                                                    │
+│  Output: Mostly from draft model (fast)                  │
+│                                                          │
+└─────────────────────────────────────────────────────────┘
+
+Speedup: 2-3×
+Quality: Near-identical (with proper verification)
+```
+
+2. **KV-Cache Optimization**
+
+```
+Problem: AR models recompute attention for each new token
+
+Solution: Cache K and V vectors from previous tokens
+
+Without cache:
+  Token 1: compute K1, V1
+  Token 2: compute K2, V2, recompute K1, V1
+  Token 3: compute K3, V3, recompute K1, K2, V1, V2
+
+With cache:
+  Token 1: compute K1, V1, store in cache
+  Token 2: compute K2, V2, use cache[K1], cache[V1]
+  Token 3: compute K3, V3, use cache[K1], cache[K2], ...
+
+Speedup: 2-3×
+Quality: Identical
+```
+
+3. **Non-Autoregressive Decoding (NAR)**
+
+```
+Idea: Generate all tokens in parallel, iterate
+
+┌─────────────────────────────────────────────────────────┐
+│                 NAR vs AR Comparison                    │
+├─────────────────────────────────────────────────────────┤
+│                                                          │
+│  AR (sequential):                                       │
+│  w1 → w2 → w3 → w4 → w5                              │
+│  Time: 5 steps × 1ms = 5ms                            │
+│                                                          │
+│  NAR (parallel):                                        │
+│  ┌─────┐ ┌─────┐ ┌─────┐ ┌─────┐ ┌─────┐           │
+│  │w1= │ │w2= │ │w3= │ │w4= │ │w5= │           │
+│  └─┬─┘ └─┬─┘ └─┬─┘ └─┬─┘ └─┬─┘                       │
+│    └─────┴──────┴──────┴──────┴─────┘                 │
+│    All computed in parallel!                            │
+│  Time: 1 step × 1ms = 1ms                            │
+│                                                          │
+│  Iterative NAR (refinement):                           │
+│  ┌─────┐ → ┌─────┐ → ┌─────┐ → ┌─────┐            │
+│  │Iter1│   │Iter2│   │Iter3│   │Iter4│            │
+│  └─────┘   └─────┘   └─────┘   └─────┘               │
+│  Time: 4 steps × 1ms = 4ms                           │
+│                                                          │
+└─────────────────────────────────────────────────────────┘
+
+Speedup: 5-10×
+Quality: -5% to -15% (depends on iterations)
+```
+
+4. **Chunked Autoregressive**
+
+```
+Idea: Generate chunks of tokens in parallel
+
+┌─────────────────────────────────────────────────────────┐
+│                 Chunked Generation                       │
+├─────────────────────────────────────────────────────────┤
+│                                                          │
+│  Input: [w1, w2, w3, w4, w5, w6, w7, w8]              │
+│                                                          │
+│  Chunk 1: [w1, w2] → [w3, w4] (predict)              │
+│  Chunk 2: [w3, w4] → [w5, w6] (predict)              │
+│  Chunk 3: [w5, w6] → [w7, w8] (predict)              │
+│                                                          │
+│  Speedup: 2-3×                                          │
+│  Quality: -2% to -5%                                    │
+│                                                          │
+└─────────────────────────────────────────────────────────┘
+```
+
+5. **Quantization**
+
+```
+Idea: Use lower precision (INT8) instead of FP32
+
+FP32 (32-bit):  0.123456789
+INT8 (8-bit):   0.12 (rounded)
+
+Memory: 4× reduction
+Compute: 2-4× speedup
+Quality: -1% to -3%
+```
+
+6. **CoT Distillation**
+
+```
+Idea: Train smaller model to mimic CoT output
+
+┌─────────────────────────────────────────────────────────┐
+│                 CoT Distillation                      │
+├─────────────────────────────────────────────────────────┤
+│                                                          │
+│  Teacher (big BERT):                                     │
+│  Input: "I see a car"                                  │
+│  Output: "The car is ahead, I should maintain lane"   │
+│                                                          │
+│  Student (small):                                       │
+│  Input: "I see a car"                                  │
+│  Output: "Car ahead, maintain lane" (distilled)        │
+│                                                          │
+│  Speedup: 5-10× (smaller model)                       │
+│  Quality: -3% to -5%                                   │
+│                                                          │
+└─────────────────────────────────────────────────────────┘
+```
+
+**Proposed Speed-Up Pipeline:**
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                    Optimized CoT + AR Pipeline                    │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                  │
+│  Stage 1: Image Encoding                                        │
+│  • Quantized encoder (INT8)                                   │
+│  • Time: 5ms (was 10ms)                                      │
+│                                                                  │
+│  Stage 2: CoT Generation (Optimized)                           │
+│  • Use distilled CoT model                                     │
+│  • KV-cache enabled                                           │
+│  • Shorter CoT templates (concise)                            │
+│  • Time: 10ms (was 100ms)                                     │
+│                                                                  │
+│  Stage 3: AR Waypoint Generation (Optimized)                   │
+│  • KV-cache enabled                                           │
+│  • Chunked generation (4 tokens at a time)                      │
+│  • Time: 8ms (was 50ms)                                       │
+│                                                                  │
+│  Total: 23ms (was 160ms) ✅ < 30ms target!                   │
+│                                                                  │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+**Research Questions:**
+
+1. **Optimal CoT Length?**
+   - How short can CoT be while maintaining quality?
+   - What reasoning steps are essential?
+
+2. **CoT + AR Interaction?**
+   - Does shorter CoT hurt AR quality?
+   - Can AR compensate for shorter CoT?
+
+3. **Hybrid Approach?**
+   - Use AR for complex, parallel for simple?
+   - Adaptive selection mechanism?
+
+4. **Hardware Optimization?**
+   - TPU vs GPU differences?
+   - Batching strategies?
+
+**Deliverables:**
+
+| Deliverable | Description |
+|------------|-------------|
+| Speed benchmark | Measure latency at each stage |
+| Technique comparison | Evaluate all techniques |
+| Recommended pipeline | Best speed-quality tradeoff |
+| Implementation code | Optimized inference |
+| Evaluation report | Quality vs speed analysis |
+
+---
+
 ## Further Reading
 
 | Topic | Reference |
