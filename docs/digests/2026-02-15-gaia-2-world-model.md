@@ -206,3 +206,115 @@ Specify an action → Generate valid contexts:
 - Wayve blog: https://wayve.ai/thinking/gaia-2/
 - Technical report: https://arxiv.org/abs/2503.20523
 - GAIA-1 (previous version): https://wayve.ai/thinking/scaling-gaia-1/
+
+---
+
+## Dataset QA for Synthetic Data Integration
+
+Before integrating GAIA-2 generated data into our pipeline, implement simple QA checks:
+
+### 1. Camera Coverage Check
+
+```python
+def check_camera_coverage(episode):
+    """Verify all expected cameras are present."""
+    expected_cameras = {"front", "left", "right", "rear"}
+    actual_cameras = set(episode.cameras)
+    missing = expected_cameras - actual_cameras
+    return len(missing) == 0, list(missing)
+```
+
+### 2. Missing Frames Check
+
+```python
+def check_missing_frames(episode):
+    """Detect gaps in frame sequences."""
+    timestamps = [f.t for f in episode.frames]
+    expected_dt = 0.1  # 10 Hz
+    gaps = []
+    for i in range(1, len(timestamps)):
+        dt = timestamps[i] - timestamps[i-1]
+        if abs(dt - expected_dt) > 0.02:  # 20ms tolerance
+            gaps.append((i, dt))
+    return len(gaps) == 0, gaps
+```
+
+### 3. Label Sanity Checks
+
+| Check | Description | Tolerance |
+|-------|-------------|-----------|
+| Waypoint bounds | Waypoints within road boundaries | ±0.5m |
+| Trajectory smoothness | No sudden jumps between waypoints | < 1.0m/step |
+| Speed consistency | Reasonable vehicle speeds | 0-35 m/s |
+| Heading continuity | Smooth heading changes | < 15°/step |
+
+### 4. GAIA-2 Specific QA
+
+```python
+def check_gaia2_conditioning(episode):
+    """Verify GAIA-2 conditioning signals are valid."""
+    checks = []
+    
+    # Ego-action validity
+    if episode.ego_actions:
+        speeds = [a.speed for a in episode.ego_actions]
+        if max(speeds) > 35:
+            checks.append("speed_exceeds_limit")
+    
+    # Weather consistency
+    if episode.weather:
+        if episode.weather.visibility < 10:  # Too foggy
+            checks.append("low_visibility")
+    
+    return len(checks) == 0, checks
+```
+
+### QA Summary Table
+
+| Check | GAIA-2 Generated | Real Data | Action |
+|-------|-----------------|-----------|--------|
+| Camera coverage | ✅ Complete | ✅ Complete | Pass |
+| Frame gaps | ✅ None | ⚠️ Possible | Pass / Flag |
+| Waypoint bounds | ✅ Validated | ⚠️ Possible | Validate |
+| Label sanity | ✅ Controllable | ⚠️ Variable | Validate |
+| Geographic diversity | ✅ Configurable | ⚠️ Limited | GAIA-2 wins |
+
+---
+
+## Decision: GAIA-2 for Synthetic Data Augmentation?
+
+### Pros ✅
+
+1. **Unlimited diversity**: Generate any condition (weather, time, location)
+2. **Safety-critical scenarios**: Rare events easily synthesized
+3. **Geographic coverage**: UK, US, Germany in one model
+4. **Multi-camera consistency**: Native support for our 4-camera setup
+5. **Action-conditional**: Generate scenarios for specific maneuvers
+
+### Cons ❌
+
+1. **Realism gap**: Synthetic → real transfer unknown
+2. **Access**: GAIA-2 not publicly available (proprietary)
+3. **Computation**: Latent diffusion inference cost
+4. **Label alignment**: Generated labels may differ from real data
+
+### Recommendation
+
+| Use Case | GAIA-2 Fit | Alternative |
+|----------|------------|------------|
+| BC training augmentation | ⚠️ Medium | Real Waymo preferred |
+| RL safety scenarios | ✅ High | GAIA-2 ideal |
+| Edge case testing | ✅ High | GAIA-2 ideal |
+| Pre-training | ⚠️ Medium | Real data preferred |
+
+**Decision:** Use GAIA-2 for **RL safety scenarios** and **edge case testing**. For BC pre-training, prefer real data due to distribution concerns.
+
+---
+
+## Implementation Roadmap
+
+1. **Phase 1**: Add QA scripts for GAIA-2 data integration
+2. **Phase 2**: Generate safety-critical scenarios for RL
+3. **Phase 3**: Evaluate transfer from synthetic to real
+4. **Phase 4**: Scale synthetic data augmentation if transfer proven
+
