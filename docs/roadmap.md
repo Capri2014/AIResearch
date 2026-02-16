@@ -279,6 +279,129 @@ Input: Images + State + CoT Text
 
 ---
 
+## TODO: AR Survey and Implementation Plan
+
+### TODO 1: Survey Autoregressive Methods for Autonomous Driving and Robotics
+
+**Goal:** Survey AR papers and approaches for driving/robotics domains.
+
+**Survey Focus:**
+- **Autoregressive LLMs for planning:** GPT-based planners, LLM planners
+- **Sequential decision making:** AR policies, autoregressive action prediction
+- **Robotics:** RT-2, RT-X, PaLM-E style models
+- **Driving-specific:** PlannerLM, DriveGPT papers
+
+**Papers to Survey:**
+| Paper | Domain | Key Contribution |
+|-------|--------|-----------------|
+| RT-2 | Robotics | Vision-language-action models |
+| PaLM-E | Robotics | Embodied LLM planning |
+| PlannerLM | Driving | LLM-based planning |
+| DriveGPT | Driving | Autoregressive driving decisions |
+| VAD | Driving | Vectorized autonomous driving |
+| UniAD | Driving | Unified driving perception-planning |
+
+**Deliverable:** Survey document with comparison table and recommendations.
+
+---
+
+### TODO 2: Design AR Upgrade Plan for Current Pipeline
+
+**Goal:** Create implementation roadmap for upgrading pipeline to include AR decoder.
+
+**Current Pipeline:**
+```
+Waymo Data → JEPA Pre-train → SFT (CoT) → PPO RL → Deployment
+                      ↓
+              Parallel Decoder
+```
+
+**Proposed Pipeline (AR Upgrade):**
+```
+Waymo Data → JEPA Pre-train → SFT (CoT + AR Decoder) → PPO RL → Deployment
+                                         ↓
+                          AR Decoder (for complex scenarios)
+                                         ↓
+                          Parallel Decoder (for real-time)
+```
+
+**Design Questions:**
+| Question | Investigation |
+|----------|---------------|
+| When to use AR vs parallel? | Define decision criteria |
+| How to combine with CoT? | Joint training vs separate |
+| What training strategy? | Teacher forcing, scheduled sampling |
+| How to handle errors? | Error propagation mitigation |
+| Speed-accuracy tradeoff? | Benchmark different modes |
+
+**Implementation Phases:**
+| Phase | Task | Duration |
+|-------|------|----------|
+| Phase 1 | Survey papers, design architecture | 2 weeks |
+| Phase 2 | Implement AR decoder prototype | 3 weeks |
+| Phase 3 | Train with CoT reasoning | 2 weeks |
+| Phase 4 | Evaluate parallel vs AR | 1 week |
+| Phase 5 | Benchmark for deployment | 1 week |
+
+**Deliverable:** Implementation plan document with timeline.
+
+---
+
+### TODO 3: Code Implementation of AR Decoder (After Current Tasks)
+
+**Goal:** Implement AR decoder for waypoint prediction (after completing current pipeline).
+
+**Implementation Plan:**
+
+| Step | Task | Description |
+|------|------|-------------|
+| 3.1 | Modify decoder architecture | Replace parallel decoder with AR |
+| 3.2 | Add teacher forcing | During training |
+| 3.3 | Implement stop token | Auto-regressive termination |
+| 3.4 | Add CoT integration | Condition AR on reasoning |
+| 3.5 | Compare quality | AR vs Parallel |
+| 3.6 | Benchmark speed | Inference latency |
+
+**Architecture Sketch:**
+```python
+class ARDecoder(nn.Module):
+    """
+    Autoregressive decoder for waypoint prediction.
+    
+    Generates waypoints one at a time, conditioned on:
+    - Encoder features
+    - CoT reasoning
+    - Previous waypoints
+    """
+    
+    def __init__(self, config):
+        self.waypoint_embed = nn.Embedding(vocab_size, hidden_dim)
+        self.decoder = TransformerDecoder(...)
+        self.output_head = nn.Linear(hidden_dim, 3)  # x, y, heading
+    
+    def forward(self, encoder_out, cot_features, waypoints=None):
+        # During training: teacher forcing
+        # During inference: autoregressive generation
+        pass
+    
+    def generate(self, encoder_out, cot_features, max_len=16):
+        # Autoregressive generation
+        for t in range(max_len):
+            waypoint = self.predict_next(...)
+            if stop_token: break
+        return waypoints
+```
+
+**Success Metrics:**
+| Metric | Target |
+|--------|--------|
+| ADE improvement | +5% vs parallel |
+| CoT consistency | >0.8 reasoning score |
+| Inference speed | <50ms (planning mode) |
+| Real-time speed | <10ms (control mode) |
+
+---
+
 ## Further Reading
 
 | Topic | Reference |
