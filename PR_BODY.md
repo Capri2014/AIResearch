@@ -1,53 +1,98 @@
+# RL Refinement After SFT: Residual Delta-Waypoint Learning
+
 ## Summary
 
-Implements deterministic evaluation infrastructure for comparing SFT-only vs RL-refined policies on the toy waypoint environment. Enables reproducible metrics collection and 3-line comparison reports.
+Implements Option B from the driving-first roadmap for RL refinement after supervised fine-tuning (SFT):
+
+- **Action space**: waypoint deltas (not raw waypoints)
+- **Pattern**: `final_waypoints = sft_waypoints + delta_head(z)`
+- **Benefit**: Sample-efficient, safe, modular
 
 ## Changes
 
-### New Features
+### New Files
 
-1. **Toy environment policies** (`training/rl/toy_waypoint_env.py`)
-   - `policy_sft`: Heuristic baseline that drives toward target waypoints
-   - `policy_rl_refined`: Enhanced policy with lookahead and predictive speed control
-   - Both policies support both tuple (state, info) and array observation formats
-   - Environment constructor now accepts optional `seed` parameter for reproducibility
+1. **`training/rl/train_rl_delta_waypoint.py`** (29KB)
+   - Full PPO training loop for residual delta-waypoint learning
+   - `DeltaHead`: Small network (2-layer MLP) predicting waypoint corrections (dx, dy per waypoint)
+   - `ValueHead`: Value function for PPO advantage estimation
+   - `SFTWaypointModel`: Mock SFT model (production: load checkpoint)
+   - GAE (Generalized Advantage Estimation) for stable learning
+   - Metrics: reward, length, KL divergence, delta norm statistics
+   - Checkpoint saving: `config.json`, `metrics.json`, `train_metrics.json`, `final.pt`
 
-2. **Deterministic comparison script** (`training/rl/compare_sft_vs_rl.py`)
-   - Runs both policies on identical seeds for fair comparison
-   - Outputs `out/eval/<run_id>_sft/metrics.json` and `out/eval/<run_id>_rl/metrics.json`
-   - Prints 3-line summary report with ADE, FDE, and success rate improvements
+2. **`training/rl/run_rl_delta_smoke.py`** (4.5KB)
+   - Smoke test verifying:
+     - Environment initialization
+     - PPO agent interaction
+     - Training loop execution
+     - Metrics and checkpoint saving
 
-3. **Metrics schema compatibility**
-   - Output format follows `data/schema/metrics.json` (domain="rl")
-   - Includes per-episode ADE/FDE, success rate, return, and steps
+### Architecture
 
-## Usage Example
+```
+┌─────────────────┐     ┌─────────────────┐     ┌─────────────────┐
+│  Raw State      │────▶│  SFT Model      │────▶│  SFT Waypoints  │
+│  (x,y,heading,  │     │  (frozen)       │     │  (H, 2)         │
+│   speed)        │     └─────────────────┘     └────────┬────────┘
+└─────────────────┘                                      │
+                                                         │ + delta
+┌─────────────────┐     ┌─────────────────┐     ┌───────▼─────────┐
+│  Encoded State  │────▶│  DeltaHead      │────▶│  Delta Waypoints│
+│  (speed + wp)   │     │  (trainable)    │     │  (H, 2)         │
+└─────────────────┘     └─────────────────┘     └───────┬─────────┘
+                                                       │
+                                               ┌───────▼─────────┐
+                                               │  Final Waypoints│
+                                               │  = SFT + Delta  │
+                                               └─────────────────┘
+```
+
+## Usage
 
 ```bash
-# Run comparison on 20 episodes with deterministic seeds
-python -m training.rl.compare_sft_vs_rl --episodes 20 --seed-base 42 --max-steps 30
+# Run toy environment demo
+python -m training.rl.train_rl_delta_waypoint \
+  --out-dir out/rl_delta_waypoint_v0/run_001 \
+  --episodes 200
 
-# Quick sanity check
-python -m training.rl.compare_sft_vs_rl --episodes 5 --seed-base 0
+# Run smoke test
+python -m training.rl.run_rl_delta_smoke
 ```
 
-## 3-Line Report Example
+## Artifacts
 
+Output structure under `out/rl_delta_waypoint_v0/run_001/`:
 ```
-ADE: 20.79m (SFT) → 21.02m (RL) [-1%]
-FDE: 45.72m (SFT) → 45.69m (RL) [+0%]
-Success: 0% (SFT) → 0% (RL) [+0%]
+├── config.json          # Full training configuration
+├── metrics.json         # Evaluation metrics per interval
+├── train_metrics.json   # Training summary with rewards/lengths
+├── final.pt             # Final model checkpoint
+└── checkpoints/         # Periodic checkpoints
+    └── checkpoint_{N}.pt
 ```
 
-## Context
+## Integration Points
 
-Part of the driving-first pipeline evaluation hardening:
-- Waymo episodes → SSL pretrain → waypoint BC → **RL refinement** → eval comparison
-- This PR establishes the evaluation infrastructure for measuring RL improvement
+- **SFT Model**: Currently uses mock SFTWaypointModel. Should load actual checkpoint from `out/sft_waypoint_bc/model.pt`
+- **CARLA Eval**: Should integrate ADE/FDE metrics and connect to ScenarioRunner
+- **Waymo Data**: Should replace toy environment with real driving data
 
-## Checklist
+## Testing
 
-- [x] Code compiles without errors
-- [x] Deterministic evaluation produces reproducible results
-- [x] Output follows metrics schema
-- [x] 3-line report format is clear and actionable
+Smoke test output:
+```
+✓ config.json created
+✓ metrics.json created (2 entries)
+✓ train_metrics.json created (10 episodes)
+✓ final.pt checkpoint created
+✓ checkpoints directory created (1 checkpoints)
+SMOKE TEST PASSED ✓
+```
+
+## Notes
+
+- Follows residual delta learning pattern from MEMORY.md
+- Keeps SFT model frozen for safety and sample efficiency
+- DeltaHead is small (hidden_dim=64) for fast training
+- Clips deltas to [-2.0, 2.0] for stability
