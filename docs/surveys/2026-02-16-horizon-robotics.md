@@ -16,19 +16,20 @@
 | Category | Papers | Key Contributions |
 |-----------|---------|------------------|
 | 3D Detection | 5+ | MonoLSS, LiDAR-SSL |
-| End-to-End AD | 6+ | VAD, UniAD, GUMP, DiffusionDrive, EmbodiedGen |
+| End-to-End AD | 7+ | VAD, UniAD, GUMP, DiffusionDrive, DiffusionDriveV2, EmbodiedGen |
 | BEV Perception | 4+ | BEVFusion, BEVFormer |
 | Chip/Edge AI | 10+ | Journey series chips |
 | Simulation | 2+ | Data pipelines |
 
 **Top 5 Must-Read Papers:**
 1. **VAD** (ECCV 2022) - Vectorized autonomous driving
-2. **DiffusionDrive** (CVPR 2025) - Truncated diffusion for E2E driving
-3. **GUMP** (ECCV 2024) - Generative Unified Motion Planning
-4. **EmbodiedGen** (NeurIPS 2025) - Generative 3D World Engine
+2. **DiffusionDriveV2** (2025) - RL-constrained truncated diffusion
+3. **DiffusionDrive** (CVPR 2025) - Truncated diffusion for E2E driving
+4. **GUMP** (ECCV 2024) - Generative Unified Motion Planning
 5. Journey Chip Papers - Edge AI optimization
 
 **New Papers Added (2026-02-17):**
+- DiffusionDriveV2 (2025): RL-constrained truncated diffusion with GRPO
 - GUMP (ECCV 2024): Motion planning with generative models
 - EmbodiedGen (NeurIPS 2025): 3D world generation for embodied AI
 
@@ -188,6 +189,7 @@ class MonoLSSInspiredModel(nn.Module):
 | 2023 | UniAD | CVPR | Unified perception-planning |
 | 2024 | **GUMP** | ECCV | Generative Unified Motion Planning |
 | 2025 | **DiffusionDrive** | CVPR | Truncated diffusion for E2E driving |
+| 2025 | **DiffusionDriveV2** | arXiv | RL-constrained truncated diffusion |
 | 2025 | **VADv3** | - | Multi-modal VAD |
 | 2025 | **EmbodiedGen** | NeurIPS | Generative 3D World Engine |
 | 2025 | **DIPO** | NeurIPS | Articulated Object Generation |
@@ -500,6 +502,66 @@ class EmbodiedGenSimulator(nn.Module):
         """
         layout = self.embodiedgen.layout_generation(task_desc)
         return layout
+```
+
+#### DiffusionDriveV2 (arXiv 2025) - RL-Constrained Truncated Diffusion
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│        DiffusionDriveV2: RL-Constrained Truncated Diffusion      │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                  │
+│  Paper: https://arxiv.org/abs/2512.07745                       │
+│  Authors: Jialv Zou, Shaoyu Chen, Bencheng Liao (HUST + Horizon)│
+│  Date: Dec 2025                                                │
+│                                                                  │
+│  Problem:                                                       │
+│  • DiffusionDrive mode collapse → conservative, homogeneous      │
+│  • Imitation learning lacks constraints → diversity vs quality   │
+│                                                                  │
+│  Solution: RL-constrained truncated diffusion                    │
+│  1. Scale-adaptive multiplicative noise for exploration         │
+│  2. Intra-anchor GRPO: advantage among samples from one anchor  │
+│  3. Inter-anchor GRPO: global perspective across anchors       │
+│                                                                  │
+│  Results:                                                      │
+│  • NAVSIM v1: 91.2 PDMS (new record!)                         │
+│  • NAVSIM v2: 85.5 EPDMS                                      │
+│  • Best trade-off: diversity + quality                         │
+│                                                                  │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+**Why It Matters for Us:**
+
+```python
+# We can apply DiffusionDriveV2 to our planning:
+
+class DiffusionDriveV2Planner(nn.Module):
+    """
+    DiffusionDriveV2: RL-constrained trajectory planner.
+    
+    Key: GRPO for advantage estimation across trajectories.
+    """
+    def __init__(self, config):
+        self.encoder = BEVEncoder()
+        self.diffusion = TruncatedDiffusion(
+            num_steps=10,
+            noise_schedule="scale_adaptive",  # Key: adaptive noise
+        )
+        self.grpo = GRPOOptimizer(
+            intra_anchor=True,   # Advantage within anchor
+            inter_anchor=True,   # Advantage across anchors
+        )
+    
+    def forward(self, bev_features):
+        # Generate diverse trajectories
+        trajectories = self.diffusion.sample(bev_features)
+        
+        # RL optimization via GRPO
+        advantages = self.grpo.compute_advantages(trajectories)
+        
+        return trajectories
 ```
 
 ---
