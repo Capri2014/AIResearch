@@ -16,17 +16,21 @@
 | Category | Papers | Key Contributions |
 |-----------|---------|------------------|
 | 3D Detection | 5+ | MonoLSS, LiDAR-SSL |
-| End-to-End AD | 4+ | VAD, UniAD, DiffusionDrive |
+| End-to-End AD | 6+ | VAD, UniAD, GUMP, DiffusionDrive, EmbodiedGen |
 | BEV Perception | 4+ | BEVFusion, BEVFormer |
 | Chip/Edge AI | 10+ | Journey series chips |
 | Simulation | 2+ | Data pipelines |
 
 **Top 5 Must-Read Papers:**
-1. MonoLSS (CVPR 2022) - Monocular 3D with LiDAR-SSL
-2. VAD (ECCV 2022) - Vectorized autonomous driving
-3. DiffusionDrive (CVPR 2025) - Truncated diffusion for E2E driving
-4. BEVFusion (ICRA 2023) - Multi-sensor fusion
+1. **VAD** (ECCV 2022) - Vectorized autonomous driving
+2. **DiffusionDrive** (CVPR 2025) - Truncated diffusion for E2E driving
+3. **GUMP** (ECCV 2024) - Generative Unified Motion Planning
+4. **EmbodiedGen** (NeurIPS 2025) - Generative 3D World Engine
 5. Journey Chip Papers - Edge AI optimization
+
+**New Papers Added (2026-02-17):**
+- GUMP (ECCV 2024): Motion planning with generative models
+- EmbodiedGen (NeurIPS 2025): 3D world generation for embodied AI
 
 ---
 
@@ -182,9 +186,11 @@ class MonoLSSInspiredModel(nn.Module):
 |------|-------|-------|----------------|
 | 2022 | **VAD** | ECCV | Vectorized planning |
 | 2023 | UniAD | CVPR | Unified perception-planning |
-| 2024 | VADv2 | - | Improved VAD |
-| 2025 | VADv3 | - | Multi-modal VAD |
+| 2024 | **GUMP** | ECCV | Generative Unified Motion Planning |
 | 2025 | **DiffusionDrive** | CVPR | Truncated diffusion for E2E driving |
+| 2025 | **VADv3** | - | Multi-modal VAD |
+| 2025 | **EmbodiedGen** | NeurIPS | Generative 3D World Engine |
+| 2025 | **DIPO** | NeurIPS | Articulated Object Generation |
 
 #### VAD (ECCV 2022) - **Must Read**
 
@@ -349,6 +355,151 @@ class DiffusionPlanner(nn.Module):
         trajectory = self.diffusion(z)  # [B, T, 3]
         
         return trajectory
+```
+
+---
+
+#### GUMP (ECCV 2024) - Generative Unified Motion Planning
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│              GUMP: Generative Unified Motion Planning            │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                  │
+│  Paper: https://arxiv.org/abs/2407.02797                        │
+│  Authors: Yihan Hu, Siqi Chai, et al. (Horizon Robotics)       │
+│  Venue: ECCV 2024                                               │
+│                                                                  │
+│  Problem:                                                       │
+│  • Motion planning requires diverse scenario simulation          │
+│  • Traditional methods: rule-based, limited diversity           │
+│  • Need: Scalable generative model for driving scenes           │
+│                                                                  │
+│  Solution: Generative model for motion planning                  │
+│  1. Unified model for all motion planning tasks                 │
+│  2. Autoregressive + partial-autoregressive modes              │
+│  3. Supports: simulation, RL training, policy evaluation        │
+│                                                                  │
+│  Key Capabilities:                                              │
+│  • Scene Generation: Diverse driving scenarios                  │
+│  • Reactive Simulation: Interactive agent behavior               │
+│  • Policy Training: RL with realistic simulation                │
+│  • Policy Evaluation: Realism vs rule-based (IDM)               │
+│                                                                  │
+│  Results:                                                      │
+│  • nuPlan Dataset: Successful scenario generation               │
+│  • Waymo Sim Agents: Probabilistic future scenarios             │
+│  • SAC Training: Policy learns from GUMP simulation             │
+│                                                                  │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+**Why It Matters for Us:**
+
+```python
+# We can use GUMP for simulation and RL training:
+
+class GUMPSimulator(nn.Module):
+    """
+    GUMP-based simulator for autonomous driving.
+    
+    Instead of rule-based simulation,
+    use generative model for realistic scenarios.
+    """
+    def __init__(self, config):
+        self.gump = GUMPCheckpoint(pretrained=True)
+        self.mode = "autoregressive"  # or "partial-autoregressive"
+    
+    def generate_scenario(self, init_frame, prompt):
+        # Generate diverse scenarios from initial frame
+        scenarios = self.gump.sample(
+            init_frame, 
+            prompt=prompt,
+            mode=self.mode,
+        )
+        return scenarios
+    
+    def reactive_simulation(self, scene, agents):
+        # Interactive simulation with reactive agents
+        return self.gump.simulate(scene, agents)
+```
+
+---
+
+#### EmbodiedGen (NeurIPS 2025) - Generative 3D World Engine
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│              EmbodiedGen: Generative 3D World Engine             │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                  │
+│  Paper: https://arxiv.org/abs/2506.10600                        │
+│  Authors: Xinjie Wang, Liu Liu, et al. (Horizon Robotics)       │
+│  Venue: NeurIPS 2025                                            │
+│  Website: https://horizonrobotics.github.io/EmbodiedGen/         │
+│                                                                  │
+│  Problem:                                                       │
+│  • Embodied AI needs diverse, interactive 3D worlds              │
+│  • Real data is limited and expensive                           │
+│  • Need: Scalable 3D world generation                           │
+│                                                                  │
+│  Solution: Generative 3D world engine                           │
+│  1. Image-to-3D: Single image → 3D asset                        │
+│  2. Text-to-3D: Text description → 3D asset                    │
+│  3. Scene Generation: 3D scene from prompt                      │
+│  4. Layout Generation: Interactive 3D worlds                     │
+│                                                                  │
+│  Modules:                                                       │
+│  ├── Image-to-3D: Single view → URDF/mesh/3DGS                │
+│  ├── Text-to-3D: Text → 3D asset (supports Chinese/English)   │
+│  ├── Texture Generation: Mesh + text → textured mesh           │
+│  ├── Scene Generation: Prompt → 3D scene                       │
+│  ├── Articulated Objects: NeurIPS 2025 (DIPO)                  │
+│  └── Layout: Task description → Interactive 3D world           │
+│                                                                  │
+│  Simulators: SAPIEN, Isaac Sim, MuJoCo, PyBullet, Genesis       │
+│                                                                  │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+**Why It Matters for Us:**
+
+```python
+# We can use EmbodiedGen for simulation environment generation:
+
+class EmbodiedGenSimulator(nn.Module):
+    """
+    EmbodiedGen-based simulator for driving.
+    
+    Generate diverse 3D environments for training.
+    """
+    def __init__(self, config):
+        self.embodiedgen = EmbodiedGen()
+    
+    def generate_scene(self, prompt):
+        """
+        Generate a driving scene from text prompt.
+        
+        Example: "Urban intersection with cars and pedestrians"
+        """
+        scene = self.embodiedgen.text_to_scene(prompt)
+        return scene
+    
+    def generate_from_image(self, real_image):
+        """
+        Create digital twin from real image.
+        """
+        assets = self.embodiedgen.image_to_3d(real_image)
+        return assets
+    
+    def layout_from_task(self, task_desc):
+        """
+        Generate interactive layout from task description.
+        
+        Example: "Create a roundabout with 3 lanes"
+        """
+        layout = self.embodiedgen.layout_generation(task_desc)
+        return layout
 ```
 
 ---
