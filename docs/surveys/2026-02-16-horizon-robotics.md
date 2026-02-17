@@ -16,17 +16,23 @@
 | Category | Papers | Key Contributions |
 |-----------|---------|------------------|
 | 3D Detection | 5+ | MonoLSS, LiDAR-SSL |
-| End-to-End AD | 3+ | VAD, UniAD contributions |
+| End-to-End AD | 10+ | VAD, VADv2, VADv3, Senna, RAD, GUMP, DiffusionDrive, DiffusionDriveV2, EmbodiedGen |
 | BEV Perception | 4+ | BEVFusion, BEVFormer |
 | Chip/Edge AI | 10+ | Journey series chips |
 | Simulation | 2+ | Data pipelines |
 
 **Top 5 Must-Read Papers:**
-1. MonoLSS (CVPR 2022) - Monocular 3D with LiDAR-SSL
-2. VAD (ECCV 2022) - Vectorized autonomous driving
-3. BEVFusion (ICRA 2023) - Multi-sensor fusion
-4. UniAD (CVPR 2023) - Unified planning
-5. Journey Chip Papers - Edge AI optimization
+1. **VADv2** (ICLR 2026) - Probabilistic planning (new SOTA)
+2. **DiffusionDriveV2** (2025) - RL-constrained truncated diffusion
+3. **DiffusionDrive** (CVPR 2025) - Truncated diffusion for E2E driving
+4. **Senna** (2024) - VLM-enhanced planning
+5. **VAD** (ICCV 2023) - Vectorized scene representation
+
+**All E2E Papers Added (2026-02-17):**
+- VAD (ICCV 2023): Vectorized scene representation
+- VADv2 (ICLR 2026): Probabilistic planning with uncertainty
+- Senna (2024): VLM-enhanced autonomous driving
+- RAD (NeurIPS 2025): 3DGS-based RL post-training
 
 ---
 
@@ -181,9 +187,16 @@ class MonoLSSInspiredModel(nn.Module):
 | Year | Paper | Venue | Key Contribution |
 |------|-------|-------|----------------|
 | 2022 | **VAD** | ECCV | Vectorized planning |
-| 2023 | UniAD | CVPR | Unified perception-planning |
-| 2024 | VADv2 | - | Improved VAD |
-| 2025 | VADv3 | - | Multi-modal VAD |
+| 2023 | VAD | ICCV | Vectorized scene representation |
+| 2024 | **VADv2** | ICLR 2026 | Probabilistic planning |
+| 2024 | **Senna** | - | VLM-enhanced planning |
+| 2025 | **RAD** | NeurIPS | 3DGS-based RL post-training |
+| 2024 | **GUMP** | ECCV | Generative Unified Motion Planning |
+| 2025 | **DiffusionDrive** | CVPR | Truncated diffusion for E2E driving |
+| 2025 | **DiffusionDriveV2** | arXiv | RL-constrained truncated diffusion |
+| 2025 | **VADv3** | - | Multi-modal VAD |
+| 2025 | **EmbodiedGen** | NeurIPS | Generative 3D World Engine |
+| 2025 | **DIPO** | NeurIPS | Articulated Object Generation |
 
 #### VAD (ECCV 2022) - **Must Read**
 
@@ -283,6 +296,386 @@ class VADInspiredPlanner(nn.Module):
             'agent_trajectories': agent_trajs,
             'drivable_area': drivable,
         }
+```
+
+#### VAD (ICCV 2023) - Vectorized Scene Representation
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│              VAD: Vectorized Scene Representation               │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                  │
+│  Paper: https://arxiv.org/abs/2303.12077                       │
+│  Authors: Bo Jiang, Shaoyu Chen, et al. (HUST + Horizon)        │
+│  Venue: ICCV 2023                                               │
+│                                                                  │
+│  Problem:                                                       │
+│  • Dense rasterized representations are computationally intensive│
+│  • Hand-designed post-processing steps are slow                  │
+│  • Need efficient vectorized representation                      │
+│                                                                  │
+│  Solution: Fully vectorized scene representation                 │
+│  1. Vectorized agent trajectories                                │
+│  2. Vectorized drivable area                                    │
+│  3. Vectorized lane graph                                       │
+│                                                                  │
+│  Results:                                                      │
+│  • 16.8 FPS (VAD-Tiny) - 10x faster than BEV-based methods    │
+│  • SOTA planning performance on nuScenes                       │
+│  • End-to-end unified paradigm                                 │
+│                                                                  │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+#### VADv2 (ICLR 2026) - Probabilistic Planning
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│              VADv2: Probabilistic End-to-End Driving           │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                  │
+│  Paper: https://arxiv.org/abs/2402.13243                       │
+│  Authors: Shaoyu Chen, Bo Jiang, Hao Gao, et al. (HUST)        │
+│  Venue: ICLR 2026 (accepted Jan 31, 2026)                      │
+│                                                                  │
+│  Problem:                                                       │
+│  • Deterministic planning cannot handle uncertainty             │
+│  • Need probabilistic approach for diverse scenarios             │
+│                                                                  │
+│  Solution: Probabilistic planning with uncertainty estimation    │
+│  1. Probabilistic trajectory distribution                       │
+│  2. Uncertainty-aware planning                                  │
+│  3. Safety-critical scenario handling                           │
+│                                                                  │
+│  Results:                                                      │
+│  • Better handling of rare/difficult scenarios                   │
+│  • Quantifiable uncertainty for safety                          │
+│                                                                  │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+#### Senna (2024) - VLM-Enhanced Planning
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│              Senna: VLM-Enhanced Autonomous Driving             │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                  │
+│  Paper: https://github.com/hustvl/Senna                        │
+│  Date: Oct 2024                                                │
+│  Authors: HUST Vision Lab + Horizon Robotics                    │
+│                                                                  │
+│  Problem:                                                       │
+│  • Pure perception-based methods lack semantic understanding     │
+│  • Need large vision-language models for better planning        │
+│                                                                  │
+│  Solution: Combine VAD/VADv2 with large VLMs                    │
+│  1. VLM for scene understanding                                 │
+│  2. Language-guided planning                                    │
+│  3. More accurate, robust, and generalizable                    │
+│                                                                  │
+│  Results:                                                      │
+│  • Better semantic understanding                                │
+│  • Improved generalization to new scenarios                     │
+│                                                                  │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+#### RAD (NeurIPS 2025) - 3DGS-Based RL Post-Training
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│              RAD: 3DGS-Based RL Post-Training                  │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                  │
+│  Paper: https://github.com/hustvl/RAD                         │
+│  Venue: NeurIPS 2025                                            │
+│  Authors: HUST Vision Lab + Horizon Robotics                     │
+│                                                                  │
+│  Problem:                                                       │
+│  • End-to-end models need further refinement after imitation    │
+│  • RL training in simulation is challenging                      │
+│                                                                  │
+│  Solution: 3D Gaussian Splatting-based RL post-training         │
+│  1. High-fidelity scene rendering with 3DGS                     │
+│  2. RL fine-tuning in realistic environments                     │
+│  3. Closed-loop improvement after imitation learning            │
+│                                                                  │
+│  Results:                                                      │
+│  • Better policy after RL post-training                         │
+│  • Realistic simulation for training                            │
+│                                                                  │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+#### DiffusionDrive (CVPR 2025) - **NEW! Added 2026-02-17**
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│          DiffusionDrive: Truncated Diffusion for E2E AD        │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                  │
+│  Paper: https://openaccess.thecvf.com/content/CVPR2025/html/    │
+│         Liao_DiffusionDrive_Truncated_Diffusion_Model_for_       │
+│         End-to-End_Autonomous_Driving_CVPR_2025_paper.html      │
+│                                                                  │
+│  Problem:                                                       │
+│  • Diffusion models for planning are slow (many denoising      │
+│    steps)                                                       │
+│  • Hard to deploy for real-time driving                         │
+│                                                                  │
+│  Solution: Truncated Diffusion - fewer steps, faster inference  │
+│                                                                  │
+│  Key Ideas:                                                    │
+│  1. Truncated diffusion (fewer steps than full diffusion)       │
+│  2. Conditional generation for trajectory planning              │
+│  3. Fast enough for real-time AD                               │
+│                                                                  │
+│  Architecture:                                                 │
+│  • Encoder: Perception backbone (camera/LiDAR)                 │
+│  • Diffusion: Truncated diffusion process                       │
+│  • Decoder: Trajectory output                                   │
+│                                                                  │
+│  Results:                                                      │
+│  • 10x faster than full diffusion models                       │
+│  • Comparable planning quality to full diffusion                │
+│  • Suitable for deployment                                     │
+│                                                                  │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+**Why It Matters for Us:**
+
+```python
+# We can apply DiffusionDrive to our planning:
+
+class DiffusionPlanner(nn.Module):
+    """
+    Diffusion-based trajectory planner.
+    
+    Instead of deterministic regression,
+    learn distribution of trajectories.
+    """
+    def __init__(self, config):
+        self.encoder = BEVEncoder()
+        self.diffusion = TruncatedDiffusion(
+            num_steps=10,  # Much fewer than full diffusion (1000+)
+        )
+        self.decoder = TrajectoryDecoder()
+    
+    def forward(self, bev_features):
+        # Encode perception
+        z = self.encoder(bev_features)
+        
+        # Generate trajectory via truncated diffusion
+        trajectory = self.diffusion(z)  # [B, T, 3]
+        
+        return trajectory
+```
+
+---
+
+#### GUMP (ECCV 2024) - Generative Unified Motion Planning
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│              GUMP: Generative Unified Motion Planning            │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                  │
+│  Paper: https://arxiv.org/abs/2407.02797                        │
+│  Authors: Yihan Hu, Siqi Chai, et al. (Horizon Robotics)       │
+│  Venue: ECCV 2024                                               │
+│                                                                  │
+│  Problem:                                                       │
+│  • Motion planning requires diverse scenario simulation          │
+│  • Traditional methods: rule-based, limited diversity           │
+│  • Need: Scalable generative model for driving scenes           │
+│                                                                  │
+│  Solution: Generative model for motion planning                  │
+│  1. Unified model for all motion planning tasks                 │
+│  2. Autoregressive + partial-autoregressive modes              │
+│  3. Supports: simulation, RL training, policy evaluation        │
+│                                                                  │
+│  Key Capabilities:                                              │
+│  • Scene Generation: Diverse driving scenarios                  │
+│  • Reactive Simulation: Interactive agent behavior               │
+│  • Policy Training: RL with realistic simulation                │
+│  • Policy Evaluation: Realism vs rule-based (IDM)               │
+│                                                                  │
+│  Results:                                                      │
+│  • nuPlan Dataset: Successful scenario generation               │
+│  • Waymo Sim Agents: Probabilistic future scenarios             │
+│  • SAC Training: Policy learns from GUMP simulation             │
+│                                                                  │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+**Why It Matters for Us:**
+
+```python
+# We can use GUMP for simulation and RL training:
+
+class GUMPSimulator(nn.Module):
+    """
+    GUMP-based simulator for autonomous driving.
+    
+    Instead of rule-based simulation,
+    use generative model for realistic scenarios.
+    """
+    def __init__(self, config):
+        self.gump = GUMPCheckpoint(pretrained=True)
+        self.mode = "autoregressive"  # or "partial-autoregressive"
+    
+    def generate_scenario(self, init_frame, prompt):
+        # Generate diverse scenarios from initial frame
+        scenarios = self.gump.sample(
+            init_frame, 
+            prompt=prompt,
+            mode=self.mode,
+        )
+        return scenarios
+    
+    def reactive_simulation(self, scene, agents):
+        # Interactive simulation with reactive agents
+        return self.gump.simulate(scene, agents)
+```
+
+---
+
+#### EmbodiedGen (NeurIPS 2025) - Generative 3D World Engine
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│              EmbodiedGen: Generative 3D World Engine             │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                  │
+│  Paper: https://arxiv.org/abs/2506.10600                        │
+│  Authors: Xinjie Wang, Liu Liu, et al. (Horizon Robotics)       │
+│  Venue: NeurIPS 2025                                            │
+│  Website: https://horizonrobotics.github.io/EmbodiedGen/         │
+│                                                                  │
+│  Problem:                                                       │
+│  • Embodied AI needs diverse, interactive 3D worlds              │
+│  • Real data is limited and expensive                           │
+│  • Need: Scalable 3D world generation                           │
+│                                                                  │
+│  Solution: Generative 3D world engine                           │
+│  1. Image-to-3D: Single image → 3D asset                        │
+│  2. Text-to-3D: Text description → 3D asset                    │
+│  3. Scene Generation: 3D scene from prompt                      │
+│  4. Layout Generation: Interactive 3D worlds                     │
+│                                                                  │
+│  Modules:                                                       │
+│  ├── Image-to-3D: Single view → URDF/mesh/3DGS                │
+│  ├── Text-to-3D: Text → 3D asset (supports Chinese/English)   │
+│  ├── Texture Generation: Mesh + text → textured mesh           │
+│  ├── Scene Generation: Prompt → 3D scene                       │
+│  ├── Articulated Objects: NeurIPS 2025 (DIPO)                  │
+│  └── Layout: Task description → Interactive 3D world           │
+│                                                                  │
+│  Simulators: SAPIEN, Isaac Sim, MuJoCo, PyBullet, Genesis       │
+│                                                                  │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+**Why It Matters for Us:**
+
+```python
+# We can use EmbodiedGen for simulation environment generation:
+
+class EmbodiedGenSimulator(nn.Module):
+    """
+    EmbodiedGen-based simulator for driving.
+    
+    Generate diverse 3D environments for training.
+    """
+    def __init__(self, config):
+        self.embodiedgen = EmbodiedGen()
+    
+    def generate_scene(self, prompt):
+        """
+        Generate a driving scene from text prompt.
+        
+        Example: "Urban intersection with cars and pedestrians"
+        """
+        scene = self.embodiedgen.text_to_scene(prompt)
+        return scene
+    
+    def generate_from_image(self, real_image):
+        """
+        Create digital twin from real image.
+        """
+        assets = self.embodiedgen.image_to_3d(real_image)
+        return assets
+    
+    def layout_from_task(self, task_desc):
+        """
+        Generate interactive layout from task description.
+        
+        Example: "Create a roundabout with 3 lanes"
+        """
+        layout = self.embodiedgen.layout_generation(task_desc)
+        return layout
+```
+
+#### DiffusionDriveV2 (arXiv 2025) - RL-Constrained Truncated Diffusion
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│        DiffusionDriveV2: RL-Constrained Truncated Diffusion      │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                  │
+│  Paper: https://arxiv.org/abs/2512.07745                       │
+│  Authors: Jialv Zou, Shaoyu Chen, Bencheng Liao (HUST + Horizon)│
+│  Date: Dec 2025                                                │
+│                                                                  │
+│  Problem:                                                       │
+│  • DiffusionDrive mode collapse → conservative, homogeneous      │
+│  • Imitation learning lacks constraints → diversity vs quality   │
+│                                                                  │
+│  Solution: RL-constrained truncated diffusion                    │
+│  1. Scale-adaptive multiplicative noise for exploration         │
+│  2. Intra-anchor GRPO: advantage among samples from one anchor  │
+│  3. Inter-anchor GRPO: global perspective across anchors       │
+│                                                                  │
+│  Results:                                                      │
+│  • NAVSIM v1: 91.2 PDMS (new record!)                         │
+│  • NAVSIM v2: 85.5 EPDMS                                      │
+│  • Best trade-off: diversity + quality                         │
+│                                                                  │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+**Why It Matters for Us:**
+
+```python
+# We can apply DiffusionDriveV2 to our planning:
+
+class DiffusionDriveV2Planner(nn.Module):
+    """
+    DiffusionDriveV2: RL-constrained trajectory planner.
+    
+    Key: GRPO for advantage estimation across trajectories.
+    """
+    def __init__(self, config):
+        self.encoder = BEVEncoder()
+        self.diffusion = TruncatedDiffusion(
+            num_steps=10,
+            noise_schedule="scale_adaptive",  # Key: adaptive noise
+        )
+        self.grpo = GRPOOptimizer(
+            intra_anchor=True,   # Advantage within anchor
+            inter_anchor=True,   # Advantage across anchors
+        )
+    
+    def forward(self, bev_features):
+        # Generate diverse trajectories
+        trajectories = self.diffusion.sample(bev_features)
+        
+        # RL optimization via GRPO
+        advantages = self.grpo.compute_advantages(trajectories)
+        
+        return trajectories
 ```
 
 ---
