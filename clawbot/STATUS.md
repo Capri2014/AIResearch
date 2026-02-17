@@ -1,55 +1,60 @@
-# Status (ClawBot)
+# CLAWBOT Status
 
-_Last updated: 2026-02-16 (Pipeline PR #4)_
+**Last Updated:** 2026-02-17
 
-## Current focus
-Driving-first pipeline: **Waymo episodes → PyTorch SSL pretrain → waypoint BC → RL refinement → CARLA ScenarioRunner eval**.
+## Daily Cadence
 
-## Recent changes
+- ✅ Pipeline PR #3 completed (SFT checkpoint loader for RL integration)
+- ⏳ Awaiting PR review/merge
 
-### Pipeline PR #4: CARLA ScenarioRunner Integration (Today, 1:30pm PT)
-- **New: `training/eval/carla_scenariorunner_eval.py`**
-  - `CARLAScenarioRunner` class: Vehicle control interface for CARLA simulation
-  - `EvalResult` dataclass: Metrics (route completion, collisions, offroad, deviation)
-  - `evaluate_waypoint_policy()`: Closed-loop policy evaluation function
-  - `CARLAEvalConfig`: Configuration for host, port, fps, weather, map
-  - Connects waypoint BC models to CARLA for end-to-end evaluation
+## Repository Status
 
-- **New: `training/eval/run_carla_smoke.py`**
-  - Module validation smoke tests
+| Branch | Status | Latest Commit |
+|--------|--------|---------------|
+| feature/daily-2026-02-17-c | ✅ Pushed | ed15ddc - feat(rl): add SFT checkpoint loader for RL pipeline integration |
+| feature/daily-2026-02-17-b | ✅ Pushed | a5aede8 - feat(eval): add CARLA waypoint BC evaluation script |
+| feature/daily-2026-02-16-rebase | ✅ Pushed | 39e23fc - feat(eval): add git info to SFT vs RL comparison metrics |
+| feature/daily-2026-02-16-e | ✅ Pushed | 1c9584f |
+| feature/roadmap-update-todos | ✅ Merged | 960446b |
+| main | - | d5dff32 |
 
-### Pipeline PR #3: Waypoint BC with Evaluation Metrics (Today, 10:30am PT) - merged
-- `training/sft/train_waypoint_bc_with_metrics.py`: Full trainer with ADE/FDE
-- `run_waypoint_bc_smoke.py`: Smoke tests
-- Architecture: `final_waypoints = sft_waypoints + delta_head(z)`
-- Evaluation-first: metrics computed every epoch for checkpoint selection
+## Recent Work
 
-### Pipeline PR #2: Training-Time Metrics (Yesterday)
-- `training/sft/training_metrics.py`: ADE/FDE computation, checkpoint tracking
+1. **Pipeline PR #3** (2026-02-17): SFT Checkpoint Loader for RL Integration
+   - `training/rl/sft_checkpoint_loader.py`: Robust SFT checkpoint loading
+   - Checkpoint format detection (WaypointBCModel, SFTWaypointModel, legacy)
+   - Metadata extraction (horizon_steps, out_dim, encoder type)
+   - Support for loading encoder and head components
+   - CLI interface: inspect, validate, smoke test
+   - Integration pattern: `final_waypoints = sft_waypoints + delta_head(z)`
 
-### Pipeline PR #1: Unified Policy Evaluation Framework (2026-02-16) - merged
-- `training/rl/unified_eval.py`: SFT vs PPO vs GRPO comparison
+2. **Pipeline PR #7** (2026-02-17): CARLA Closed-Loop Evaluation for Waypoint BC
+   - `training/eval/run_carla_waypoint_eval.py`: Full CARLA evaluation script
+   - `training/eval/scenarios/default.yaml`: 5 evaluation scenarios
+   - WaypointBCModel wrapper for trained policy inference
+   - CARLAEvalMetrics aggregating closed-loop performance
 
-## Next (top 3)
-1. Integrate CARLA evaluation with unified_eval.py
-2. Add checkpoint selection by best FDE
-3. Run full training on Waymo episode data
+3. **Pipeline PR #6** (2026-02-16): RL Evaluation - Metrics + Git Info
+   - `compare_sft_vs_rl.py`: Add `_git_info()` for reproducible eval metadata
+   - Captures: repo URL, commit hash, branch in metrics.json
 
-## Blockers / questions for owner
-- Confirm CARLA server availability for integration testing
+4. **Pipeline PR #5** (2026-02-16): RL Refinement After SFT (Delta-Waypoint Learning)
+   - `training/rl/train_rl_delta_waypoint.py`: Full PPO training for residual delta head
+   - Architecture: `final_waypoints = sft_waypoints + delta_head(z)`
 
-## Architecture Reference
+## Pending Tasks
 
-**Driving-First Pipeline:**
-```
-Waymo episodes → SSL pretrain → waypoint BC → CARLA eval
-```
+- [ ] PR review and merge (external)
+- [ ] Run CARLA evaluation with trained checkpoint
+- [ ] Compare offline ADE/FDE with closed-loop metrics
+- [ ] Integrate SFT checkpoint loading into RL training
 
-**Evaluation-First Design:**
-- Add ADE/FDE metrics **during training**, not after
-- Enables checkpoint selection based on quality metrics
-- Critical for autonomous driving where precision matters
+## Notes
 
-## Links
-- Daily notes: `clawbot/daily/2026-02-16.md`
-- PR: https://github.com/Capri2014/AIResearch/pull/new/feature/daily-2026-02-16-d
+- Daily notes: `clawbot/daily/2026-02-17.md`
+- Driving-first pipeline: Waymo → SSL pretrain → waypoint BC → RL refinement → CARLA eval
+- Architecture pattern: residual delta learning (fixed SFT + trainable delta head)
+
+## PR URL
+
+**Pipeline PR #3:** https://github.com/Capri2014/AIResearch/pull/new/feature/daily-2026-02-17-c
