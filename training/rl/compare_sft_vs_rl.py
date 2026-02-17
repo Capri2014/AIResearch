@@ -19,8 +19,10 @@ from __future__ import annotations
 import argparse
 import json
 from pathlib import Path
+import subprocess
 import sys
 import time
+from typing import Any, Dict, Optional
 
 import numpy as np
 
@@ -29,6 +31,24 @@ repo_root = Path(__file__).resolve().parent.parent.parent
 sys.path.insert(0, str(repo_root))
 
 from training.rl.toy_waypoint_env import ToyWaypointEnv, WaypointEnvConfig, policy_sft, policy_rl_refined
+
+
+def _git_info(repo_root: Path) -> Dict[str, Any]:
+    """Best-effort git metadata for reproducibility."""
+
+    def _run(args: list[str]) -> Optional[str]:
+        try:
+            out = subprocess.check_output(args, cwd=str(repo_root), stderr=subprocess.DEVNULL)
+        except Exception:
+            return None
+        s = out.decode("utf-8", errors="replace").strip()
+        return s or None
+
+    return {
+        "repo": _run(["git", "config", "--get", "remote.origin.url"]),
+        "commit": _run(["git", "rev-parse", "HEAD"]),
+        "branch": _run(["git", "rev-parse", "--abbrev-ref", "HEAD"]),
+    }
 
 
 def run_policy_on_env(
@@ -141,6 +161,9 @@ def main() -> None:
     seeds = [int(args.seed_base) + i for i in range(int(args.episodes))]
     run_id = args.run_id or time.strftime("%Y%m%d-%H%M%S")
     
+    # Get git info for reproducibility
+    git_info = {k: v for k, v in _git_info(repo_root).items() if v is not None}
+    
     # Run SFT policy
     print(f"\n[compare_sft_vs_rl] Running SFT policy on {args.episodes} episodes (seeds {seeds[0]}-{seeds[-1]})...")
     sft_scenarios = run_policy_on_env(policy_sft, "sft", seeds, max_episode_steps=int(args.max_steps))
@@ -151,7 +174,7 @@ def main() -> None:
     sft_metrics = {
         "run_id": f"{run_id}_sft",
         "domain": "rl",
-        "git": {},
+        "git": git_info,
         "policy": {"name": "toy_waypoint_sft"},
         "scenarios": sft_scenarios,
         "summary": compute_summary_metrics(sft_scenarios),
@@ -170,7 +193,7 @@ def main() -> None:
     rl_metrics = {
         "run_id": f"{run_id}_rl",
         "domain": "rl",
-        "git": {},
+        "git": git_info,
         "policy": {"name": "toy_waypoint_rl"},
         "scenarios": rl_scenarios,
         "summary": compute_summary_metrics(rl_scenarios),
