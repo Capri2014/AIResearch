@@ -80,6 +80,9 @@ class UnifiedConfig:
     """Unified training configuration."""
     # Model dims
     ssl_embed_dim: int = 768
+    ssl_checkpoint_path: Optional[str] = None  # Path to pretrained SSL encoder
+    freeze_ssl: bool = True  # Freeze SSL encoder during training
+    
     state_dim: int = 16
     cot_dim: int = 256
     hidden_dim: int = 512
@@ -130,6 +133,10 @@ class UnifiedDrivingModel(nn.Module):
         # === SSL Encoder (placeholder - load pretrained) ===
         self.ssl_encoder = nn.Identity()  # Replace with actual JEPA encoder
         
+        # Load pretrained SSL encoder if path provided
+        if config.ssl_checkpoint_path:
+            self.load_ssl_encoder(config.ssl_checkpoint_path, config.freeze_ssl)
+        
         # === State Encoder ===
         self.state_encoder = nn.Sequential(
             nn.Linear(config.state_dim, config.hidden_dim),
@@ -162,7 +169,7 @@ class UnifiedDrivingModel(nn.Module):
         if config.use_vla:
             from training.models.vla_planner import VLADrivingPlanner, VLAConfig
             vla_config = VLAConfig(
-                vision_hidden=config.hidden_dim,
+                vision_hidden=config.ssl_embed_dim,  # Use SSL output dim
                 fusion_hidden=config.hidden_dim,
                 trajectory_horizon=config.trajectory_horizon,
             )
@@ -177,6 +184,49 @@ class UnifiedDrivingModel(nn.Module):
         self.register_buffer('_zero', torch.zeros(1))
         
         # === Trajectory Decoder ===
+        self.decoder = nn.Sequential(
+            nn.Linear(config.hidden_dim, config.hidden_dim),
+            nn.ReLU(),
+            nn.Linear(config.hidden_dim, config.trajectory_horizon * 3),
+        )
+        
+        # === Safety Layer ===
+        self.safety_layer = None
+        if config.use_safety:
+            from training.models.safety_layer import SafetyLayer, SafetyConfig
+            self.safety_layer = SafetyLayer(SafetyConfig())
+        
+        # Loss weights
+        self.world_model_weight = config.world_model_weight
+        self.safety_weight = config.safety_weight
+    
+    def load_ssl_encoder(self, checkpoint_path: str, freeze: bool = True):
+        """Load pretrained SSL encoder (JEPA) into both ssl_encoder and VLA."""
+        import os
+        if not os.path.exists(checkpoint_path):
+            print(f"Warning: SSL checkpoint not found at {checkpoint_path}")
+            return
+        
+        checkpoint = torch.load(checkpoint_path, map_location='cpu')
+        
+        # Extract state dict
+        if 'model' in checkpoint:
+            state_dict = checkpoint['model']
+        elif 'state_dict' in checkpoint:
+            state_dict = checkpoint['state_dict']
+        else:
+            state_dict = checkpoint
+        
+        # Try to load into ssl_encoder
+        try:
+            self.ssl_encoder.load_state_dict(state_dict, strict=False)
+            print(f"Loaded SSL encoder into ssl_encoder from {checkpoint_path}")
+        except:
+            print(f"Warning: Could not load SSL encoder, trying VLA vision_encoder...")
+        
+        # Also try to load into VLA's vision encoder
+        if self.vla_planner is not None:
+            self.vla_planner.load_ssl_encoder(checkpoint_path, freeze=freeze)
         self.decoder = nn.Sequential(
             nn.Linear(config.hidden_dim, config.hidden_dim),
             nn.ReLU(),

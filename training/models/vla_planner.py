@@ -6,19 +6,27 @@ Vision-Language-Action model that:
 - Optionally accepts language queries/instructions
 - Outputs both trajectory and natural language explanation
 
+IMPORTANT: This VLA planner is designed to use a PRE-TRAINED SSL encoder (JEPA).
+Instead of training a vision encoder from scratch, load a checkpoint from:
+- training/pretrain/jepa_masked_objective.py
+- training/pretrain/train_ssl_*.py
+
 Usage:
     from training.models.vla_planner import VLADrivingPlanner
     
+    # Option 1: Load pretrained SSL encoder
     planner = VLADrivingPlanner(config)
+    planner.load_ssl_encoder('path/to/ssl_checkpoint.pt')
+    
+    # Option 2: Freeze SSL encoder and train only heads
+    for param in planner.vision_encoder.parameters():
+        param.requires_grad = False
     
     # Plan and explain
     trajectory, explanation = planner(
         images=front_camera,
         query="Drive safely considering the pedestrians ahead"
     )
-    
-    print(f"Trajectory: {trajectory}")
-    print(f"Explanation: {explanation}")
 """
 
 from __future__ import annotations
@@ -38,17 +46,18 @@ import math
 @dataclass
 class VLAConfig:
     """Configuration for VLA planner."""
-    # Vision
+    # Vision - NOTE: These should match the SSL encoder config
     image_channels: int = 3
     image_size: int = 128
+    ssl_embed_dim: int = 768  # Match your SSL encoder output dim!
     
     # Language
     vocab_size: int = 32000
     embed_dim: int = 256
     max_seq_len: int = 128
     
-    # Encoder
-    vision_hidden: int = 512
+    # Encoder - Note: vision_hidden should match SSL encoder if loading pretrained
+    vision_hidden: int = 768  # Should be ssl_embed_dim if using pretrained
     lang_hidden: int = 256
     fusion_hidden: int = 512
     
@@ -58,6 +67,10 @@ class VLAConfig:
     
     # Explainer
     explanation_max_len: int = 50
+    
+    # SSL Encoder
+    use_pretrained_ssl: bool = True  # Whether to load pretrained encoder
+    ssl_checkpoint_path: Optional[str] = None
     
     # Fusion type
     fusion_type: str = "cross_attention"  # "cross_attention" or "concat"
@@ -525,6 +538,58 @@ class VLADrivingPlanner(nn.Module):
             nn.Linear(config.fusion_hidden, 1),
             nn.Sigmoid(),
         )
+    
+    def load_ssl_encoder(self, checkpoint_path: str, freeze: bool = True):
+        """
+        Load pretrained SSL encoder (JEPA) from checkpoint.
+        
+        Args:
+            checkpoint_path: Path to SSL encoder checkpoint
+            freeze: Whether to freeze the encoder weights
+        """
+        import os
+        if not os.path.exists(checkpoint_path):
+            print(f"Warning: SSL checkpoint not found at {checkpoint_path}")
+            print("Using random initialization for vision encoder.")
+            return
+        
+        checkpoint = torch.load(checkpoint_path, map_location='cpu')
+        
+        # Try to find the encoder in the checkpoint
+        if 'model' in checkpoint:
+            state_dict = checkpoint['model']
+        elif 'encoder' in checkpoint:
+            state_dict = checkpoint['encoder']
+        elif 'state_dict' in checkpoint:
+            state_dict = checkpoint['state_dict']
+        else:
+            state_dict = checkpoint
+        
+        # Try to load - handle different key naming
+        loaded = False
+        for key_prefix in ['', 'encoder.', 'vision_encoder.', 'backbone.']:
+            try:
+                # Create filtered state dict
+                filtered = {k.replace(key_prefix, ''): v 
+                          for k, v in state_dict.items() 
+                          if 'encoder' in k or 'backbone' in k or 'vision' in k}
+                
+                if filtered:
+                    self.vision_encoder.load_state_dict(filtered, strict=False)
+                    loaded = True
+                    break
+            except:
+                continue
+        
+        if loaded:
+            print(f"Loaded SSL encoder from {checkpoint_path}")
+            if freeze:
+                for param in self.vision_encoder.parameters():
+                    param.requires_grad = False
+                print("SSL encoder frozen (not trainable)")
+        else:
+            print(f"Warning: Could not load SSL encoder from {checkpoint_path}")
+            print("Using random initialization for vision encoder.")
     
     def forward(
         self,
