@@ -16,22 +16,23 @@
 | Category | Papers | Key Contributions |
 |-----------|---------|------------------|
 | 3D Detection | 5+ | MonoLSS, LiDAR-SSL |
-| End-to-End AD | 7+ | VAD, UniAD, GUMP, DiffusionDrive, DiffusionDriveV2, EmbodiedGen |
+| End-to-End AD | 10+ | VAD, VADv2, VADv3, Senna, RAD, GUMP, DiffusionDrive, DiffusionDriveV2, EmbodiedGen |
 | BEV Perception | 4+ | BEVFusion, BEVFormer |
 | Chip/Edge AI | 10+ | Journey series chips |
 | Simulation | 2+ | Data pipelines |
 
 **Top 5 Must-Read Papers:**
-1. **VAD** (ECCV 2022) - Vectorized autonomous driving
+1. **VADv2** (ICLR 2026) - Probabilistic planning (new SOTA)
 2. **DiffusionDriveV2** (2025) - RL-constrained truncated diffusion
 3. **DiffusionDrive** (CVPR 2025) - Truncated diffusion for E2E driving
-4. **GUMP** (ECCV 2024) - Generative Unified Motion Planning
-5. Journey Chip Papers - Edge AI optimization
+4. **Senna** (2024) - VLM-enhanced planning
+5. **VAD** (ICCV 2023) - Vectorized scene representation
 
-**New Papers Added (2026-02-17):**
-- DiffusionDriveV2 (2025): RL-constrained truncated diffusion with GRPO
-- GUMP (ECCV 2024): Motion planning with generative models
-- EmbodiedGen (NeurIPS 2025): 3D world generation for embodied AI
+**All E2E Papers Added (2026-02-17):**
+- VAD (ICCV 2023): Vectorized scene representation
+- VADv2 (ICLR 2026): Probabilistic planning with uncertainty
+- Senna (2024): VLM-enhanced autonomous driving
+- RAD (NeurIPS 2025): 3DGS-based RL post-training
 
 ---
 
@@ -186,7 +187,10 @@ class MonoLSSInspiredModel(nn.Module):
 | Year | Paper | Venue | Key Contribution |
 |------|-------|-------|----------------|
 | 2022 | **VAD** | ECCV | Vectorized planning |
-| 2023 | UniAD | CVPR | Unified perception-planning |
+| 2023 | VAD | ICCV | Vectorized scene representation |
+| 2024 | **VADv2** | ICLR 2026 | Probabilistic planning |
+| 2024 | **Senna** | - | VLM-enhanced planning |
+| 2025 | **RAD** | NeurIPS | 3DGS-based RL post-training |
 | 2024 | **GUMP** | ECCV | Generative Unified Motion Planning |
 | 2025 | **DiffusionDrive** | CVPR | Truncated diffusion for E2E driving |
 | 2025 | **DiffusionDriveV2** | arXiv | RL-constrained truncated diffusion |
@@ -292,6 +296,116 @@ class VADInspiredPlanner(nn.Module):
             'agent_trajectories': agent_trajs,
             'drivable_area': drivable,
         }
+```
+
+#### VAD (ICCV 2023) - Vectorized Scene Representation
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│              VAD: Vectorized Scene Representation               │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                  │
+│  Paper: https://arxiv.org/abs/2303.12077                       │
+│  Authors: Bo Jiang, Shaoyu Chen, et al. (HUST + Horizon)        │
+│  Venue: ICCV 2023                                               │
+│                                                                  │
+│  Problem:                                                       │
+│  • Dense rasterized representations are computationally intensive│
+│  • Hand-designed post-processing steps are slow                  │
+│  • Need efficient vectorized representation                      │
+│                                                                  │
+│  Solution: Fully vectorized scene representation                 │
+│  1. Vectorized agent trajectories                                │
+│  2. Vectorized drivable area                                    │
+│  3. Vectorized lane graph                                       │
+│                                                                  │
+│  Results:                                                      │
+│  • 16.8 FPS (VAD-Tiny) - 10x faster than BEV-based methods    │
+│  • SOTA planning performance on nuScenes                       │
+│  • End-to-end unified paradigm                                 │
+│                                                                  │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+#### VADv2 (ICLR 2026) - Probabilistic Planning
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│              VADv2: Probabilistic End-to-End Driving           │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                  │
+│  Paper: https://arxiv.org/abs/2402.13243                       │
+│  Authors: Shaoyu Chen, Bo Jiang, Hao Gao, et al. (HUST)        │
+│  Venue: ICLR 2026 (accepted Jan 31, 2026)                      │
+│                                                                  │
+│  Problem:                                                       │
+│  • Deterministic planning cannot handle uncertainty             │
+│  • Need probabilistic approach for diverse scenarios             │
+│                                                                  │
+│  Solution: Probabilistic planning with uncertainty estimation    │
+│  1. Probabilistic trajectory distribution                       │
+│  2. Uncertainty-aware planning                                  │
+│  3. Safety-critical scenario handling                           │
+│                                                                  │
+│  Results:                                                      │
+│  • Better handling of rare/difficult scenarios                   │
+│  • Quantifiable uncertainty for safety                          │
+│                                                                  │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+#### Senna (2024) - VLM-Enhanced Planning
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│              Senna: VLM-Enhanced Autonomous Driving             │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                  │
+│  Paper: https://github.com/hustvl/Senna                        │
+│  Date: Oct 2024                                                │
+│  Authors: HUST Vision Lab + Horizon Robotics                    │
+│                                                                  │
+│  Problem:                                                       │
+│  • Pure perception-based methods lack semantic understanding     │
+│  • Need large vision-language models for better planning        │
+│                                                                  │
+│  Solution: Combine VAD/VADv2 with large VLMs                    │
+│  1. VLM for scene understanding                                 │
+│  2. Language-guided planning                                    │
+│  3. More accurate, robust, and generalizable                    │
+│                                                                  │
+│  Results:                                                      │
+│  • Better semantic understanding                                │
+│  • Improved generalization to new scenarios                     │
+│                                                                  │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+#### RAD (NeurIPS 2025) - 3DGS-Based RL Post-Training
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│              RAD: 3DGS-Based RL Post-Training                  │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                  │
+│  Paper: https://github.com/hustvl/RAD                         │
+│  Venue: NeurIPS 2025                                            │
+│  Authors: HUST Vision Lab + Horizon Robotics                     │
+│                                                                  │
+│  Problem:                                                       │
+│  • End-to-end models need further refinement after imitation    │
+│  • RL training in simulation is challenging                      │
+│                                                                  │
+│  Solution: 3D Gaussian Splatting-based RL post-training         │
+│  1. High-fidelity scene rendering with 3DGS                     │
+│  2. RL fine-tuning in realistic environments                     │
+│  3. Closed-loop improvement after imitation learning            │
+│                                                                  │
+│  Results:                                                      │
+│  • Better policy after RL post-training                         │
+│  • Realistic simulation for training                            │
+│                                                                  │
+└─────────────────────────────────────────────────────────────────┘
 ```
 
 #### DiffusionDrive (CVPR 2025) - **NEW! Added 2026-02-17**
