@@ -1,92 +1,76 @@
-# 3D Gaussian Splatting Survey Digest
+# 3D Gaussian Splatting for Real-Time Neural Rendering
 
-**Survey:** 3D Gaussian Splatting for Real-Time Neural Rendering (Kerbl et al., 2023)  
-**Date:** 2026-02-16  
-**Author:** Auto-generated digest
+**Paper:** Kerbl et al., SIGGRAPH 2023  
+**Topic:** Real-time neural rendering via explicit 3D Gaussians  
+**Last Updated:** 2026-02-17
 
 ---
 
 ## TL;DR
 
-3D Gaussian Splatting represents a breakthrough in neural rendering by using millions of 3D Gaussians as an explicit scene representation that can be optimized from multi-view images and rendered at real-time frame rates (30+ FPS). Unlike Neural Radiance Fields (NeRF) which rely on volumetric ray marching, Gaussian Splatting projects each Gaussian onto the image plane and rasterizes them in a single forward pass, enabling interactive viewing and editing of captured scenes. The method achieves quality comparable to NeRF while being 100-1000x faster, making it practical for applications like VR/AR, film production, and real-time 3D reconstruction.
+3D Gaussian Splatting renders photorealistic novel views at **30-100+ FPS** (100-1000x faster than NeRF) by replacing neural network inference with GPU rasterization of explicit 3D Gaussian ellipsoids. No ray marching, no per-frame neural inference—just projected splats blended in a single forward pass. Game-changing for VR/AR, film, and real-time 3D reconstruction.
 
 ---
 
 ## Key Method + What Makes It Fast
 
-**How it works:**
+**The core insight:** Instead of ray-marching through a neural field (NeRF), represent the scene as **millions of explicit 3D Gaussians** (position, rotation, scale, opacity, spherical harmonics for color) and **splat/rasterize** them.
 
-3D Gaussian Splatting optimizes a set of 3D Gaussians (ellipsoids with position, rotation, scale, opacity, and spherical harmonics coefficients for view-dependent color) to represent a scene. The process begins with sparse structure-from-motion (SfM) points as initialization, then iteratively refines Gaussian parameters by comparing rendered novel views against ground truth images. Each Gaussian represents a volumetric "blob" of radiance that contributes to the final rendered pixel when projected.
+**Speed comes from:**
 
-**Why it's fast:**
+1. **Splatting-based rasterization** — Transform each 3D Gaussian to 2D via projection, then blend via standard GPU pipelines (or optimized CUDA kernels)
+2. **Single forward pass** — No iterative ray samples per pixel
+3. **Explicit representation** — No neural network at test time; Gaussians are the scene
+4. **Parallelizable** — Gaussians sort and blend independently
 
-The key innovation is using **splatting-based rasterization** instead of volumetric ray marching. Each 3D Gaussian is transformed into 2D via view-projection, creating a 2D Gaussian splat that can be rasterized using standard graphics techniques (or custom CUDA kernels for maximum performance). This enables:
-- **Single forward pass rendering** - no ray marching through empty space
-- **Parallel GPU rasterization** - Gaussians can be sorted and blended in parallel
-- **Explicit rather than implicit** - no neural network inference at test time
-- **Real-time FPS** - typically 30-100+ FPS on modern GPUs vs. seconds per frame for NeRF
-
-The combination of explicit geometry (Gaussians) and efficient rasterization makes it 100-1000x faster than NeRF-quality renderers.
+**Result:** Real-time rendering of captured real-world scenes at interactive frame rates.
 
 ---
 
-## What "Generative" / Novel-View Generalization Would Require Beyond Vanilla GS
+## What "Generative" Requires Beyond Vanilla GS
 
-Vanilla 3D Gaussian Splatting is **per-scene optimized** - it requires training a separate set of Gaussians for each scene from scratch. For true generative capabilities (creating 3D content from text/descriptions, or generalizing to novel scenes without per-scene training), significant extensions are needed:
+Vanilla GS is **per-scene optimized** (train Gaussians from scratch per scene). For generative/novel-view generalization:
 
-1. **Learned 3D Priors** - Integrate diffusion models or other generative priors trained on large 3D datasets to guide Gaussian generation without per-scene optimization. Approaches like DreamGaussian or GaussianDreamer combine 2D diffusion priors with 3D-aware distillation.
+| Requirement | What It Means |
+|-------------|---------------|
+| **Learned 3D priors** | Diffusion models or VAEs trained on 3D data to generate Gaussians without per-scene training |
+| **Neural decoders** | Networks that predict Gaussians from latent codes/conditions (text → Gaussians) |
+| **Multi-view consistency** | Enforce that generated Gaussians produce consistent views across all angles |
+| **Compression** | Octrees, VAEs, or hierarchical structures to handle millions of Gaussians efficiently |
 
-2. **Neural Gaussian Decoders** - Replace hand-designed Gaussian parameters with a neural network that predicts Gaussians from latent codes or conditioning inputs, enabling single-shot generation.
-
-3. **Consistency Enforcement** - Generative methods must enforce multi-view consistency across generated Gaussians, which vanilla GS lacks. This requires additional losses or architectural constraints (e.g., triplane representations feeding into Gaussian decoding).
-
-4. **Efficient Representations** - For text-to-3D, compress Gaussian count (millions per scene) via octree structures, VAE-based compression, or hierarchical approaches to make generation tractable.
-
-5. **Training Paradigm Shifts** - Move from per-scene gradient optimization to amortized inference or feed-forward networks that map inputs to Gaussian parameters directly.
-
-Key papers advancing generative GS: DreamGaussian (2023), GaussianDreamer (2023), Text-to-3D Gaussian works from 2023-2024.
+**Key papers:** DreamGaussian, GaussianDreamer, GSGen (2023-2024)
 
 ---
 
-## How This Could Plug Into Our World-Sim / 3D Reasoning Roadmap
+## Plug Into World-Sim / 3D Reasoning Roadmap
 
-While our current ROADMAP focuses on autonomous driving CoT backbone and language model evaluation, 3D Gaussian Splatting connects to future world-sim capabilities:
+| Use Case | How GS Helps |
+|----------|--------------|
+| **Real-time sensor sim** | Fast rendering for photorealistic camera/LiDAR simulation (AV training) |
+| **Interactive 3D scenes** | Explicit Gaussians can be added/moved/deleted — editable scenes for simulation |
+| **3D reconstruction** | Integrate with SfM/SLAM for real-time scene capture from vehicle cameras |
+| **Scene memory storage** | Compact 3D representation for long-horizon experience replay |
+| **Grounded reasoning** | Combine with LLM reasoning ("find the red car in reconstructed intersection") |
 
-1. **Real-Time 3D Scene Representation** - GS provides a fast, editable 3D representation ideal for simulating environments where interactive exploration is needed. Unlike implicit NeRF, Gaussians can be individually added/removed/moved for dynamic scenes.
-
-2. **Sensor Simulation for AV** - Fast rendering enables photorealistic sensor simulation (cameras, lidar) for autonomous driving. GS could generate synthetic training data from real-world captures at interactive rates.
-
-3. **3D Reconstruction Pipeline** - Integrate with SLAM or SfM pipelines to create real-time 3D maps from vehicle cameras, feeding into world models.
-
-4. **Memory-Efficient Scene Storage** - Compact Gaussian representations could serve as a format for storing learned 3D experience in long-horizon memory systems.
-
-5. **Multi-Modal Reasoning** - Combine GS's visual fidelity with language model reasoning for grounding text in 3D scenes (e.g., "find the red car in the reconstructed intersection").
-
-Near-term: Evaluate GS as a rendering backend for any 3D reconstruction work. Long-term: Investigate generative GS for creating synthetic training environments.
+**Near-term:** Evaluate GS as rendering backend for 3D reconstruction work.  
+**Long-term:** Generative GS for text-to-3D synthetic environment creation.
 
 ---
 
 ## Citations + Links
 
-### Primary Paper
-- **Kerbl, B., et al. (2023)** - "3D Gaussian Splatting for Real-Time Radiance Field Rendering"  
+### Primary
+- **Kerbl et al. (2023)** — "3D Gaussian Splatting for Real-Time Radiance Field Rendering"  
   https://repo-sam.inria.fr/fungraph/3d-gaussian-splatting/
 
 ### Reference Implementations
-- **Original (INRIA/GraphDeco):** https://github.com/graphdeco-inria/gaussian-splatting
-- **SplaTAM (CMU/RIT):** https://github.com/cv-rits/SplaTAM - SLAM-focused GS with tracking and mapping
-- **Compact Gaussian Splatting:** Optimized implementations with reduced memory footprint
-- **Original Project Page:** https://repo-sam.inria.fr/fungraph/3d-gaussian-splatting/
+- **Original (INRIA):** https://github.com/graphdeco-inria/gaussian-splatting
+- **SplaTAM (CMU):** https://github.com/cv-rits/SplaTAM — SLAM-focused GS
 
-### Generative GS Follow-ups
-- **DreamGaussian (2023)** - Text-to-3D via Gaussian generation with 2D diffusion priors  
-  https://github.com/dreamgaussian/dreamgaussian
-- **GaussianDreamer (2023)** - Enhanced generative 3D with Gaussian propagation  
-  https://github.com/harryham/gaussian-dreamer
-- **GSgen (2024)** - Recent advances in text-to-3D Gaussian generation
-- **Score Jacobian Chaining for 3D (2023)** - Foundational work on 3D-aware diffusion
+### Generative Extensions
+- **DreamGaussian:** https://github.com/dreamgaussian/dreamgaussian
+- **GaussianDreamer:** https://github.com/harryham/gaussian-dreamer
 
 ---
 
-*PR: Survey PR #1 (9:00am PT): 3D Gaussian Splatting Digest Update*  
-*Summary: Updated 3D Gaussian Splatting survey digest (docs/digests/3d-gaussian-splatting.md). Key points: (1) Fast splatting rasterization enables 30-100+ FPS vs. NeRF's seconds/frame, (2) Generative GS requires learned priors/neural decoders + multi-view consistency, (3) Plug-in path: real-time sensor simulation for AV, SLAM integration, and editable 3D scene storage for world models.*
+*Created for Public Anchor Digest series*
