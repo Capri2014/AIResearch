@@ -1,0 +1,62 @@
+# CARLA Evaluation Scenarios
+# Used by run_carla_waypoint_eval.py for closed-loop policy evaluation
+
+# Scenario 1: Straight road, clear weather
+- name: straight_clear
+  town: Town01
+  weather: clear_noon
+  spawn_point: [0, 0, 0]
+  target_points:
+    - [20, 0, 0]
+    - [40, 0, 0]
+    - [60, 0, 0]
+    - [80, 0, 0]
+    - [100, 0, 0]
+  max_distance: 150.0
+
+# Scenario 2: Straight road, cloudy weather
+- name: straight_cloudy
+  town: Town01
+  weather: cloudy_noon
+  spawn_point: [0, 0, 0]
+  target_points:
+    - [25, 0, 0]
+    - [50, 0, 0]
+    - [75, 0, 0]
+    - [100, 0, 0]
+  max_distance: 120.0
+
+# Scenario 3: Turning route, clear weather
+- name: turn_clear
+  town: Town01
+  weather: clear_noon
+  spawn_point: [0, 0, 0]
+  target_points:
+    - [30, 0, 0]
+    - [50, -10, 0]
+    - [50, -30, 0]
+    - [30, -40, 0]
+    - [0, -40, 0]
+  max_distance: 100.0
+
+# Scenario 4: Night driving
+- name: straight_night
+  town: Town01
+  weather: night
+  spawn_point: [0, 0, 0]
+  target_points:
+    - [30, 0, 0]
+    - [60, 0, 0]
+    - [90, 0, 0]
+  max_distance: 100.0
+
+# Scenario 5: Rainy conditions
+- name: straight_rain
+  town: Town01
+  weather: rain_noon
+  spawn_point: [0, 0, 0]
+  target_points:
+    - [20, 0, 0]
+    - [40, 0, 0]
+    - [60, 0, 0]
+  max_distance: 80.0
