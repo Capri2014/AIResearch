@@ -16,7 +16,7 @@
 | Category | Papers | Key Contributions |
 |-----------|---------|------------------|
 | 3D Detection | 5+ | MonoLSS, LiDAR-SSL |
-| End-to-End AD | 3+ | VAD, UniAD contributions |
+| End-to-End AD | 4+ | VAD, UniAD, DiffusionDrive |
 | BEV Perception | 4+ | BEVFusion, BEVFormer |
 | Chip/Edge AI | 10+ | Journey series chips |
 | Simulation | 2+ | Data pipelines |
@@ -24,8 +24,8 @@
 **Top 5 Must-Read Papers:**
 1. MonoLSS (CVPR 2022) - Monocular 3D with LiDAR-SSL
 2. VAD (ECCV 2022) - Vectorized autonomous driving
-3. BEVFusion (ICRA 2023) - Multi-sensor fusion
-4. UniAD (CVPR 2023) - Unified planning
+3. DiffusionDrive (CVPR 2025) - Truncated diffusion for E2E driving
+4. BEVFusion (ICRA 2023) - Multi-sensor fusion
 5. Journey Chip Papers - Edge AI optimization
 
 ---
@@ -184,6 +184,7 @@ class MonoLSSInspiredModel(nn.Module):
 | 2023 | UniAD | CVPR | Unified perception-planning |
 | 2024 | VADv2 | - | Improved VAD |
 | 2025 | VADv3 | - | Multi-modal VAD |
+| 2025 | **DiffusionDrive** | CVPR | Truncated diffusion for E2E driving |
 
 #### VAD (ECCV 2022) - **Must Read**
 
@@ -283,6 +284,71 @@ class VADInspiredPlanner(nn.Module):
             'agent_trajectories': agent_trajs,
             'drivable_area': drivable,
         }
+```
+
+#### DiffusionDrive (CVPR 2025) - **NEW! Added 2026-02-17**
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│          DiffusionDrive: Truncated Diffusion for E2E AD        │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                  │
+│  Paper: https://openaccess.thecvf.com/content/CVPR2025/html/    │
+│         Liao_DiffusionDrive_Truncated_Diffusion_Model_for_       │
+│         End-to-End_Autonomous_Driving_CVPR_2025_paper.html      │
+│                                                                  │
+│  Problem:                                                       │
+│  • Diffusion models for planning are slow (many denoising      │
+│    steps)                                                       │
+│  • Hard to deploy for real-time driving                         │
+│                                                                  │
+│  Solution: Truncated Diffusion - fewer steps, faster inference  │
+│                                                                  │
+│  Key Ideas:                                                    │
+│  1. Truncated diffusion (fewer steps than full diffusion)       │
+│  2. Conditional generation for trajectory planning              │
+│  3. Fast enough for real-time AD                               │
+│                                                                  │
+│  Architecture:                                                 │
+│  • Encoder: Perception backbone (camera/LiDAR)                 │
+│  • Diffusion: Truncated diffusion process                       │
+│  • Decoder: Trajectory output                                   │
+│                                                                  │
+│  Results:                                                      │
+│  • 10x faster than full diffusion models                       │
+│  • Comparable planning quality to full diffusion                │
+│  • Suitable for deployment                                     │
+│                                                                  │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+**Why It Matters for Us:**
+
+```python
+# We can apply DiffusionDrive to our planning:
+
+class DiffusionPlanner(nn.Module):
+    """
+    Diffusion-based trajectory planner.
+    
+    Instead of deterministic regression,
+    learn distribution of trajectories.
+    """
+    def __init__(self, config):
+        self.encoder = BEVEncoder()
+        self.diffusion = TruncatedDiffusion(
+            num_steps=10,  # Much fewer than full diffusion (1000+)
+        )
+        self.decoder = TrajectoryDecoder()
+    
+    def forward(self, bev_features):
+        # Encode perception
+        z = self.encoder(bev_features)
+        
+        # Generate trajectory via truncated diffusion
+        trajectory = self.diffusion(z)  # [B, T, 3]
+        
+        return trajectory
 ```
 
 ---
