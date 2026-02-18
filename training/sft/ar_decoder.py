@@ -415,21 +415,34 @@ class ARDecoder(nn.Module):
         memory = self.feature_proj(features)  # [B, hidden_dim]
         memory = memory.unsqueeze(1)  # [B, 1, hidden_dim]
         
-        # Initialize: start token as first position
-        tgt = torch.zeros(B, 1, self.config.hidden_dim, device=features.device)
+        # Initialize: start with a start token (learned or zeros)
+        if hasattr(self, 'wp_embedding'):
+            # Use learned start token projection
+            start_token = torch.zeros(B, 1, self.config.waypoint_dim, device=features.device)
+            tgt = self.wp_embedding(start_token)  # [B, 1, hidden_dim]
+        else:
+            # Use zeros as start token
+            tgt = torch.zeros(B, 1, self.config.hidden_dim, device=features.device)
         
         # Generate waypoints one by one
         all_waypoints = []
         
         for t in range(max_steps):
-            # Add positional encoding for this position
-            if self.config.use_embedding:
-                pos_embed = self.wp_embedding.embedding.weight[t:t+1].unsqueeze(0)  # [1, 1, hidden_dim]
-                pos_embed = pos_embed.expand(B, -1, -1)
-            else:
-                pos_embed = self.pos_encoding.pe[:, t:t+1, :self.config.hidden_dim].expand(B, -1, -1)
+            # Add positional encoding for ALL positions in tgt
+            # Each position i gets positional encoding for position i
+            current_len = tgt.size(1)  # Number of positions so far
             
-            tgt_with_pos = tgt + pos_embed
+            if self.config.use_embedding:
+                # Create position indices [0, 1, ..., t] for current positions
+                positions = torch.arange(current_len, device=features.device)  # [t+1]
+                pos_emb = self.wp_embedding.embedding(positions)  # [t+1, hidden_dim]
+                pos_emb = pos_emb.unsqueeze(0).expand(B, -1, -1)  # [B, t+1, hidden_dim]
+            else:
+                # Use sinusoidal positional encoding
+                pos_emb = self.pos_encoding.pe[:, :current_len, :self.config.hidden_dim]
+                pos_emb = pos_emb.expand(B, -1, -1)  # [B, t, hidden_dim]
+            
+            tgt_with_pos = tgt + pos_emb
             
             # Apply decoder layer
             for layer in self.decoder:
