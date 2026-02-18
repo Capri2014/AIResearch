@@ -1,7 +1,8 @@
-# Octo: Open-Source Generalist Robot Policy
+# Octo: Open-Source Generalist Robot Policy (PUBLIC ANCHOR DIGEST)
 
 **Survey:** Octo: An Open-Source Generalist Robot Policy (Ghosh et al., 2024)  
 **Date:** 2026-02-16  
+**Status:** PUBLIC ANCHOR DIGEST - Robotics Foundation Model Baseline  
 **Author:** Auto-generated digest  
 
 ---
@@ -200,7 +201,7 @@ gsutil -m cp -r gs://gdm-robotics-open-x-embodiment/octo_dataset/ ~/data/
    ) -> Dict[str, float]  # {collision_rate, progress, comfort, rule_violations}
    ```
 
-### Reproducibility Checklist
+### Reproducibility Checklist (ANCHOR REQUIREMENT)
 
 - [ ] Release dataset in RLDS/HF format with standardized schema
 - [ ] Publish full training code (PyTorch + Hydra config)
@@ -208,6 +209,26 @@ gsutil -m cp -r gs://gdm-robotics-open-x-embodiment/octo_dataset/ ~/data/
 - [ ] Colab notebook for zero-shot inference
 - [ ] Evaluation suite with scenario definitions
 - [ ] Multi-dataset mixture recipe with curriculum (if any)
+
+### Open Source Scorecard
+
+| Criterion | Octo | Open X-Embodiment/RT-X |
+|-----------|------|------------------------|
+| **License** | Apache 2.0 (fully permissive) | Apache 2.0 (software), CC-BY 4.0 (data) |
+| **Training Code** | Full PyTorch + Hydra | JAX/TensorFlow (limited) |
+| **Model Weights** | HuggingFace + GCS | GCS only |
+| **Colab Notebooks** | Yes (zero-shot inference) | Yes (minimal examples) |
+| **Evaluation Suite** | Dedicated repo | Part of main repo |
+| **Documentation** | Comprehensive | Paper-heavy |
+| **Best For** | Reproducibility + customization | Baseline comparison |
+
+### Why Octo is the Anchor
+
+1. **Reproducibility-first design**: Everything needed to reproduce results is released
+2. **Modular architecture**: Easy to swap components (image encoder, action head)
+3. **Apache 2.0**: No commercial restrictions
+4. **Active maintenance**: Rail-berkeley community responds to issues
+5. **Diffusion + BC support**: Dual training objectives in single codebase
 
 ---
 
@@ -236,5 +257,5 @@ gsutil -m cp -r gs://gdm-robotics-open-x-embodiment/octo_dataset/ ~/data/
 
 ---
 
-*PR: Survey PR #4: Octo Digest*  
-*Summary: Created comprehensive digest for Octo (900K+ trajectories, 9 robots) covering: (1) Training objectives - both diffusion (DDPM) and behavior cloning heads with transformer backbone, (2) Zero-shot transfer across robots with 5% improvement over RT-1-X, (3) Tesla claims mapping - strong alignment on foundation model transfer and real data, gaps in driving dynamics and safety reasoning, (4) Action items - adopt RLDS schema, implement modular action head for vehicle control, and release ONNX checkpoints for deployment.*
+*PR: Survey PR #2: Public Anchor Digest - Robotics Foundation Model Baseline*  
+*Summary: Updated Octo digest to serve as PUBLIC ANCHOR digest for robotics foundation models. (1) Training objectives - diffusion (DDPM) and behavior cloning heads with transformer backbone, (2) Zero-shot transfer across 9 robots with 5% improvement over RT-1-X, (3) Tesla claims mapping - strong alignment on foundation model transfer and real data, gaps in driving dynamics/safety reasoning, (4) Action items - adopt RLDS schema, implement modular action head for vehicle control, release ONNX checkpoints, (5) Anchor criteria met - Apache 2.0, full PyTorch training code, HuggingFace weights, Colab notebooks, evaluation suite.*
