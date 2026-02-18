@@ -4,6 +4,8 @@
 
 ## Daily Cadence
 
+- ✅ Pipeline PR #5 completed (RL refinement stub for residual delta-waypoint learning)
+- ⏳ Awaiting PR review/merge
 - ✅ Pipeline PR #8 completed (CARLA closed-loop waypoint BC evaluation script)
 - ⏳ Awaiting PR review/merge
 
@@ -11,6 +13,7 @@
 
 | Branch | Status | Latest Commit |
 |--------|--------|---------------|
+| feature/daily-2026-02-17-e | ✅ Pushed | d631419 - feat(rl): Add RL refinement stub for delta-waypoint learning |
 | feature/ar-decoder-cot | ✅ Pushed | b5373e1 - feat(eval): add CARLA closed-loop waypoint BC evaluation |
 | feature/daily-2026-02-17-b | ✅ Pushed | a5aede8 - feat(eval): add CARLA waypoint BC evaluation script |
 | feature/daily-2026-02-16-rebase | ✅ Pushed | 39e23fc - feat(eval): add git info to SFT vs RL comparison metrics |
@@ -22,7 +25,17 @@
 
 ## Recent Work
 
-1. **Pipeline PR #8** (2026-02-17): CARLA Closed-Loop Waypoint BC Evaluation
+1. **Pipeline PR #5** (2026-02-17): RL Refinement Stub - Residual Delta-Waypoint Learning
+   - `training/rl/rl_refinement_stub.py`: Clean entry point for RL after SFT
+   - Option B: action space = waypoint deltas
+   - Pattern: `final_waypoints = sft_waypoints + delta_head(z)`
+   - SFTWaypointWrapper: Loads and freezes SFT checkpoint
+   - DeltaWaypointHead: Small trainable network for corrections
+   - PPOAgent: PPO with GAE, value head, entropy bonus
+   - ToyWaypointEnv: Minimal 2D car environment for testing
+   - Output: `out/rl_refinement/<run_id>/` with config.json, metrics.json, train_metrics.json, final.pt
+
+2. **Pipeline PR #8** (2026-02-17): CARLA Closed-Loop Waypoint BC Evaluation
    - `run_carla_closed_loop_eval.py`: Comprehensive closed-loop evaluation script
    - 5 scenarios: straight_clear, straight_cloudy, straight_night, straight_rain, turn_clear
    - WaypointBCModelWrapper for checkpoint loading
@@ -49,10 +62,12 @@
 
 ## Pending Tasks
 
-- [ ] PR review and merge (external)
+- [ ] PR review and merge for #5 (external)
+- [ ] PR review and merge for #8 (external)
+- [ ] Run RL refinement stub with real SFT checkpoint
+- [ ] Compare RL-refined vs SFT-only performance on toy environment
 - [ ] Run CARLA evaluation with trained checkpoint
 - [ ] Compare offline ADE/FDE with closed-loop metrics
-- [ ] Add collision/offroad detection sensors to evaluator
 
 ## Notes
 
