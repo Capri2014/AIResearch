@@ -32,10 +32,21 @@
         "properties": {
           "scenario_id": {"type": "string"},
           "success": {"type": "boolean"},
+          "ade": {
+            "type": "number",
+            "description": "Average Displacement Error - mean distance to target waypoints (meters)"
+          },
+          "fde": {
+            "type": "number",
+            "description": "Final Displacement Error - distance to final target waypoint (meters)"
+          },
           "route_completion": {"type": "number", "minimum": 0, "maximum": 1},
           "collisions": {"type": "integer", "minimum": 0},
           "offroad": {"type": "integer", "minimum": 0},
           "red_light": {"type": "integer", "minimum": 0},
+          "return": {"type": "number", "description": "Episode return (cumulative reward)"},
+          "steps": {"type": "integer", "description": "Number of steps taken"},
+          "final_dist": {"type": "number", "description": "Final distance to target (meters)"},
           "comfort": {
             "type": "object",
             "properties": {
@@ -48,6 +59,21 @@
         },
         "additionalProperties": true
       }
+    },
+    "summary": {
+      "type": "object",
+      "description": "Aggregate metrics across all scenarios",
+      "properties": {
+        "ade_mean": {"type": "number"},
+        "ade_std": {"type": "number"},
+        "fde_mean": {"type": "number"},
+        "fde_std": {"type": "number"},
+        "success_rate": {"type": "number"},
+        "return_mean": {"type": "number"},
+        "steps_mean": {"type": "number"},
+        "num_episodes": {"type": "integer"}
+      },
+      "additionalProperties": true
     }
   },
   "additionalProperties": true

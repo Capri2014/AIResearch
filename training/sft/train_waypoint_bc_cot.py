@@ -91,11 +91,19 @@ import torch.nn.functional as F
 from torch.utils.data import Dataset, DataLoader
 import numpy as np
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Optional, Tuple, Any
 import argparse
 from dataclasses import dataclass, field
 from datetime import datetime
 import sys
+
+# Import AR Decoder
+from training.sft.ar_decoder import (
+    ARDecoder,
+    ARCoTDecoder,
+    ARDecoderConfig,
+    ARCoTConfig,
+)
 
 
 # ============================================================================
@@ -127,10 +135,15 @@ class SFTCoTConfig:
     # Fusion
     fusion_hidden_dim: int = 512
     
-    # Decoder
-    decoder_num_layers: int = 4
-    decoder_num_heads: int = 8
-    decoder_max_waypoints: int = 16
+    # ========== AR Decoder Settings ==========
+    
+    use_ar_decoder: bool = True  # Use autoregressive decoder instead of parallel
+    ar_hidden_dim: int = 256
+    ar_num_layers: int = 4
+    ar_num_heads: int = 8
+    ar_max_waypoints: int = 16
+    ar_dropout: float = 0.1
+    ar_use_embedding: bool = True
     
     # ========== Pre-training Strategy ==========
     
@@ -159,6 +172,33 @@ class SFTCoTConfig:
         """Validate and set defaults."""
         assert self.cot_encoder_type in ['none', 'lstm', 'bert'], \
             f"Invalid cot_encoder_type: {self.cot_encoder_type}"
+    
+    def to_ar_decoder_config(self) -> ARDecoderConfig:
+        """Convert to ARDecoderConfig."""
+        return ARDecoderConfig(
+            feature_dim=self.fusion_hidden_dim,
+            hidden_dim=self.ar_hidden_dim,
+            num_waypoints=self.ar_max_waypoints,
+            waypoint_dim=3,
+            num_layers=self.ar_num_layers,
+            num_heads=self.ar_num_heads,
+            dropout=self.ar_dropout,
+        )
+    
+    def to_ar_cot_config(self) -> ARCoTConfig:
+        """Convert to ARCoTConfig."""
+        return ARCoTConfig(
+            feature_dim=self.fusion_hidden_dim,
+            hidden_dim=self.ar_hidden_dim,
+            cot_dim=self.cot_hidden_dim,
+            num_waypoints=self.ar_max_waypoints,
+            waypoint_dim=3,
+            num_layers=self.ar_num_layers,
+            num_heads=self.ar_num_heads,
+            dropout=self.ar_dropout,
+            cot_encoder_type=self.cot_encoder_type,
+            include_explanation=True,
+        )
 
 
 # ============================================================================
@@ -457,6 +497,76 @@ class FusionLayer(nn.Module):
         return self.fusion(fused)
 
 
+# ============================================================================
+# AR Decoder Wrapper (for SFT training)
+# ============================================================================
+
+class ARDecoderWrapper(nn.Module):
+    """
+    Wrapper for ARDecoder that handles both training and inference modes.
+    
+    This wraps the ARDecoder to provide a simple interface for waypoint prediction.
+    """
+    
+    def __init__(self, config: SFTCoTConfig, use_cot: bool = False):
+        super().__init__()
+        self.config = config
+        self.use_cot = use_cot
+        
+        if use_cot:
+            ar_config = config.to_ar_cot_config()
+            self.decoder = ARCoTDecoder(ar_config)
+        else:
+            ar_config = config.to_ar_decoder_config()
+            self.decoder = ARDecoder(ar_config)
+    
+    def forward(
+        self,
+        fused_features: torch.Tensor,
+        waypoints: Optional[torch.Tensor] = None,
+        cot_input: Optional[torch.Tensor] = None,
+    ) -> Dict[str, torch.Tensor]:
+        """
+        Forward pass through AR decoder.
+        
+        Args:
+            fused_features: [B, fusion_hidden_dim] conditioning features
+            waypoints: [B, T, 3] target waypoints (for training, optional)
+            cot_input: [B, L] CoT token IDs (for AR+CoT mode)
+            
+        Returns:
+            Dict with:
+                waypoints: [B, T, 3] predicted waypoints
+                embeddings: [B, T, hidden_dim] intermediate embeddings (training only)
+        """
+        if self.use_cot and cot_input is not None:
+            return self.decoder(fused_features, cot_input)
+        else:
+            return self.decoder(fused_features, waypoints)
+    
+    def generate(
+        self,
+        fused_features: torch.Tensor,
+        cot_input: Optional[torch.Tensor] = None,
+        max_steps: Optional[int] = None,
+    ) -> torch.Tensor:
+        """
+        Autoregressive generation.
+        
+        Args:
+            fused_features: [B, fusion_hidden_dim] conditioning features
+            cot_input: [B, L] CoT token IDs (for AR+CoT mode)
+            max_steps: Maximum number of waypoints to generate
+            
+        Returns:
+            waypoints: [B, T, 3] generated waypoints
+        """
+        if self.use_cot and cot_input is not None:
+            return self.decoder.generate(fused_features, cot_input)
+        else:
+            return self.decoder.generate(fused_features, max_steps)
+
+
 class TransformerDecoder(nn.Module):
     """
     Transformer decoder for temporal waypoint prediction.
@@ -557,14 +667,16 @@ class WaypointBCWithCoT(nn.Module):
         # 4. Fusion Layer
         self.fusion = FusionLayer(config)
         
-        # 5. Transformer Decoder
-        self.decoder = TransformerDecoder(config)
+        # 5. AR Decoder (Autoregressive waypoint prediction)
+        use_cot = config.cot_encoder_type != 'none'
+        self.ar_decoder = ARDecoderWrapper(config, use_cot=use_cot)
         
-        # 6. Prediction Heads
+        # 6. Prediction Heads (for parallel training mode)
+        # Note: AR decoder has its own waypoint_head, but we keep this for compatibility
         self.waypoint_head = nn.Sequential(
-            nn.Linear(config.fusion_hidden_dim, config.fusion_hidden_dim),
+            nn.Linear(config.ar_hidden_dim, config.ar_hidden_dim),
             nn.ReLU(),
-            nn.Linear(config.fusion_hidden_dim, 3),  # x, y, heading
+            nn.Linear(config.ar_hidden_dim, 3),  # x, y, heading
         )
         
         self.control_head = nn.Sequential(
@@ -603,30 +715,42 @@ class WaypointBCWithCoT(nn.Module):
         # 2. State Encoder
         state_features = self.state_encoder(state)  # [B, state_hidden_dim]
         
-        # 3. CoT Encoder
+        # 3. CoT Encoder (only encode token IDs, not embeddings)
         cot_features = None
         if cot_input_ids is not None:
+            # CoT encoder handles tokenization internally
             cot_features = self.cot_encoder(cot_input_ids)  # [B, cot_hidden_dim]
         
         # 4. Fusion
         fused_features = self.fusion(ssl_features, state_features, cot_features)
         # [B, fusion_hidden_dim]
         
-        # 5. Decoder
-        decoder_output = self.decoder(fused_features)  # [B, T, fusion_hidden_dim]
+        # 5. AR Decoder (handles both training with waypoints and inference)
+        if self.config.use_ar_decoder:
+            # AR decoder handles both training (teacher forcing) and inference
+            if self.config.cot_encoder_type != 'none' and cot_input_ids is not None:
+                # AR+CoT mode: pass cot_input_ids for CoT encoding
+                ar_output = self.ar_decoder(fused_features, waypoints, cot_input_ids)
+            else:
+                # AR mode without CoT
+                ar_output = self.ar_decoder(fused_features, waypoints, None)
+            
+            waypoints_pred = ar_output['waypoints']
+            # embeddings = ar_output.get('embeddings')  # Available during training
+        else:
+            # Legacy parallel decoder mode
+            decoder_output = self.decoder(fused_features)
+            waypoints_pred = self.waypoint_head(decoder_output)
         
-        # 6. Predict waypoints
-        waypoints = self.waypoint_head(decoder_output)  # [B, T, 3]
-        
-        # 7. Predict control (from fused features)
+        # 6. Predict control (from fused features)
         control = self.control_head(fused_features)  # [B, 3]
         
         # Apply mask if provided
         if waypoint_mask is not None:
-            waypoints = waypoints * waypoint_mask.unsqueeze(-1)
+            waypoints_pred = waypoints_pred * waypoint_mask.unsqueeze(-1)
         
         return {
-            'waypoints': waypoints,
+            'waypoints': waypoints_pred,
             'control': control,
             'features': fused_features,
         }
