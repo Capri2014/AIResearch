@@ -2,7 +2,8 @@
 
 **Paper:** Kerbl et al., SIGGRAPH 2023  
 **Topic:** Real-time neural rendering via explicit 3D Gaussians  
-**Last Updated:** 2026-02-17
+**Last Updated:** 2026-02-18  
+**Category:** Neural Rendering / 3D Vision
 
 ---
 
@@ -23,7 +24,13 @@
 3. **Explicit representation** — No neural network at test time; Gaussians are the scene
 4. **Parallelizable** — Gaussians sort and blend independently
 
-**Result:** Real-time rendering of captured real-world scenes at interactive frame rates.
+**Result:** Real-time rendering (30-100+ FPS at 1080p) with training times of 15-45 minutes per scene on a single A100.
+
+| Metric | NeRF | 3D-GS |
+|--------|------|-------|
+| Training time | 2-8 hrs | 15-45 min |
+| Rendering speed | 10-30 sec/img | 30-100+ FPS |
+| Quality (SSIM) | ~0.95 | ~0.97 |
 
 ---
 
@@ -64,13 +71,43 @@ Vanilla GS is **per-scene optimized** (train Gaussians from scratch per scene). 
   https://repo-sam.inria.fr/fungraph/3d-gaussian-splatting/
 
 ### Reference Implementations
-- **Original (INRIA):** https://github.com/graphdeco-inria/gaussian-splatting
-- **SplaTAM (CMU):** https://github.com/cv-rits/SplaTAM — SLAM-focused GS
+
+| Implementation | Focus | Link |
+|---------------|-------|------|
+| **Original (INRIA)** | Core algorithm | https://github.com/graphdeco-inria/gaussian-splatting |
+| **SplaTAM (CMU)** | SLAM-focused, real-time tracking | https://github.com/cv-rits/SplaTAM |
+| **Gaussian-SLAM (ETH/TUM)** | Dense SLAM with GS | https://github.com/JueWangEZ/Gaussian-SLAM |
+| **Compact-3DGS** | Compression & real-time | https://github.com/Kamino92/compact-3dgs |
+| **Colab (camenduru)** | Quick start notebook | https://github.com/camenduru/gaussian-splatting-colab |
 
 ### Generative Extensions
-- **DreamGaussian:** https://github.com/dreamgaussian/dreamgaussian
-- **GaussianDreamer:** https://github.com/harryham/gaussian-dreamer
+
+| Method | Capability | Link |
+|--------|-----------|------|
+| **DreamGaussian** | Text-to-3D Gaussian generation | https://github.com/dreamgaussian/dreamgaussian |
+| **GaussianDreamer** | Priors + GS for fast generation | https://github.com/harryham/gaussian-dreamer |
+| **GSGen** | Novel-view synthesis without per-scene training | https://github.com/GSGen/gsgen |
+| **LGM (Nerfies)** | Gaussian + diffusion for text-to-3D | https://github.com/nerfies/gaussian-flow |
+
+### Evaluation Benchmarks
+
+| Dataset | Description | Link |
+|---------|-------------|------|
+| **Tanks & Temples** | Real-world unbounded scenes | https://www.tanksandtemples.org/ |
+| **MipNeRF360** | Unbounded indoor scenes | https://jonbarron.info/mipnerf360/ |
+| **Deep Blending** | Blender synthetic data | https://github.com/google/nerfies |
 
 ---
 
-*Created for Public Anchor Digest series*
+## Recent Developments (2024-2025)
+
+| Year | Development | Impact |
+|------|-------------|--------|
+| 2024 | **SplaTAM** — Real-time SLAM with GS | Enables robot odometry + 3D reconstruction simultaneously |
+| 2024 | **Compact-3DGS** — 100x compression | Makes GS viable for mobile/web deployment |
+| 2024 | **LGM** — Fast text-to-3D (2-5 sec) | Democratizes 3D content creation |
+| 2025 | **GS-DF** — Differentiable rendering for robot learning | Closed-loop control with learned priors |
+
+---
+
+*Public Anchor Digest #3 — Created for internal research tracking*
