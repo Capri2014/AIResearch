@@ -573,14 +573,19 @@ class ARCoTDecoder(nn.Module):
         features: torch.Tensor,
         cot_input: Optional[torch.Tensor] = None,
         cot_mask: Optional[torch.Tensor] = None,
+        waypoints: Optional[torch.Tensor] = None,
     ) -> Dict[str, torch.Tensor]:
         """
         Forward pass for AR + CoT decoder.
         
+        Training: Use teacher forcing (parallel decoding with causal mask)
+        Inference: Use autoregressive generation
+        
         Args:
             features: [B, feature_dim] image features
-            cot_input: [B, L, cot_dim] CoT tokens/embeddings
-            cot_mask: [B, L] attention mask for CoT
+            cot_input: [B, L] CoT token IDs (optional)
+            cot_mask: [B, L] attention mask for CoT (optional)
+            waypoints: [B, T, waypoint_dim] target waypoints (optional, for training)
             
         Returns:
             Dictionary with:
@@ -595,19 +600,21 @@ class ARCoTDecoder(nn.Module):
             # Check if cot_input is token IDs (int64) or embeddings (float)
             if cot_input.dtype == torch.int64:
                 # Embed token IDs first
-                if hasattr(self, 'cot_embedding'):
-                    cot_input = self.cot_embedding(cot_input)
+                cot_input = self.cot_embedding(cot_input)
             
-            if hasattr(self.cot_encoder, 'forward'):
-                if isinstance(self.cot_encoder, nn.LSTM):
-                    cot_out, (h_n, c_n) = self.cot_encoder(cot_input)
-                    cot_embedding = h_n[-1, :, :]  # Last layer, last hidden state
+            if isinstance(self.cot_encoder, nn.LSTM):
+                cot_out, (h_n, c_n) = self.cot_encoder(cot_input)
+                cot_embedding = h_n[-1, :, :]  # Last layer, last hidden state
+            elif isinstance(self.cot_encoder, nn.Identity):
+                # No CoT encoder, use raw embeddings
+                if cot_input.dim() == 3:
+                    cot_embedding = cot_input[:, -1, :]
                 else:
-                    cot_embedding = self.cot_encoder(cot_input)
-                    if cot_embedding.dim() == 3:
-                        cot_embedding = cot_embedding[:, -1, :]
+                    cot_embedding = cot_input
             else:
-                cot_embedding = cot_input
+                cot_embedding = self.cot_encoder(cot_input)
+                if cot_embedding.dim() == 3:
+                    cot_embedding = cot_embedding[:, -1, :]
         else:
             # Use zeros if no CoT
             cot_embedding = torch.zeros(
@@ -618,8 +625,16 @@ class ARCoTDecoder(nn.Module):
         fused = torch.cat([features, cot_embedding], dim=-1)
         fused = self.feature_fusion(fused)
         
-        # AR decode
-        ar_output = self.ar_decoder(fused)
+        # AR decode (training with teacher forcing OR inference)
+        if waypoints is not None:
+            # Training: teacher forcing with causal masking
+            ar_output = self.ar_decoder(fused, waypoints)
+            waypoints_pred = ar_output['waypoints']
+            embeddings = ar_output.get('embeddings')
+        else:
+            # Inference: autoregressive generation
+            waypoints_pred = self.ar_decoder.generate(fused)
+            embeddings = None
         
         # Generate explanation from CoT embedding
         if self.config.include_explanation:
@@ -628,9 +643,10 @@ class ARCoTDecoder(nn.Module):
             explanation = None
         
         return {
-            'waypoints': ar_output['waypoints'],
+            'waypoints': waypoints_pred,
             'explanation': explanation,
             'cot_embedding': cot_embedding,
+            'embeddings': embeddings,
         }
     
     def generate(
@@ -643,12 +659,15 @@ class ARCoTDecoder(nn.Module):
         
         Args:
             features: [B, feature_dim] image features
-            cot_input: [B, L, cot_dim] CoT tokens
+            cot_input: [B, L] CoT token IDs
             
         Returns:
-            waypoints + explanation
+            Dictionary with:
+            - waypoints: [B, T, 3] generated waypoints
+            - explanation: [B, cot_dim] CoT-style explanation
+            - cot_embedding: [B, hidden_dim] encoded CoT
         """
-        return self.forward(features, cot_input)
+        return self.forward(features, cot_input, waypoints=None)
 
 
 # ============================================================================
