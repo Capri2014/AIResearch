@@ -37,3 +37,42 @@ It is intentionally not exhaustive.
     - What evaluation protocols are standard (closed-loop metrics, regressions, safety counters)?
     - Which open repos are most reusable for our waypoint-policy + sim-eval stack?
   - Deliverable: one digest under `docs/digests/` with citations + action items.
+
+## Quick Wins (High Impact, Low Effort)
+
+These are tasks that can be completed in 1-2 days and provide immediate value.
+
+### ML Infrastructure
+- [ ] **Add MLflow logging to existing training scripts** (1 day)
+  - Location: `training/sft/train_waypoint_bc_cot.py`, `training/rl/*_train.py`
+  - Track: loss curves, metrics, hyperparameters, artifacts
+  - Deliverable: MLflow integration with config-driven logging
+
+- [ ] **Dockerize training environment** (1 day)
+  - Location: `Dockerfile.training`, `docker-compose.yml`
+  - Include: CUDA, PyTorch, CARLA dependencies
+  - Deliverable: Reproducible container for training
+
+### Model Deployment
+- [ ] **Export AR Decoder to ONNX** (1 day)
+  - Location: `training/models/sft/ar_decoder.py`
+  - Test: Inference with ONNX Runtime, FP16 optimization
+  - Deliverable: ONNX export script + validation test
+
+### Data & Evaluation
+- [ ] **Add scenario coverage tracking to evaluation** (2 days)
+  - Location: `training/rl/envs/carla_scenario_eval.py`
+  - Track: Scenario types, success/fail rates, edge cases
+  - Deliverable: Coverage report per evaluation run
+
+- [ ] **Create benchmark dataset from nuScenes** (2 days)
+  - Location: `training/data/nuscenes_converter.py`
+  - Extract: Key frames, waypoints, scenario tags
+  - Deliverable: Processed nuScenes subset for testing
+
+## Priority Order
+1. Dockerize training environment (prerequisite for all)
+2. Add MLflow logging (improves experiment tracking)
+3. Export AR Decoder to ONNX (deployment prep)
+4. Create nuScenes benchmark (data prep)
+5. Scenario coverage tracking (evaluation polish)
