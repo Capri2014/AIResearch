@@ -31,7 +31,16 @@ python -m training.rl.train_ppo_waypoint_delta \
   --sft-model out/sft_waypoint_bc_torch_v0/model.pt \
   --out-dir out/rl_delta_waypoint_v0 \
   --episodes 1000
+
+# Or use the delta-waypoint trainer with automatic post-training evaluation
+python -m training.rl.train_rl_delta_waypoint \
+  --out-dir out/rl_delta_waypoint_v0 \
+  --episodes 500 \
+  --eval-after-training \
+  --eval-episodes 100
 ```
+
+The `--eval-after-training` flag automatically runs evaluation on the best checkpoint after training completes and saves metrics to `out/<run_id>/eval_metrics.json`.
 
 ### 3. Evaluate and compare
 

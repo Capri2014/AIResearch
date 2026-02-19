@@ -878,6 +878,73 @@ class RLDeltaTrainer:
         
         print(f"[rl/delta] Train summary saved to {summary_path}")
 
+    def run_evaluation(self, num_episodes: int = 50) -> Dict[str, Any]:
+        """Run evaluation on the best checkpoint after training.
+        
+        Args:
+            num_episodes: Number of evaluation episodes
+            
+        Returns:
+            Dictionary with evaluation metrics
+        """
+        from training.rl.eval_toy_waypoint_env import main as eval_main
+        import sys
+        
+        if self.best_checkpoint_path is None:
+            print("[rl/delta] No best checkpoint found, skipping evaluation")
+            return {}
+        
+        print(f"[rl/delta] Running post-training evaluation on {self.best_checkpoint_path}")
+        
+        # Create eval run_id based on training run
+        eval_run_id = f"{self.cfg.out_dir.name}_eval"
+        eval_out_root = Path("out/eval")
+        
+        # Save original argv
+        original_argv = sys.argv
+        
+        try:
+            # Build eval arguments
+            sys.argv = [
+                "eval_toy_waypoint_env.py",
+                "--policy", "rl",
+                "--episodes", str(num_episodes),
+                "--run-id", eval_run_id,
+                "--out-root", str(eval_out_root),
+                "--seed-base", "0",
+            ]
+            
+            # Run evaluation (this will write to out/eval/<run_id>/metrics.json)
+            eval_main()
+            
+            # Load the metrics
+            eval_metrics_path = eval_out_root / eval_run_id / "metrics.json"
+            if eval_metrics_path.exists():
+                with open(eval_metrics_path) as f:
+                    eval_metrics = json.load(f)
+                
+                # Print summary
+                summary = eval_metrics.get("summary", {})
+                print(f"\n[rl/delta] Post-training evaluation results:")
+                print(f"  ADE: {summary.get('ade_mean', 0):.4f} ± {summary.get('ade_std', 0):.4f}m")
+                print(f"  FDE: {summary.get('fde_mean', 0):.4f} ± {summary.get('fde_std', 0):.4f}m")
+                print(f"  Success Rate: {summary.get('success_rate', 0)*100:.1f}%")
+                
+                # Copy metrics to training output
+                eval_copy_path = self.cfg.out_dir / "eval_metrics.json"
+                with open(eval_copy_path, "w") as f:
+                    json.dump(eval_metrics, f, indent=2)
+                print(f"[rl/delta] Copied eval metrics to {eval_copy_path}")
+                
+                return eval_metrics
+            else:
+                print(f"[rl/delta] Warning: eval metrics not found at {eval_metrics_path}")
+                return {}
+                
+        finally:
+            # Restore original argv
+            sys.argv = original_argv
+
 
 # === Main Entry Point ===
 
@@ -911,6 +978,12 @@ def main():
     
     # Device
     parser.add_argument("--device", type=str, default="cpu")
+    
+    # Evaluation integration
+    parser.add_argument("--eval-after-training", action="store_true",
+                       help="Run evaluation on best checkpoint after training completes")
+    parser.add_argument("--eval-episodes", type=int, default=50,
+                       help="Number of episodes for post-training evaluation")
     
     args = parser.parse_args()
     
@@ -946,6 +1019,13 @@ def main():
     
     print(f"\n[rl/delta] Done! Results saved to {result['out_dir']}")
     print(f"[rl/delta] Final avg reward (100ep): {result['final_reward']:.2f}")
+    
+    # Run post-training evaluation if requested
+    if args.eval_after_training:
+        print(f"\n[rl/delta] Running post-training evaluation...")
+        eval_metrics = trainer.run_evaluation(num_episodes=args.eval_episodes)
+        if eval_metrics:
+            print(f"[rl/delta] Evaluation complete!")
 
 
 if __name__ == "__main__":
