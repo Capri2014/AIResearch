@@ -3,12 +3,7 @@
 Writes:
   out/eval/<run_id>/metrics.json
 
-The output is compatible with `data/schema/metrics.json` (domain="rl") and includes:
-- Per-episode: ADE, FDE, success, return, steps
-- Summary: mean/std for all metrics, success_rate
-
-ADE (Average Displacement Error): mean distance to target waypoints at each timestep
-FDE (Final Displacement Error): distance to final target waypoint
+The output is compatible with `data/schema/metrics.json` (domain="rl").
 
 Examples
 --------
@@ -18,11 +13,6 @@ Evaluate the "SFT" heuristic policy for 20 episodes:
 
 Evaluate the "RL-refined" heuristic policy for the same seeds:
 
-  python -m training.rl.eval_toy_waypoint_env --policy rl --episodes 20 --seed-base 0
-
-Compare SFT vs RL on same seeds:
-
-  python -m training.rl.eval_toy_waypoint_env --policy sft --episodes 20 --seed-base 0
   python -m training.rl.eval_toy_waypoint_env --policy rl --episodes 20 --seed-base 0
 """
 
@@ -58,9 +48,27 @@ def _git_info(repo_root: Path) -> Dict[str, Any]:
     }
 
 
+def _compute_ade_fde(car_pos: np.ndarray, waypoints: np.ndarray, num_reached: int) -> tuple[float, float]:
+    """Compute ADE (Average Displacement Error) and FDE (Final Displacement Error).
+
+    ADE: Mean distance from car to each waypoint at the end of the episode.
+    FDE: Distance from car to the final waypoint.
+    """
+    dists = []
+    for i, wp in enumerate(waypoints):
+        if i <= num_reached:
+            dists.append(0.0)  # Waypoint was reached
+        else:
+            dists.append(float(np.linalg.norm(car_pos - wp)))
+
+    ade = float(sum(dists) / len(dists)) if dists else float("nan")
+    fde = float(dists[-1]) if dists else float("nan")
+    return ade, fde
+
+
 def _run_episode(*, seed: int, policy_name: str, max_steps: int, step_scale: float) -> Dict[str, Any]:
-    """Run a single evaluation episode and compute metrics including ADE/FDE."""
-    config = WaypointEnvConfig(max_episode_steps=max_steps, waypoint_spacing=5.0)
+    # Create config with desired max steps (ignoring step_scale for now)
+    config = WaypointEnvConfig(max_episode_steps=max_steps)
     env = ToyWaypointEnv(config=config, seed=seed)
     obs, info = env.reset()
 
@@ -71,57 +79,34 @@ def _run_episode(*, seed: int, policy_name: str, max_steps: int, step_scale: flo
     else:
         raise ValueError(f"unknown policy: {policy_name}")
 
-    # Track trajectory and target waypoints for ADE/FDE computation
-    trajectory = []  # Car positions over time
-    target_trajectory = []  # Target waypoints at each step
-
     done = False
     ret = 0.0
     steps = 0
     last_info: Dict[str, Any] = {}
 
     while not done:
-        # Pass (state, info) tuple to policy
         act = policy((obs, info))
         obs, r, terminated, truncated, info = env.step(act)
-        done = terminated or truncated
-
-        # Record state for metrics
-        trajectory.append(env.state[:2].copy())  # x, y position
-        
-        # Get current target waypoint index and waypoints
-        current_wp_idx = env.current_waypoint_idx
-        waypoints = env.waypoints
-        target_idx = min(current_wp_idx, len(waypoints) - 1)
-        target_trajectory.append(waypoints[target_idx].copy())
-
         ret += float(r)
         steps += 1
+        done = terminated or truncated
         last_info = dict(info)
-
-    # Compute ADE/FDE metrics
-    trajectory = np.array(trajectory)  # (T, 2)
-    target_trajectory = np.array(target_trajectory)  # (T, 2)
-
-    # ADE: mean distance to target waypoints at each timestep
-    if len(trajectory) > 0 and len(target_trajectory) > 0:
-        distances = np.linalg.norm(trajectory - target_trajectory, axis=1)
-        ade = float(np.mean(distances))
-        fde = float(distances[-1]) if len(distances) > 0 else float("nan")
-    else:
-        ade = float("nan")
-        fde = float("nan")
 
     final_dist = float(last_info.get("dist", float("nan")))
     success = bool(last_info.get("success", False))
 
+    # Compute ADE/FDE
+    car_pos = env.state[:2]
+    waypoints = env.waypoints
+    num_reached = env.current_waypoint_idx
+    ade, fde = _compute_ade_fde(car_pos, waypoints, num_reached)
+
     return {
         "scenario_id": f"seed:{seed}",
         "success": success,
-        # ADE/FDE metrics (core for RL refinement evaluation)
         "ade": ade,
         "fde": fde,
-        # Extra per-episode metrics
+        # Extra per-episode metrics are allowed by the schema (additionalProperties).
         "return": float(ret),
         "steps": int(steps),
         "final_dist": float(final_dist),
@@ -129,24 +114,15 @@ def _run_episode(*, seed: int, policy_name: str, max_steps: int, step_scale: flo
     }
 
 
-def _compute_summary_metrics(scenarios: List[Dict[str, Any]]) -> Dict[str, Any]:
+def _compute_summary(scenarios: list[Dict[str, Any]]) -> Dict[str, Any]:
     """Compute aggregate metrics from scenario results."""
     if not scenarios:
-        return {
-            "ade_mean": float("nan"),
-            "ade_std": 0.0,
-            "fde_mean": float("nan"),
-            "fde_std": 0.0,
-            "success_rate": 0.0,
-            "return_mean": 0.0,
-            "steps_mean": 0.0,
-        }
+        return {"ade_mean": float("nan"), "fde_mean": float("nan"), "success_rate": 0.0}
 
     ades = [s.get("ade", float("nan")) for s in scenarios]
     fdes = [s.get("fde", float("nan")) for s in scenarios]
     successes = [1 if s.get("success") else 0 for s in scenarios]
-    returns = [s.get("return", 0) for s in scenarios]
-    steps = [s.get("steps", 0) for s in scenarios]
+    returns = [s.get("return", 0.0) for s in scenarios]
 
     valid_ades = [a for a in ades if not np.isnan(a)]
     valid_fdes = [f for f in fdes if not np.isnan(f)]
@@ -157,9 +133,8 @@ def _compute_summary_metrics(scenarios: List[Dict[str, Any]]) -> Dict[str, Any]:
         "fde_mean": float(np.mean(valid_fdes)) if valid_fdes else float("nan"),
         "fde_std": float(np.std(valid_fdes)) if len(valid_fdes) > 1 else 0.0,
         "success_rate": float(np.mean(successes)) if successes else 0.0,
-        "return_mean": float(np.mean(returns)),
-        "steps_mean": float(np.mean(steps)),
         "num_episodes": len(scenarios),
+        "avg_return": float(np.mean(returns)) if returns else 0.0,
     }
 
 
@@ -184,11 +159,10 @@ def main() -> None:
         for s in seeds
     ]
 
-    # Compute summary metrics
-    summary = _compute_summary_metrics(scenarios)
-
     repo_root = Path(__file__).resolve().parents[2]
     git = {k: v for k, v in _git_info(repo_root).items() if v is not None}
+
+    summary = _compute_summary(scenarios)
 
     metrics: Dict[str, Any] = {
         "run_id": str(run_id),
@@ -200,20 +174,13 @@ def main() -> None:
     }
 
     (out_dir / "metrics.json").write_text(json.dumps(metrics, indent=2) + "\n")
-    print(f"[toy_waypoint_eval] wrote: {out_dir / 'metrics.json'}")
 
-    # Print summary metrics
-    print(f"\n{'='*60}")
-    print(f"POLICY EVALUATION: toy_waypoint_{a.policy}")
-    print(f"{'='*60}")
-    print(f"\nPer-Episode Metrics:")
-    print(f"  ADE: {summary['ade_mean']:.4f} ± {summary['ade_std']:.4f}m")
+    # Print summary
+    print(f"[toy_waypoint_eval] wrote: {out_dir / 'metrics.json'}")
+    print(f"\n  ADE: {summary['ade_mean']:.4f} ± {summary['ade_std']:.4f}m")
     print(f"  FDE: {summary['fde_mean']:.4f} ± {summary['fde_std']:.4f}m")
     print(f"  Success Rate: {summary['success_rate']:.1%}")
-    print(f"  Avg Return: {summary['return_mean']:.3f}")
-    print(f"  Avg Steps: {summary['steps_mean']:.1f}")
-    print(f"\nEpisodes: {summary['num_episodes']} (seeds {seeds[0]}-{seeds[-1]})")
-    print(f"{'='*60}")
+    print(f"  Avg Return: {summary['avg_return']:.3f}")
 
 
 if __name__ == "__main__":
