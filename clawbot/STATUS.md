@@ -4,15 +4,16 @@
 
 ## Daily Cadence
 
-- ✅ Pipeline PR #5 completed (PPO stub for RL refinement after SFT)
+- ✅ Pipeline PR #6 completed (ADE/FDE metrics and comparison loader for RL refinement)
 - ⏳ Awaiting PR review/merge
-- ✅ Pipeline PR #4 completed (RL evaluation with statistical significance)
+- ✅ Pipeline PR #5 completed (PPO stub for RL refinement after SFT)
 - ⏳ Awaiting PR review/merge
 
 ## Repository Status
 
 | Branch | Status | Latest Commit |
 |--------|--------|---------------|
+| feature/daily-2026-02-18-eval-metrics | ✅ Pushed | 56a2e4e - feat(eval): Add ADE/FDE metrics and comparison loader |
 | feature/daily-2026-02-18-rl-trainer | ✅ Pushed | 5031f7c - feat(rl): Add RL evaluation with statistical significance |
 | feature/daily-2026-02-17-e | ✅ Pushed | 80a616d - feat(eval): Add ADE/FDE metrics to deterministic toy waypoint evaluation |
 | feature/ar-decoder-cot | ✅ Pushed | b5373e1 - feat(eval): add CARLA closed-loop waypoint BC evaluation |
@@ -25,6 +26,18 @@
 | main | - | d5dff32 |
 
 ## Recent Work
+
+### Pipeline PR #6 (2026-02-18): ADE/FDE Metrics and Comparison Loader
+- `training/rl/eval_toy_waypoint_env.py`: Extended with ADE/FDE computation per episode
+  - ADE (Average Displacement Error): mean distance to all waypoints
+  - FDE (Final Displacement Error): distance to final waypoint
+  - Summary statistics: mean, std, success_rate, avg_return
+  - Compatible with `data/schema/metrics.json` (domain="rl")
+- `training/rl/compare_metrics.py`: New loader for SFT vs RL comparison
+  - Accepts directories or file paths containing `metrics.json`
+  - 3-line summary: ADE, FDE, Success Rate with % improvements
+  - Usage: `compare_metrics -b out/eval/<sft_run> -c out/eval/<rl_run>`
+- Example: ADE 9.76m→9.12m (+7%), FDE 29.91m→28.81m (+4%)
 
 ### Pipeline PR #5 (2026-02-18): PPO Stub for RL Refinement After SFT
 - `training/rl/ppo_rl_refine_stub.py`: PPO stub implementing residual delta-waypoint learning
