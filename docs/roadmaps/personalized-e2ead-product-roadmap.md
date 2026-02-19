@@ -2,11 +2,7 @@
 
 **Date:** 2026-02-18  
 **Author:** OpenClaw  
-<<<<<<< HEAD
 **Based on:** Mechanical/Electrical/Software + Classical Autonomous Driving + AI background
-=======
-**Based on:** Your background in mechanical/electrical/software + classical autonomous driving
->>>>>>> 0ed8d53 (docs(roadmaps): Add two strategic roadmaps)
 
 ---
 
@@ -14,7 +10,6 @@
 
 | Your Background | Current Repo | Product Gap |
 |---------------|--------------|------------|
-<<<<<<< HEAD
 | Mechanical/Electrical | AR Decoder (waypoints) | System integration, thermal mgmt, controls |
 | Software | RL algorithms (GRPO, SAC, ResAD) | MLOps, CI/CD, deployment |
 | Classical AD | E2E waypoint planning | Sensor fusion, localization, mapping |
@@ -67,11 +62,6 @@
 | **Software** | Code quality, testing, deployment pipelines, scalable architecture |
 | **Classical AD** | Perception-to-planning pipeline understanding, scenario design, safety validation |
 | **AI/ML** | Model training, RL algorithms, SSL pre-training, CoT reasoning |
-=======
-| Mechanical/EE | AR Decoder (waypoints) | System integration, thermal mgmt |
-| Software | RL algorithms (GRPO, SAC, ResAD) | MLOps, CI/CD, deployment |
-| Classical AD modules | E2E waypoint planning | Sensor fusion, localization |
->>>>>>> 0ed8d53 (docs(roadmaps): Add two strategic roadmaps)
 
 ---
 
@@ -79,11 +69,7 @@
 
 ### 1. Data Pipeline Infrastructure (Highest Priority)
 ```
-<<<<<<< HEAD
 Why: Your classical AD + AI background gives you context on sensor specs, data rates, storage
-=======
-Why: E2EAD is data-hungry; your classical AD knowledge helps
->>>>>>> 0ed8d53 (docs(roadmaps): Add two strategic roadmaps)
 
 What:
 ├── CARLA + real-world connectors
@@ -92,16 +78,11 @@ What:
 ├── Auto-labeling (classical AD as teachers)
 └── Data version control (DVC)
 
-<<<<<<< HEAD
 Your angle: Understand sensor specs, data rates, storage requirements
-=======
-Your angle: Sensor specs, data rates, storage requirements
->>>>>>> 0ed8d53 (docs(roadmaps): Add two strategic roadmaps)
 ```
 
 ### 2. Multi-Sensor Simulation
 ```
-<<<<<<< HEAD
 Why: EE background key for sensor physics, noise models, calibration
 
 What:
@@ -112,23 +93,10 @@ What:
 └── Sensor failure modes (noise, dropout)
 
 Your angle: Sensor physics, noise models, calibration procedures
-=======
-Why: Camera-only insufficient for safety; EE background key
-
-What:
-├── LiDAR point cloud generation
-├── Radar simulation (weather conditions)
-├── IMU/GPS synthetic streams
-├── Sensor calibration sim
-└── Sensor failure modes (noise, dropout)
-
-Your angle: Sensor physics, noise models, calibration
->>>>>>> 0ed8d53 (docs(roadmaps): Add two strategic roadmaps)
 ```
 
 ### 3. MLOps & Experiment Tracking
 ```
-<<<<<<< HEAD
 Why: Software background = you know how to build robust systems
 
 What:
@@ -136,15 +104,6 @@ What:
 ├── Hyperparameter search (Optuna/Ray Tune)
 ├── Checkpoint management with metrics
 ├── Experiment reproducibility (seeds, env versions)
-=======
-Why: 100+ experiments needed; manual tracking fails
-
-What:
-├── MLflow or Weights & Biases
-├── Hyperparameter search (Optuna/Ray Tune)
-├── Checkpoint management
-├── Reproducibility (seeds, env versions)
->>>>>>> 0ed8d53 (docs(roadmaps): Add two strategic roadmaps)
 └── Training curve dashboards
 
 Your angle: Systematic experimentation = engineering discipline
@@ -152,7 +111,6 @@ Your angle: Systematic experimentation = engineering discipline
 
 ### 4. Deployment Pipeline (Edge Inference)
 ```
-<<<<<<< HEAD
 Why: Real-time constraints, thermal/power budgets from EE
 
 What:
@@ -162,24 +120,12 @@ What:
 ├── Latency profiling (<100ms E2E)
 ├── Memory footprint monitoring
 └── Model versioning for OTA updates
-=======
-Why: Research code ≠ deployable; safety-critical needs this
-
-What:
-├── ONNX export
-├── TensorRT optimization (FP16/INT8)
-├── CUDA kernel optimization
-├── Latency profiling (<100ms E2E)
-├── Memory footprint monitoring
-└── Model versioning (OTA updates)
->>>>>>> 0ed8d53 (docs(roadmaps): Add two strategic roadmaps)
 
 Your angle: Real-time constraints, thermal/power budgets
 ```
 
 ### 5. Safety Verification & Testing
 ```
-<<<<<<< HEAD
 Why: FMEA, hazard analysis from mechanical + classical AD safety validation
 
 What:
@@ -191,24 +137,10 @@ What:
 └── Simulation-to-reality gap analysis
 
 Your angle: Automotive safety standards, risk assessment
-=======
-Why: Cannot ship without safety guarantees
-
-What:
-├── Scenario coverage analysis
-├── Adversarial testing
-├── OOD detection
-├── Uncertainty quantification (ResAD partial)
-├── Fallback (minimally safe controller)
-└── Sim-to-real gap analysis
-
-Your angle: FMEA, hazard analysis from automotive
->>>>>>> 0ed8d53 (docs(roadmaps): Add two strategic roadmaps)
 ```
 
 ### 6. Continuous Integration for ML
 ```
-<<<<<<< HEAD
 Why: QA process from manufacturing/software background
 
 What:
@@ -219,23 +151,10 @@ What:
 └── Data quality checks
 
 Your angle: Engineering rigor, quality assurance
-=======
-Why: Model regressions are silent
-
-What:
-├── Unit tests for model components
-├── Training pipeline integration tests
-├── Regression tests (ADE/FDE)
-├── Performance benchmarks
-└── Data quality checks
-
-Your angle: QA process from manufacturing
->>>>>>> 0ed8d53 (docs(roadmaps): Add two strategic roadmaps)
 ```
 
 ### 7. Fleet Telemetry & Monitoring
 ```
-<<<<<<< HEAD
 Why: Telemetry systems, remote diagnostics from EE + AI monitoring
 
 What:
@@ -246,23 +165,10 @@ What:
 └── Real-time monitoring dashboards
 
 Your angle: Remote diagnostics, system monitoring
-=======
-Why: Product needs to learn from real deployment
-
-What:
-├── Data collection from vehicles
-├── Incident reporting (near-miss, disengagement)
-├── A/B testing for updates
-├── Fleet behavior anomaly detection
-└── Real-time monitoring dashboards
-
-Your angle: Telemetry, remote diagnostics
->>>>>>> 0ed8d53 (docs(roadmaps): Add two strategic roadmaps)
 ```
 
 ### 8. Scenario-Based Evaluation Framework
 ```
-<<<<<<< HEAD
 Why: Your classical AD background = you know what scenarios matter
 
 What:
@@ -273,23 +179,10 @@ What:
 └── Hard case mining (find where model fails)
 
 Your angle: Scenario design, test coverage from autonomous systems
-=======
-Why: Your classical AD background knows what matters
-
-What:
-├── nuPlan-inspired scenario database
-├── Safety-critical edge cases
-├── Performance scoring per category
-├── Cross-scenario generalization
-└── Hard case mining
-
-Your angle: Scenario design, test coverage
->>>>>>> 0ed8d53 (docs(roadmaps): Add two strategic roadmaps)
 ```
 
 ### 9. Modular Architecture Refactor
 ```
-<<<<<<< HEAD
 Why: Systems thinking from mechanical + modular design from software
 
 What:
@@ -314,32 +207,6 @@ What:
 └── Privacy pipeline (PII removal, differential privacy)
 
 Your angle: Compliance processes, documentation standards
-=======
-Why: Research prototype ≠ product
-
-What:
-├── API contracts (Pydantic)
-├── Plugin system for sensors
-├── Config-driven experiments
-├── Documentation (Sphinx/mkdocs)
-└── Dependency isolation (Docker)
-
-Your angle: Systems thinking, modular design
-```
-
-### 10. Regulatory & Compliance
-```
-Why: Autonomous driving needs certification
-
-What:
-├── Safety case documentation templates
-├── Traceability matrix
-├── Model decision audit trail
-├── Bias/fairness assessment
-└── Privacy pipeline (PII removal)
-
-Your angle: Compliance, documentation standards
->>>>>>> 0ed8d53 (docs(roadmaps): Add two strategic roadmaps)
 ```
 
 ---
@@ -348,7 +215,6 @@ Your angle: Compliance, documentation standards
 
 ```
 Phase 1 (Week 1-2): Foundation
-<<<<<<< HEAD
 ├── 1. Data Pipeline (classical AD + AI data knowledge)
 ├── 6. CI/CD (engineering rigor)
 └── 9. Modular Architecture (systems thinking)
@@ -363,27 +229,10 @@ Phase 3 (Week 5-8): Production Hardening
 ├── 5. Safety Verification (critical for autonomous)
 ├── 7. Fleet Telemetry (product feedback loop)
 └── 10. Regulatory (certification prep)
-=======
-├── 1. Data Pipeline
-├── 6. CI/CD
-└── 9. Modular Architecture
-
-Phase 2 (Week 3-4): Core Capabilities
-├── 2. Multi-Sensor
-├── 4. Deployment
-└── 8. Scenarios
-
-Phase 3 (Week 5-8): Production Hardening
-├── 3. MLOps
-├── 5. Safety
-├── 7. Fleet
-└── 10. Regulatory
->>>>>>> 0ed8d53 (docs(roadmaps): Add two strategic roadmaps)
 ```
 
 ---
 
-<<<<<<< HEAD
 ## Quick Wins (High Impact, Low Effort)
 
 1. **Add MLflow logging to existing training scripts** (1 day)
@@ -431,29 +280,3 @@ You have ALL FOUR.
 ---
 
 *This roadmap builds on your unique interdisciplinary strengths to create a production-ready E2EAD system.*
-=======
-## Quick Wins (1-2 days each)
-
-1. Add MLflow logging to existing training
-2. Export AR Decoder to ONNX
-3. Add scenario coverage tracking
-4. Dockerize training environment
-5. Create benchmark dataset from nuScenes
-
----
-
-## Resources
-
-| Topic | Resource |
-|-------|----------|
-| Data Pipeline | DVC, Delta Lake, HuggingFace Datasets |
-| Sensor Sim | CARLA docs, NVIDIA DriveSim |
-| Deployment | ONNX Runtime, TensorRT |
-| Safety | SOTIF (ISO 21448) |
-| MLOps | MLflow, W&B, Optuna |
-| Scenarios | nuPlan, Waymo Open Dataset |
-
----
-
-*Roadmap builds on your strengths while filling product gaps.*
->>>>>>> 0ed8d53 (docs(roadmaps): Add two strategic roadmaps)
