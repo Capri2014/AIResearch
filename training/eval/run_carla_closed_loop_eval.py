@@ -33,6 +33,159 @@ _carla = None
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+
+# === Checkpoint Validation and Auto-Discovery ===
+
+def validate_checkpoint(checkpoint_path: str) -> Dict[str, Any]:
+    """Validate a checkpoint file and return its metadata.
+    
+    Args:
+        checkpoint_path: Path to the checkpoint file
+        
+    Returns:
+        Dict with keys: valid (bool), error (str), metadata (dict)
+        
+    Raises:
+        FileNotFoundError: If checkpoint file doesn't exist
+    """
+    import torch
+    
+    path = Path(checkpoint_path)
+    if not path.exists():
+        raise FileNotFoundError(f"Checkpoint not found: {checkpoint_path}")
+    
+    try:
+        ckpt = torch.load(checkpoint_path, map_location="cpu", weights_only=False)
+    except Exception as e:
+        return {"valid": False, "error": f"Failed to load checkpoint: {e}", "metadata": {}}
+    
+    if not isinstance(ckpt, dict):
+        return {"valid": False, "error": "Checkpoint is not a dict", "metadata": {}}
+    
+    # Check for required keys - support multiple checkpoint formats
+    # Format 1: Separate encoder + head (new)
+    # Format 2: model_state (legacy)
+    # Format 3: model_state_dict (synthetic data)
+    has_encoder = "encoder" in ckpt
+    has_head = "head" in ckpt
+    has_model_state = "model_state" in ckpt
+    has_model_state_dict = "model_state_dict" in ckpt
+    
+    if not (has_encoder and has_head) and not has_model_state and not has_model_state_dict:
+        return {
+            "valid": False,
+            "error": "Missing required keys: need either (encoder + head) or model_state or model_state_dict",
+            "metadata": {}
+        }
+    
+    # Determine checkpoint format
+    if has_encoder and has_head:
+        ckpt_format = "new"
+    elif has_model_state:
+        ckpt_format = "legacy"
+    else:
+        ckpt_format = "synthetic"
+    
+    # Extract metadata
+    metadata = {
+        "format": ckpt_format,
+        "cam": ckpt.get("cam", "front"),
+        "horizon_steps": ckpt.get("horizon_steps", 20),
+        "out_dim": ckpt.get("out_dim", 128),
+        "has_delta_head": "delta_head" in ckpt,
+        "delta_hidden_dim": ckpt.get("delta_hidden_dim"),
+    }
+    
+    return {"valid": True, "error": None, "metadata": metadata}
+
+
+def find_latest_checkpoint(search_dirs: List[str], pattern: str = "*.pt") -> Optional[str]:
+    """Find the latest checkpoint by modification time.
+    
+    Args:
+        search_dirs: List of directories to search (in order of priority)
+        pattern: Glob pattern for matching checkpoint files
+        
+    Returns:
+        Path to latest checkpoint, or None if no checkpoints found
+    """
+    import torch
+    
+    latest_path = None
+    latest_mtime = 0
+    
+    for search_dir in search_dirs:
+        dir_path = Path(search_dir)
+        if not dir_path.exists():
+            continue
+        
+        for ckpt_path in dir_path.rglob(pattern):
+            try:
+                # Quick validation: check if it's a valid torch file
+                with open(ckpt_path, "rb") as f:
+                    # Read only the header to verify it's a torch file
+                    header = f.read(2)
+                    if header != b'PK':  # Not a zip-based format
+                        continue
+                
+                mtime = ckpt_path.stat().st_mtime
+                if mtime > latest_mtime:
+                    latest_mtime = mtime
+                    latest_path = str(ckpt_path)
+            except Exception:
+                continue
+    
+    return latest_path
+
+
+def auto_discover_checkpoint(
+    checkpoint_arg: Optional[str],
+    search_dirs: List[str] = None,
+    pattern: str = "*.pt"
+) -> str:
+    """Auto-discover checkpoint if not provided, or validate provided path.
+    
+    Args:
+        checkpoint_arg: User-provided checkpoint path, or None for auto-discovery
+        search_dirs: Directories to search for checkpoints (if checkpoint_arg is None)
+        pattern: Glob pattern for checkpoint files
+        
+    Returns:
+        Validated checkpoint path
+        
+    Raises:
+        FileNotFoundError: If no checkpoint found and auto-discovery fails
+        ValueError: If checkpoint validation fails
+    """
+    if checkpoint_arg is not None:
+        # Validate user-provided checkpoint
+        result = validate_checkpoint(checkpoint_arg)
+        if not result["valid"]:
+            raise ValueError(f"Invalid checkpoint: {result['error']}")
+        logger.info(f"Using checkpoint: {checkpoint_arg}")
+        logger.info(f"  Metadata: {result['metadata']}")
+        return checkpoint_arg
+    
+    # Auto-discover latest checkpoint
+    if search_dirs is None:
+        search_dirs = ["out/", "checkpoints/"]
+    
+    found_path = find_latest_checkpoint(search_dirs, pattern)
+    if found_path is None:
+        raise FileNotFoundError(
+            f"No checkpoint found. Provide --checkpoint explicitly, or ensure "
+            f"checkpoints exist in: {search_dirs}"
+        )
+    
+    result = validate_checkpoint(found_path)
+    if not result["valid"]:
+        raise ValueError(f"Auto-discovered checkpoint is invalid: {result['error']}")
+    
+    logger.info(f"Auto-discovered checkpoint: {found_path}")
+    logger.info(f"  Metadata: {result['metadata']}")
+    return found_path
+
+
 def _get_carla():
     """Lazy import of carla module."""
     global _carla_imported, _carla
@@ -703,7 +856,10 @@ def main():
     import argparse
     
     parser = argparse.ArgumentParser(description="CARLA Closed-Loop Waypoint BC Evaluation")
-    parser.add_argument("--checkpoint", type=str, required=True, help="Path to model checkpoint")
+    parser.add_argument("--checkpoint", type=str, default=None, 
+                       help="Path to model checkpoint (auto-discovers if not provided)")
+    parser.add_argument("--search-dirs", type=str, default="out/,checkpoints/",
+                       help="Comma-separated dirs to search for checkpoints (if --checkpoint not provided)")
     parser.add_argument("--output-dir", type=str, required=True, help="Output directory for results")
     parser.add_argument("--host", type=str, default="localhost", help="CARLA server host")
     parser.add_argument("--port", type=int, default=2000, help="CARLA server port")
@@ -724,8 +880,12 @@ def main():
     output_dir = Path(args.output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
     
+    # Auto-discover or validate checkpoint
+    search_dirs = [d.strip() for d in args.search_dirs.split(",") if d.strip()]
+    checkpoint_path = auto_discover_checkpoint(args.checkpoint, search_dirs=search_dirs)
+    
     # Load model
-    model = WaypointPolicyWrapper(args.checkpoint, rl_mode=args.rl_mode)
+    model = WaypointPolicyWrapper(checkpoint_path, rl_mode=args.rl_mode)
     
     # Get scenarios
     all_scenarios = get_default_scenarios()
