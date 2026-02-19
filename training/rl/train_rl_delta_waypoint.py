@@ -86,6 +86,8 @@ class PPOConfig:
     lam: float = 0.95    # GAE lambda
     clip_ratio: float = 0.2
     target_kl: float = 0.01
+    kl_early_stop_threshold: float = 1.5  # Stop if KL > target_kl * threshold
+    kl_coef: float = 0.01  # KL penalty coefficient in loss
     update_epochs: int = 5
     batch_size: int = 64
     eval_interval: int = 10
@@ -470,7 +472,15 @@ class PPOAgent:
         advantages: torch.Tensor,
         returns: torch.Tensor,
     ) -> Dict[str, float]:
-        """Perform PPO update step."""
+        """Perform PPO update step with KL regularization and early stopping.
+        
+        KL regularization helps stabilize training by constraining policy updates
+        to stay close to the behavior policy. Early stopping prevents destructive
+        updates when KL diverges too far from the target.
+        
+        Returns:
+            Dict with loss components and KL metrics for monitoring.
+        """
         self.delta_head.train()
         self.value_head.train()
         
@@ -497,11 +507,23 @@ class PPOAgent:
         # Value loss
         value_loss = ((values - returns) ** 2).mean()
         
-        # Entropy bonus
+        # Entropy bonus (encourages exploration)
         entropy = dist.entropy().mean()
         
-        # Total loss
-        loss = policy_loss + 0.5 * value_loss - 0.01 * entropy
+        # KL divergence (computed for regularization and early stopping)
+        # Using analytical KL: KL(N0||N1) = (μ1-μ0)²/(2σ0²) + σ1²/(2σ0²) - 0.5 - log(σ1/σ0)
+        # For simplicity, we use the ratio-based approximation
+        ratio_clamped = torch.clamp(ratio, min=1e-8, max=10.0)
+        kl = ((ratio_clamped - 1) - (ratio_clamped.log() - 1)).mean()
+        
+        # Total loss with KL regularization
+        # KL penalty encourages policy to stay close to behavior policy
+        loss = (
+            policy_loss 
+            + 0.5 * value_loss 
+            - 0.01 * entropy 
+            + self.cfg.kl_coef * kl
+        )
         
         # Update
         self.optimizer.zero_grad()
@@ -510,17 +532,26 @@ class PPOAgent:
         torch.nn.utils.clip_grad_norm_(self.value_head.parameters(), max_norm=0.5)
         self.optimizer.step()
         
-        # KL divergence
+        # Compute KL metrics for monitoring and early stopping
         with torch.no_grad():
-            ratio = torch.exp(new_log_probs_flat - old_log_probs_flat)
-            kl = ((ratio - 1) - (ratio.log() - 1)).mean().item()
+            ratio_final = torch.exp(new_log_probs_flat - old_log_probs_flat)
+            kl_mean = ((ratio_final - 1) - (ratio_final.log() - 1)).mean().item()
+            kl_std = ((ratio_final - 1) - (ratio_final.log() - 1)).std().item()
+            clip_frac = ((ratio_final - 1).abs() > self.clip_ratio).float().mean().item()
+            
+            # Early stopping check
+            should_stop = kl_mean > (self.cfg.target_kl * self.cfg.kl_early_stop_threshold)
         
         return {
             "policy_loss": policy_loss.item(),
             "value_loss": value_loss.item(),
             "entropy": entropy.item(),
-            "kl": kl,
-            "clip_fraction": ((ratio - 1).abs() > self.clip_ratio).float().mean().item(),
+            "kl_mean": kl_mean,
+            "kl_std": kl_std,
+            "clip_fraction": clip_frac,
+            "kl_coef": self.cfg.kl_coef,
+            "target_kl": self.cfg.target_kl,
+            "early_stop": should_stop,
         }
     
     def save(self, path: Path):
@@ -736,11 +767,25 @@ class RLDeltaTrainer:
             advantages_t = torch.tensor(advantages, dtype=torch.float32, device=self.device)
             returns_t = torch.tensor(returns, dtype=torch.float32, device=self.device)
             
-            # PPO update (multiple epochs)
-            for _ in range(self.cfg.ppo.update_epochs):
+            # PPO update (multiple epochs with KL early stopping)
+            update_info = {}
+            early_stopped = False
+            for epoch in range(self.cfg.ppo.update_epochs):
                 update_info = self.agent.update(
                     states_t, actions_t, old_log_probs_t, advantages_t, returns_t
                 )
+                
+                # Early stopping if KL diverges too far
+                if update_info.get('early_stop', False):
+                    print(f"[rl/delta]   KL early stop at epoch {epoch + 1}/{self.cfg.ppo.update_epochs} "
+                          f"(kl={update_info['kl_mean']:.4f} > target_kl*{self.cfg.kl_early_stop_threshold})")
+                    early_stopped = True
+                    break
+            
+            if early_stopped:
+                update_info['update_epochs_used'] = epoch + 1
+            else:
+                update_info['update_epochs_used'] = self.cfg.ppo.update_epochs
             
             # Episode stats
             ep_reward = sum(rewards)
@@ -768,7 +813,8 @@ class RLDeltaTrainer:
                 self.eval_metrics.append(metrics)
                 
                 print(f"[rl/delta] ep={ep+1:4d} reward={metrics['mean_reward']:7.2f} "
-                      f"len={metrics['mean_length']:5.1f} kl={update_info['kl']:.4f} "
+                      f"len={metrics['mean_length']:5.1f} kl={update_info.get('kl_mean', 0):.4f} "
+                      f"target_kl={update_info.get('target_kl', self.cfg.ppo.target_kl):.4f} "
                       f"delta_norm={eval_info['mean_delta_norm']:.3f} entropy={entropy:.4f}")
                 
                 # Save best checkpoint based on entropy
@@ -852,6 +898,12 @@ def main():
     parser.add_argument("--episodes", type=int, default=500)
     parser.add_argument("--lr", type=float, default=3e-4)
     parser.add_argument("--seed", type=int, default=42)
+    parser.add_argument("--target-kl", type=float, default=0.01,
+                       help="Target KL divergence for regularization")
+    parser.add_argument("--kl-coef", type=float, default=0.01,
+                       help="KL penalty coefficient in loss function")
+    parser.add_argument("--kl-early-stop-threshold", type=float, default=1.5,
+                       help="Stop PPO updates if KL > target_kl * threshold")
     
     # Environment
     parser.add_argument("--horizon-steps", type=int, default=20)
@@ -876,6 +928,9 @@ def main():
         seed=args.seed,
         device=args.device,
         resume=args.resume,
+        target_kl=args.target_kl,
+        kl_coef=args.kl_coef,
+        kl_early_stop_threshold=args.kl_early_stop_threshold,
     )
     
     cfg = TrainingConfig(
