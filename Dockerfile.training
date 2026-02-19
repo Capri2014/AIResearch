@@ -1,0 +1,164 @@
+# ============================================================
+# Multi-stage Docker build for E2EAD Training Environment
+# ============================================================
+# Stage 1: Builder - Install dependencies and compile packages
+# Stage 2: Runtime - Final image with runtime dependencies only
+# ============================================================
+
+# ----------------------------------------------------------------
+# Stage 1: Builder
+# ----------------------------------------------------------------
+FROM nvidia/cuda:12.1-devel-ubuntu22.04 AS builder
+
+LABEL maintainer="E2EAD Team"
+LABEL description="E2EAD Training Environment - Builder Stage"
+
+# Install build dependencies
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential \
+    cmake \
+    git \
+    wget \
+    libgl1-mesa-glx \
+    libglib2.0-0 \
+    libsm6 \
+    libxext6 \
+    libxrender1 \
+    pkg-config \
+    python3.10 \
+    python3.10-dev \
+    python3-pip \
+    python3-venv \
+    ca-certificates \
+    libcurl4-openssl-dev \
+    libssl-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+# Create virtual environment
+RUN python3.10 -m venv /opt/venv
+ENV PATH="/opt/venv/bin:$PATH"
+
+# Upgrade pip
+RUN pip install --no-cache-dir --upgrade pip setuptools wheel
+
+# Install PyTorch with CUDA 12.1 support
+RUN pip install --no-cache-dir \
+    torch torchvision torchaudio \
+    --index-url https://download.pytorch.org/whl/cu121
+
+# Install core ML dependencies from requirements.txt
+RUN pip install --no-cache-dir \
+    transformers>=4.30.0 \
+    huggingface-hub>=0.16.0 \
+    numpy>=1.24.0 \
+    scipy>=1.10.0 \
+    pandas>=2.0.0 \
+    opencv-python>=4.7.0 \
+    Pillow>=9.5.0 \
+    imageio>=2.25.0 \
+    tqdm>=4.65.0
+
+# Install visualization dependencies
+RUN pip install --no-cache-dir \
+    matplotlib>=3.7.0 \
+    seaborn>=0.12.0
+
+# Install Waymo Open Dataset (TF 2.12)
+RUN pip install --no-cache-dir \
+    waymo-open-dataset-tf-2-12-0
+
+# Install CARLA simulator client dependencies
+# Note: CARLA server must be running separately (use carla-docker or CARLA binary)
+RUN pip install --no-cache-dir \
+    carla==0.9.15 \
+    pygame==2.5.2 \
+    shapely==2.0.2 \
+    networkx==3.2.1
+
+# Install training-specific dependencies
+RUN pip install --no-cache-dir \
+    wandb>=0.15.0 \
+    tensorboard>=2.13.0
+
+# Install development dependencies (for code quality)
+RUN pip install --no-cache-dir \
+    black>=23.0.0 \
+    isort>=5.12.0 \
+    flake8>=6.0.0 \
+    mypy>=1.4.0 \
+    types-requests>=2.31.0
+
+# Install testing dependencies
+RUN pip install --no-cache-dir \
+    pytest>=7.3.0 \
+    pytest-cov>=4.1.0
+
+# ----------------------------------------------------------------
+# Stage 2: Runtime
+# ----------------------------------------------------------------
+FROM nvidia/cuda:12.1-runtime-ubuntu22.04 AS runtime
+
+LABEL maintainer="E2EAD Team"
+LABEL description="E2EAD Training Environment - Runtime"
+
+# Install runtime dependencies only
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    python3.10 \
+    python3-pip \
+    python3-venv \
+    libgl1-mesa-glx \
+    libglib2.0-0 \
+    libsm6 \
+    libxext6 \
+    libxrender1 \
+    libcurl4-openssl-dev \
+    libssl-dev \
+    ca-certificates \
+    git \
+    wget \
+    vim \
+    htop \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy virtual environment from builder
+COPY --from=builder /opt/venv /opt/venv
+
+# Set up environment
+ENV PATH="/opt/venv/bin:$PATH" \
+    PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    NVIDIA_VISIBLE_DEVICES=all \
+    NVIDIA_DRIVER_CAPABILITIES=compute,utility
+
+# Create non-root user for security
+ARG USERNAME=trainer
+ARG USER_UID=1000
+ARG USER_GID=1000
+
+RUN groupadd --gid $USER_GID $USERNAME && \
+    useradd --uid $USER_UID --gid $USER_GID --shell /bin/bash --create-home $USERNAME
+
+# Create directories for data and outputs
+RUN mkdir -p /data/.openclaw/workspace/data \
+    /data/.openclaw/workspace/outputs \
+    /data/.openclaw/workspace/model_checkpoints \
+    /home/$USERNAME/.cache/huggingface && \
+    chown -R $USERNAME:$USERNAME /data/.openclaw/workspace/data \
+    /data/.openclaw/workspace/outputs \
+    /data/.openclaw/workspace/model_checkpoints \
+    /home/$USERNAME/.cache/huggingface
+
+# Set working directory
+WORKDIR /data/.openclaw/workspace
+
+# Switch to non-root user
+USER $USERNAME
+
+# Set default command
+CMD ["/bin/bash"]
+
+# ============================================================
+# Health Check
+# ============================================================
+HEALTHCHECK --interval=60s --timeout=30s --start-period=30s --retries=3 \
+    CMD python3 -c "import torch; print(f'PyTorch: {torch.__version__}'); print(f'CUDA available: {torch.cuda.is_available()}')" || exit 1
