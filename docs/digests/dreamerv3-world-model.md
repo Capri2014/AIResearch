@@ -1,7 +1,8 @@
-# DreamerV3 World Model: Learned Simulator for Autonomous Driving
+# DreamerV3 World Model: Learned Simulator for Autonomous Driving (PUBLIC ANCHOR DIGEST)
 
 **Survey:** DreamerV3 (Hafner et al., Nature 2025) + Driving World Model Applications  
 **Date:** 2026-02-17  
+**Status:** PUBLIC ANCHOR DIGEST - World Model Foundation for Driving Simulators  
 **Context:** Ashok's "video + action → next video" simulator claim  
 
 ---
