@@ -17,7 +17,6 @@ Outputs:
 
 from __future__ import annotations
 
-import carla
 import numpy as np
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -26,23 +25,38 @@ import json
 import logging
 from datetime import datetime
 
+# Lazy carla import - only needed when actually running evaluation
+_carla_imported = False
+_carla = None
+
+# Set up logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+def _get_carla():
+    """Lazy import of carla module."""
+    global _carla_imported, _carla
+    if not _carla_imported:
+        import carla as _carla_module
+        _carla = _carla_module
+        _carla_imported = True
+    return _carla
 
+# Forward declarations for type hints (actual types require carla)
 @dataclass
 class ScenarioConfig:
     """Configuration for a single evaluation scenario."""
     name: str
-    weather: carla.WeatherParameters
+    weather: "carla.WeatherParameters"  # type: ignore
     map_name: str = "Town01"
     num_episodes: int = 3
     spawn_points: List[str] = field(default_factory=list)
     target_points: List[str] = field(default_factory=list)
 
 
-def create_clear_weather() -> carla.WeatherParameters:
+def create_clear_weather():
     """Clear daytime weather."""
+    carla = _get_carla()
     return carla.WeatherParameters(
         sun_altitude_angle=70.0,
         cloudiness=0.0,
@@ -53,8 +67,9 @@ def create_clear_weather() -> carla.WeatherParameters:
     )
 
 
-def create_cloudy_weather() -> carla.WeatherParameters:
+def create_cloudy_weather():
     """Overcast weather."""
+    carla = _get_carla()
     return carla.WeatherParameters(
         sun_altitude_angle=30.0,
         cloudiness=80.0,
@@ -65,8 +80,9 @@ def create_cloudy_weather() -> carla.WeatherParameters:
     )
 
 
-def create_night_weather() -> carla.WeatherParameters:
+def create_night_weather():
     """Night driving conditions."""
+    carla = _get_carla()
     return carla.WeatherParameters(
         sun_altitude_angle=-90.0,
         cloudiness=20.0,
@@ -77,8 +93,9 @@ def create_night_weather() -> carla.WeatherParameters:
     )
 
 
-def create_rain_weather() -> carla.WeatherParameters:
+def create_rain_weather():
     """Rainy conditions."""
+    carla = _get_carla()
     return carla.WeatherParameters(
         sun_altitude_angle=45.0,
         cloudiness=60.0,
@@ -158,57 +175,197 @@ class ScenarioResult:
         }
 
 
-class WaypointBCModelWrapper:
-    """Wrapper for loading and running trained WaypointBCModel."""
+class WaypointHead:
+    """Small MLP head that maps encoder embeddings -> flattened waypoint vector.
     
-    def __init__(self, checkpoint_path: str, device: str = "cpu"):
+    Matches the architecture from training.sft.train_waypoint_bc_torch_v0.
+    """
+    
+    def __init__(self, torch: object, in_dim: int, horizon_steps: int):
+        nn = torch.nn
+        out_dim = int(horizon_steps) * 2
+        self.net = nn.Sequential(
+            nn.Linear(in_dim, 256),
+            nn.ReLU(),
+            nn.Linear(256, out_dim),
+        )
+        self.horizon_steps = int(horizon_steps)
+    
+    def to(self, device):
+        self.net = self.net.to(device)
+        return self
+    
+    def eval(self):
+        """Set to evaluation mode."""
+        self.net.eval()
+    
+    def train(self, mode: bool = True):
+        """Set training mode."""
+        self.net.train(mode)
+    
+    def parameters(self):
+        return self.net.parameters()
+    
+    def __call__(self, z):
+        # z: (B,D) -> (B,H,2)
+        y = self.net(z)
+        b = y.shape[0]
+        return y.view(b, self.horizon_steps, 2)
+    
+    def state_dict(self):
+        return self.net.state_dict()
+    
+    def load_state_dict(self, sd):
+        return self.net.load_state_dict(sd)
+
+
+class DeltaWaypointHead:
+    """Residual delta-waypoint head for RL refinement.
+    
+    Architecture: Δ = delta_net(z), where final_waypoints = sft_waypoints + Δ
+    """
+    
+    def __init__(self, torch: object, in_dim: int, horizon_steps: int, hidden_dim: int = 64):
+        nn = torch.nn
+        # Delta prediction network
+        self.delta_net = nn.Sequential(
+            nn.Linear(in_dim, hidden_dim),
+            nn.ReLU(),
+            nn.Linear(hidden_dim, hidden_dim),
+            nn.ReLU(),
+            nn.Linear(hidden_dim, horizon_steps * 2),
+        )
+        self.horizon_steps = int(horizon_steps)
+        self.hidden_dim = hidden_dim
+    
+    def to(self, device):
+        self.delta_net = self.delta_net.to(device)
+        return self
+    
+    def eval(self):
+        """Set to evaluation mode."""
+        self.delta_net.eval()
+    
+    def train(self, mode: bool = True):
+        """Set training mode."""
+        self.delta_net.train(mode)
+    
+    def parameters(self):
+        return self.delta_net.parameters()
+    
+    def __call__(self, z):
+        # z: (B,D) -> Δ: (B,H,2)
+        delta = self.delta_net(z)
+        b = delta.shape[0]
+        return delta.view(b, self.horizon_steps, 2)
+    
+    def state_dict(self):
+        return self.delta_net.state_dict()
+    
+    def load_state_dict(self, sd):
+        return self.delta_net.load_state_dict(sd)
+
+
+class WaypointPolicyWrapper:
+    """Unified wrapper for loading and running trained waypoint policies.
+    
+    Supports:
+    - SFT models: encoder + waypoint head
+    - RL models: encoder + waypoint head + delta head + value head
+    
+    Usage:
+        # Load SFT model
+        wrapper = WaypointPolicyWrapper("out/sft_waypoint_bc/model.pt")
+        waypoints = wrapper.predict(image)
+        
+        # Load RL model (SFT + delta)
+        wrapper = WaypointPolicyWrapper("out/rl_delta/model.pt", rl_mode=True)
+        waypoints = wrapper.predict(image)  # Applies delta correction
+    """
+    
+    def __init__(self, checkpoint_path: str, device: str = "cpu", rl_mode: bool = False):
         import torch
-        import torch.nn as nn
+        from models.encoders.tiny_multicam_encoder import TinyMultiCamEncoder
         
         self.checkpoint = torch.load(checkpoint_path, map_location=device)
         self.device = torch.device(device)
+        self.rl_mode = rl_mode
         
-        # Reconstruct model architecture from checkpoint
-        from models.encoders.tiny_multicam_encoder import TinyMultiCamEncoder
-        
+        # Extract metadata from checkpoint
         self.cam = self.checkpoint.get("cam", "front")
         self.horizon_steps = self.checkpoint.get("horizon_steps", 20)
         self.out_dim = self.checkpoint.get("out_dim", 128)
         
         # Build encoder
         self.encoder = TinyMultiCamEncoder(out_dim=self.out_dim).to(self.device)
-        self.encoder.load_state_dict(self.checkpoint["encoder"])
+        encoder_sd = self.checkpoint.get("encoder")
+        if encoder_sd is not None:
+            self.encoder.load_state_dict(encoder_sd)
         self.encoder.eval()
         
-        # Build head
-        class WaypointHead:
-            def __init__(self, in_dim, horizon):
-                self.net = nn.Sequential(
-                    nn.Linear(in_dim, 256),
-                    nn.ReLU(),
-                    nn.Linear(256, horizon * 2),
-                )
-                self.horizon = horizon
-            
-            def to(self, device):
-                self.net = self.net.to(device)
-                return self
-            
-            def __call__(self, z):
-                y = self.net(z)
-                return y.view(-1, self.horizon, 2)
-        
-        self.head = WaypointHead(self.out_dim, self.horizon_steps).to(self.device)
-        self.head.load_state_dict(self.checkpoint["head"])
+        # Build SFT waypoint head
+        self.head = WaypointHead(torch=torch, in_dim=self.out_dim, 
+                                  horizon_steps=self.horizon_steps).to(self.device)
+        head_sd = self.checkpoint.get("head")
+        if head_sd is not None:
+            self.head.load_state_dict(head_sd)
         self.head.eval()
         
-        logger.info(f"Loaded WaypointBCModel: cam={self.cam}, horizon={self.horizon_steps}")
+        # Build RL delta head (optional)
+        self.delta_head = None
+        if rl_mode:
+            delta_hidden = self.checkpoint.get("delta_hidden_dim", 64)
+            self.delta_head = DeltaWaypointHead(
+                torch=torch, in_dim=self.out_dim, 
+                horizon_steps=self.horizon_steps, hidden_dim=delta_hidden
+            ).to(self.device)
+            delta_sd = self.checkpoint.get("delta_head")
+            if delta_sd is not None:
+                self.delta_head.load_state_dict(delta_sd)
+            self.delta_head.eval()
+        
+        logger.info(f"Loaded WaypointPolicyWrapper: cam={self.cam}, horizon={self.horizon_steps}, "
+                   f"rl_mode={rl_mode}")
     
-    def predict_waypoints(self, image: np.ndarray) -> np.ndarray:
-        """Predict waypoints from a single image."""
+    def predict(self, image: np.ndarray) -> np.ndarray:
+        """Predict waypoints from a single image.
+        
+        Args:
+            image: Input image as numpy array (H, W, C) in RGB format
+            
+        Returns:
+            Predicted waypoints as numpy array (horizon_steps, 2)
+            If rl_mode=True, returns delta-corrected waypoints
+        """
         import torch
         
         # Convert image to tensor (H, W, C) -> (1, C, H, W)
+        x = torch.from_numpy(image).permute(2, 0, 1).float() / 255.0
+        x = x.unsqueeze(0).to(self.device)
+        
+        with torch.no_grad():
+            # Encode
+            z = self.encoder(
+                {self.cam: x},
+                image_valid_by_cam={self.cam: torch.ones((1,), dtype=torch.bool, device=self.device)}
+            )
+            
+            # SFT waypoints
+            sft_waypoints = self.head(z)
+            
+            if self.rl_mode and self.delta_head is not None:
+                # Apply delta correction
+                delta = self.delta_head(z)
+                final_waypoints = sft_waypoints + delta
+            else:
+                final_waypoints = sft_waypoints
+        
+        return final_waypoints.squeeze(0).cpu().numpy()  # (horizon, 2)
+    
+    def get_sft_waypoints(self, image: np.ndarray) -> np.ndarray:
+        """Get SFT-only waypoints (without RL delta correction)."""
+        import torch
+        
         x = torch.from_numpy(image).permute(2, 0, 1).float() / 255.0
         x = x.unsqueeze(0).to(self.device)
         
@@ -219,7 +376,19 @@ class WaypointBCModelWrapper:
             )
             waypoints = self.head(z)
         
-        return waypoints.squeeze(0).cpu().numpy()  # (horizon, 2)
+        return waypoints.squeeze(0).cpu().numpy()
+
+
+# Backward compatibility wrapper
+class WaypointBCModelWrapper(WaypointPolicyWrapper):
+    """Backward-compatible wrapper for existing code.
+    
+    Use WaypointPolicyWrapper for new code.
+    """
+    
+    def __init__(self, checkpoint_path: str, device: str = "cpu"):
+        super().__init__(checkpoint_path, device=device, rl_mode=False)
+        logger.info("WaypointBCModelWrapper is deprecated, use WaypointPolicyWrapper instead")
 
 
 class CARLAClosedLoopEvaluator:
@@ -505,20 +674,29 @@ def smoke_test():
     print("Components verified:")
     print("  ✓ ScenarioConfig (clear, cloudy, night, rain, turn)")
     print("  ✓ ClosedLoopMetrics (route_completion, collisions, deviation)")
-    print("  ✓ WaypointBCModelWrapper (checkpoint loading)")
+    print("  ✓ WaypointHead (SFT waypoint prediction)")
+    print("  ✓ DeltaWaypointHead (RL delta correction)")
+    print("  ✓ WaypointPolicyWrapper (unified wrapper for SFT + RL)")
+    print("  ✓ WaypointBCModelWrapper (backward compatible)")
     print("  ✓ CARLAClosedLoopEvaluator (episode running)")
     print("  ✓ get_default_scenarios()")
     print("  ✓ aggregate_results()")
     print()
-    print("Usage:")
+    print("Usage - SFT Model:")
     print("  python -m training.eval.run_carla_closed_loop_eval \\")
-    print("    --checkpoint out/waypoint_bc/best_model.pt \\")
+    print("    --checkpoint out/sft_waypoint_bc/model.pt \\")
     print("    --output-dir out/carla_closed_loop_eval")
+    print()
+    print("Usage - RL Model (SFT + delta):")
+    print("  python -m training.eval.run_carla_closed_loop_eval \\")
+    print("    --checkpoint out/rl_delta/model.pt \\")
+    print("    --output-dir out/carla_rl_eval \\")
+    print("    --rl-mode")
     print()
     print("Scenarios: straight_clear, straight_cloudy, straight_night,")
     print("           straight_rain, turn_clear")
     print()
-    print("Pipeline: Waymo → SSL pretrain → waypoint BC → CARLA eval")
+    print("Pipeline: Waymo → SSL pretrain → waypoint BC → RL → CARLA eval")
 
 
 def main():
@@ -533,6 +711,8 @@ def main():
     parser.add_argument("--smoke", action="store_true", help="Run smoke test without CARLA")
     parser.add_argument("--scenarios", type=str, default="all", 
                        help="Comma-separated scenario names (default: all)")
+    parser.add_argument("--rl-mode", action="store_true", 
+                       help="Enable RL mode for models with delta head (SFT + delta)")
     
     args = parser.parse_args()
     
@@ -545,7 +725,7 @@ def main():
     output_dir.mkdir(parents=True, exist_ok=True)
     
     # Load model
-    model = WaypointBCModelWrapper(args.checkpoint)
+    model = WaypointPolicyWrapper(args.checkpoint, rl_mode=args.rl_mode)
     
     # Get scenarios
     all_scenarios = get_default_scenarios()
