@@ -592,6 +592,11 @@ class RLDeltaTrainer:
         self.eval_metrics: List[Dict] = []
         self.start_time: datetime = datetime.now()
         
+        # Checkpoint selection with policy entropy
+        self.best_entropy: float = float('-inf')
+        self.best_checkpoint_path: Optional[Path] = None
+        self.entropy_history: List[float] = []
+        
     def _to_tensor(self, arr: np.ndarray) -> torch.Tensor:
         """Convert numpy array to torch tensor."""
         return torch.from_numpy(arr).to(self.device)
@@ -634,7 +639,7 @@ class RLDeltaTrainer:
         
         return states, actions, rewards, values, log_probs
     
-    def compute_metrics(self, actions: List[np.ndarray]) -> Dict:
+    def compute_metrics(self, actions: List[np.ndarray], entropy: float) -> Dict:
         """Compute evaluation metrics for the current policy."""
         actions_arr = np.stack(actions)
         
@@ -642,7 +647,47 @@ class RLDeltaTrainer:
             "mean_delta_norm": float(np.linalg.norm(actions_arr, axis=-1).mean()),
             "max_delta_norm": float(np.linalg.norm(actions_arr, axis=-1).max()),
             "std_delta_norm": float(np.std(actions_arr)),
+            "policy_entropy": entropy,
         }
+    
+    def _save_best_checkpoint(self, episode: int, entropy: float) -> None:
+        """Save checkpoint if it has the best policy entropy so far."""
+        # Higher entropy = more exploration = better for RL
+        if entropy > self.best_entropy:
+            self.best_entropy = entropy
+            best_ckpt_path = self.cfg.out_dir / "best_entropy.pt"
+            
+            # Save checkpoint with metadata
+            ckpt = {
+                "delta_head": self.agent.delta_head.state_dict(),
+                "value_head": self.agent.value_head.state_dict(),
+                "optimizer": self.agent.optimizer.state_dict(),
+                "episode": episode,
+                "entropy": entropy,
+                "cfg": self.cfg.ppo.__dict__,
+            }
+            torch.save(ckpt, best_ckpt_path)
+            self.best_checkpoint_path = best_ckpt_path
+            
+            print(f"[rl/delta] New best entropy: {entropy:.4f} (episode {episode})")
+    
+    def _save_entropy_history(self) -> None:
+        """Save entropy history to JSON."""
+        history_path = self.cfg.out_dir / "entropy_history.json"
+        history = {
+            "episodes": list(range(1, len(self.entropy_history) + 1)),
+            "entropy": self.entropy_history,
+            "best_entropy": self.best_entropy,
+            "best_episode": self._get_best_episode(),
+        }
+        with open(history_path, "w") as f:
+            json.dump(history, f, indent=2)
+    
+    def _get_best_episode(self) -> Optional[int]:
+        """Get the episode number of the best checkpoint."""
+        if self.best_checkpoint_path is None:
+            return None
+        return int(self.best_checkpoint_path.stem.split("_")[-1].replace(".pt", ""))
     
     def train(self) -> Dict:
         """Run training loop."""
@@ -705,7 +750,11 @@ class RLDeltaTrainer:
             
             # Evaluation metrics
             if (ep + 1) % self.cfg.ppo.eval_interval == 0:
-                eval_info = self.compute_metrics(actions)
+                # Track entropy from update info
+                entropy = update_info.get('entropy', 0.0)
+                self.entropy_history.append(entropy)
+                
+                eval_info = self.compute_metrics(actions, entropy)
                 
                 metrics = {
                     "episode": ep + 1,
@@ -720,10 +769,14 @@ class RLDeltaTrainer:
                 
                 print(f"[rl/delta] ep={ep+1:4d} reward={metrics['mean_reward']:7.2f} "
                       f"len={metrics['mean_length']:5.1f} kl={update_info['kl']:.4f} "
-                      f"delta_norm={eval_info['mean_delta_norm']:.3f}")
+                      f"delta_norm={eval_info['mean_delta_norm']:.3f} entropy={entropy:.4f}")
                 
-                # Save metrics
+                # Save best checkpoint based on entropy
+                self._save_best_checkpoint(ep + 1, entropy)
+                
+                # Save metrics and entropy history
                 self._save_metrics()
+                self._save_entropy_history()
             
             # Save checkpoint
             if (ep + 1) % self.cfg.ppo.save_interval == 0:
@@ -763,6 +816,11 @@ class RLDeltaTrainer:
                 "mean_reward_100ep": float(np.mean(self.episode_rewards[-100:])),
                 "mean_length_100ep": float(np.mean(self.episode_lengths[-100:])),
                 "total_episodes": len(self.episode_rewards),
+            },
+            "best_checkpoint": {
+                "path": str(self.best_checkpoint_path) if self.best_checkpoint_path else None,
+                "episode": self._get_best_episode(),
+                "entropy": self.best_entropy,
             },
             "rewards": self.episode_rewards,
             "lengths": self.episode_lengths,
