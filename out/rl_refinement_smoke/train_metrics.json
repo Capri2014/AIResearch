@@ -1,0 +1,37 @@
+{
+  "start_time": "2026-02-17T19:33:35.150297",
+  "end_time": "2026-02-17T19:33:38.187929",
+  "config": {
+    "out_dir": "out/rl_refinement_smoke",
+    "sft_model": null,
+    "horizon_steps": 20,
+    "encoder_out_dim": 41,
+    "delta_hidden_dim": 64,
+    "episodes": 5,
+    "lr": 0.0003,
+    "gamma": 0.99,
+    "lam": 0.95,
+    "clip_ratio": 0.2,
+    "update_epochs": 5,
+    "seed": 42
+  },
+  "final_metrics": {
+    "mean_reward_100ep": -1.9990325555205346,
+    "mean_length_100ep": 100.0,
+    "total_episodes": 5
+  },
+  "rewards": [
+    10.439468652009964,
+    -6.358445517718792,
+    -6.681193269789219,
+    -4.708827648311853,
+    -2.6861649937927723
+  ],
+  "lengths": [
+    100,
+    100,
+    100,
+    100,
+    100
+  ]
+}

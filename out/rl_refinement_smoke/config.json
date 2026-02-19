@@ -1,0 +1,14 @@
+{
+  "out_dir": "out/rl_refinement_smoke",
+  "sft_model": null,
+  "horizon_steps": 20,
+  "encoder_out_dim": 41,
+  "delta_hidden_dim": 64,
+  "episodes": 5,
+  "lr": 0.0003,
+  "gamma": 0.99,
+  "lam": 0.95,
+  "clip_ratio": 0.2,
+  "update_epochs": 5,
+  "seed": 42
+}

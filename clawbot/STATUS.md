@@ -4,20 +4,16 @@
 
 ## Daily Cadence
 
-- ✅ Pipeline PR #3 completed (PPO delta-waypoint training implementation)
+- ✅ Pipeline PR #5 completed (PPO stub for RL refinement after SFT)
 - ⏳ Awaiting PR review/merge
-- ✅ Pipeline PR #9 completed (Evaluation + metrics hardening for RL refinement)
-- ⏳ Awaiting PR review/merge
-- ✅ Pipeline PR #8 completed (CARLA closed-loop waypoint BC evaluation script)
-- ⏳ Awaiting PR review/merge
-- ✅ Pipeline PR #5 completed (RL refinement stub for residual delta-waypoint learning)
+- ✅ Pipeline PR #4 completed (RL evaluation with statistical significance)
 - ⏳ Awaiting PR review/merge
 
 ## Repository Status
 
 | Branch | Status | Latest Commit |
 |--------|--------|---------------|
-| feature/daily-2026-02-18-rl-trainer | ✅ Pushed | 40aea39 - feat(rl): Implement PPO delta-waypoint training for RL refinement |
+| feature/daily-2026-02-18-rl-trainer | ✅ Pushed | 5031f7c - feat(rl): Add RL evaluation with statistical significance |
 | feature/daily-2026-02-17-e | ✅ Pushed | 80a616d - feat(eval): Add ADE/FDE metrics to deterministic toy waypoint evaluation |
 | feature/ar-decoder-cot | ✅ Pushed | b5373e1 - feat(eval): add CARLA closed-loop waypoint BC evaluation |
 | feature/daily-2026-02-17-b | ✅ Pushed | a5aede8 - feat(eval): add CARLA waypoint BC evaluation script |
@@ -29,6 +25,25 @@
 | main | - | d5dff32 |
 
 ## Recent Work
+
+### Pipeline PR #5 (2026-02-18): PPO Stub for RL Refinement After SFT
+- `training/rl/ppo_rl_refine_stub.py`: PPO stub implementing residual delta-waypoint learning
+  - **SFT initialization**: `SFTWaypointModelStub` for loading pretrained waypoint BC models
+  - **Residual delta head**: Learns `Δ = (y - ŷ) / σ` normalized correction
+  - **Architecture**: `final_waypoints = sft_waypoints + delta_head(z)`
+  - **PPO training**: GAE, clipping, value loss, entropy bonus
+  - **Toy environment**: `ToyWaypointEnv` integration for kinematics testing
+  - **Artifacts**: `out/<run_id>/metrics.json` and `train_metrics.json`
+- `clawbot/daily/2026-02-18.md`: Updated daily notes
+
+### Pipeline PR #4 (2026-02-18): RL Evaluation with Statistical Significance
+- `training/rl/eval_toy_waypoint_env.py`: Comprehensive evaluation infrastructure
+  - Statistical significance: 95% confidence intervals via normal approximation
+  - P-value computation: Two-sample Welch's t-test for SFT vs RL comparison
+  - Configurable episodes: Default 100 episodes for statistical power
+  - Side-by-side comparison: 3-line report with significance markers
+  - Policy interfaces: SFTPolicy, RLPolicy, HeuristicDeltaPolicy
+  - Output: ADE/FDE with CI, improvement percentages, p-values
 
 ### Pipeline PR #3 (2026-02-18): PPO Delta-Waypoint Training
 - `training/rl/train_ppo_delta_waypoint.py`: Full PPO training implementation
@@ -75,13 +90,11 @@
 
 ## Pending Tasks
 
-- [ ] PR review and merge for #9 (external)
-- [ ] PR review and merge for #8 (external)
-- [ ] PR review and merge for #5 (external)
-- [ ] PR review and merge for #3 (external)
-- [ ] Run RL refinement stub with real SFT checkpoint
-- [ ] Compare RL-refined vs SFT-only performance on toy environment
-- [ ] Run CARLA evaluation with trained checkpoint
+- [ ] PR review and merge for #5 (this PR)
+- [ ] PR review and merge for #4 (this PR)
+- [ ] Integrate with actual SFT checkpoint loader
+- [ ] Add KL regularization between SFT and RL policies
+- [ ] CARLA closed-loop evaluation
 - [ ] Compare offline ADE/FDE with closed-loop metrics
 
 ## Notes

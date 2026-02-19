@@ -42,6 +42,33 @@ Last updated: 2026-02-15
 - RL algorithm upgrade: plan GRPO migration after PPO baseline is stable
 - DeepSeek pipeline: survey pre-train → reasoning SFT → RL → SFT/RLHF for future upgrades
 
+### Implemented RL Algorithms
+
+**ResAD (Residual with Attention and Dynamics)** - 2026-02-18
+- Location: `training/rl/resad.py`, `training/rl/resad_train.py`
+- Architecture: UncertaintyHead + ResADResidualHead + InertialReferenceTransform
+- Formula: Δ_norm = (y - ŷ) / σ
+- Loss: NLL + MSE + KL regularization
+- Use case: Residual correction after frozen SFT model
+- Branch: `feature/grpo-implementation`
+
+### Memory Research: DeepSeek Engram
+
+**DeepSeek Engram Survey** - 2026-02-18
+- Location: `docs/surveys/2026-02-18-deepseek-engram.md`
+- Research lineages:
+  - Memory 支线: FFN=KV Memory → Knowledge Neurons → RETRO → Memory Layer
+  - N-gram 支线: Traditional N-gram → N-Grammer → Scaling Embedding
+- Five core insights:
+  1. FFN is Key-Value Memory
+  2. Sparsity breaks "Impossible Triangle" (Performance/Compute/Model Size)
+  3. Hash table enables O(1) N-gram retrieval
+  4. Engram allows "remembering" commonsense without "computing"
+  5. DeepSeek Engram is culmination of prior research
+- MoE vs Engram relationship documented
+- Autonomous driving application: Engram + AR Decoder integration
+- Branch: `feature/deepseek-engram-survey`
+
 ## Contacts & Context
 
 - User: Qi (timezone: America/New_York, often schedules in America/Los_Angeles for CL cadence)
