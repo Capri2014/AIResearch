@@ -13,6 +13,9 @@ It is intentionally not exhaustive.
     - Robotics foundation model baseline (Octo or Open X-Embodiment / RT-X)
     - Latest end-to-end driving stack (post-UniAD)
     - World models / learned simulators (DreamerV3 and/or driving-focused world model)
+    - ~~**DreamZero** — end-to-end driving (PDF: https://dreamzero0.github.io/DreamZero.pdf)~~ ✅ Done: survey/2026-02-21-dreamzero.md
+    - **GitHub open source robotic arm projects** — WeChat article: https://mp.weixin.qq.com/s/2hu2sOO6OPQ2_hJrZyeQWw
+    - **Contingency Planning in Autonomous Driving** — "Why stuck at last 1%" (WeChat: https://mp.weixin.qq.com/s/IHUT_ry_VMn8IoZmKt53TA)
 
 ### Generative modeling: Flow Matching
 - **Flow Matching / Rectified Flow / Consistency-style training**
