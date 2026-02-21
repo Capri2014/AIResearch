@@ -6,11 +6,14 @@ This module provides RL training infrastructure for improving waypoint policies 
 
 ```
 training/rl/
-├── toy_waypoint_env.py           # Minimal 2D car environment for testing
-├── train_ppo_waypoint_delta.py   # PPO training for residual delta-waypoint learning
-├── waypoint_policy_torch.py      # Policy wrapper: SFT base + delta head
-├── select_checkpoint.py          # Best checkpoint selection by ADE/FDE
-└── eval_metrics.py               # ADE/FDE metrics and policy comparison
+├── toy_waypoint_env.py              # Minimal 2D car environment for testing
+├── train_ppo_waypoint_delta.py      # PPO training for residual delta-waypoint learning
+├── train_grpo_delta_waypoint.py   # GRPO training for residual delta-waypoint learning
+├── grpo.py                        # GRPO (Group Relative Policy Optimization) core
+├── grpo_waypoint.py                # GRPO for waypoint prediction
+├── waypoint_policy_torch.py        # Policy wrapper: SFT base + delta head
+├── select_checkpoint.py             # Best checkpoint selection by ADE/FDE
+└── eval_metrics.py                  # ADE/FDE metrics and policy comparison
 ```
 
 ## Quickstart
@@ -24,8 +27,9 @@ python -m training.sft.train_waypoint_bc_torch_v0 \
   --num-steps 200
 ```
 
-### 2. Train residual delta head with PPO
+### 2. Train residual delta head with PPO or GRPO
 
+**PPO Training:**
 ```bash
 python -m training.rl.train_ppo_waypoint_delta \
   --sft-model out/sft_waypoint_bc_torch_v0/model.pt \
@@ -39,6 +43,21 @@ python -m training.rl.train_rl_delta_waypoint \
   --eval-after-training \
   --eval-episodes 100
 ```
+
+**GRPO Training** (Group Relative Policy Optimization):
+```bash
+python -m training.rl.train_grpo_delta_waypoint \
+  --sft-checkpoint out/waypoint_bc/run_001/model.pt \
+  --output-dir out/grpo_delta \
+  --num-episodes 1000 \
+  --grpo-group-size 4 \
+  --delta-hidden-dim 128
+```
+
+GRPO provides an alternative to PPO with:
+- No value function needed (simpler, more stable)
+- Group-relative advantage estimation
+- Better scaling to large models
 
 The `--eval-after-training` flag automatically runs evaluation on the best checkpoint after training completes and saves metrics to `out/<run_id>/eval_metrics.json`.
 
@@ -78,7 +97,7 @@ python -m training.rl.select_checkpoint \
 
 ### Residual delta learning
 
-The PPO module learns a **residual correction** to the SFT policy:
+The RL modules (PPO or GRPO) learn a **residual correction** to the SFT policy:
 
 ```
 final_waypoints = sft_waypoints + delta_head(z)
@@ -88,6 +107,19 @@ This keeps the pretrained SFT model fixed and only trains the delta head, which 
 - More sample-efficient (fewer parameters)
 - Safer (SFT policy remains unchanged)
 - Modular (can swap SFT backbones)
+
+### PPO vs GRPO
+
+Both algorithms are supported for delta-waypoint training:
+
+| Feature | PPO | GRPO |
+|---------|-----|------|
+| Value function | Required | Not needed |
+| Advantage estimation | GAE | Group-relative |
+| Complexity | Higher | Lower |
+| Scaling to large models | Good | Better |
+
+GRPO (Group Relative Policy Optimization) from DeepSeek eliminates the need for a value function by using group-based relative advantages.
 
 ### Toy environment
 
