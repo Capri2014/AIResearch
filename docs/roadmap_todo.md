@@ -9,7 +9,7 @@ It is intentionally not exhaustive.
 - **"Building Foundational Models for Robotics at Tesla" — Ashok Elluswamy**
   - Digest: `docs/digests/tesla_foundational_models_robotics_elluswamy.md`
   - Follow-ups (public anchors; turn into separate digests + PRs):
-    - 3D Gaussian Splatting (Kerbl et al., 2023) + a reference implementation
+    - ~~3D Gaussian Splatting (Kerbl et al., 2023)~~ ✅ Done: survey/2026-02-21-3d-gaussian-splatting.md
     - Robotics foundation model baseline (Octo or Open X-Embodiment / RT-X)
     - Latest end-to-end driving stack (post-UniAD)
     - World models / learned simulators (DreamerV3 and/or driving-focused world model)
