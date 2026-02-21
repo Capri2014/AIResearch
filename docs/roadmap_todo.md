@@ -10,7 +10,7 @@ It is intentionally not exhaustive.
   - Digest: `docs/digests/tesla_foundational_models_robotics_elluswamy.md`
   - Follow-ups (public anchors; turn into separate digests + PRs):
     - ~~3D Gaussian Splatting (Kerbl et al., 2023)~~ ✅ Done: survey/2026-02-21-3d-gaussian-splatting.md
-    - Robotics foundation model baseline (Octo or Open X-Embodiment / RT-X)
+    - ~~Robotics foundation model baseline (Octo or Open X-Embodiment / RT-X)~~ ✅ Done: survey/2026-02-21-robotics-foundation-models.md
     - Latest end-to-end driving stack (post-UniAD)
     - World models / learned simulators (DreamerV3 and/or driving-focused world model)
     - ~~**DreamZero** — end-to-end driving (PDF: https://dreamzero0.github.io/DreamZero.pdf)~~ ✅ Done: survey/2026-02-21-dreamzero.md
