@@ -2,7 +2,7 @@
 
 **Paper:** Kerbl et al., SIGGRAPH 2023  
 **Topic:** Real-time neural rendering via explicit 3D Gaussians  
-**Last Updated:** 2026-02-18  
+**Last Updated:** 2026-02-21  
 **Category:** Neural Rendering / 3D Vision
 
 ---
