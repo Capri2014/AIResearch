@@ -14,7 +14,7 @@ It is intentionally not exhaustive.
     - ~~Latest end-to-end driving stack (post-UniAD)~~ ✅ Done: survey/2026-02-21-e2e-driving-post-uniad.md
     - ~~World models / learned simulators (DreamerV3)~~ ✅ Done: survey/2026-02-21-world-models-dreamerv3.md
     - ~~**DreamZero** — end-to-end driving (PDF: https://dreamzero0.github.io/DreamZero.pdf)~~ ✅ Done: survey/2026-02-21-dreamzero.md
-    - **GitHub open source robotic arm projects** — WeChat article: https://mp.weixin.qq.com/s/2hu2sOO6OPQ2_hJrZyeQWw
+    - ~~**GitHub open source robotic arm projects**~~ ✅ Done: survey/2026-02-21-github-robotic-arms.md
     - ~~**Contingency Planning in Autonomous Driving** — "Why stuck at last 1%"~~ ✅ Done: survey/2026-02-21-contingency-planning.md
 
 ### Generative modeling: Flow Matching
