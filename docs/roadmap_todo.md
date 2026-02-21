@@ -12,7 +12,7 @@ It is intentionally not exhaustive.
     - ~~3D Gaussian Splatting (Kerbl et al., 2023)~~ ✅ Done: survey/2026-02-21-3d-gaussian-splatting.md
     - ~~Robotics foundation model baseline (Octo or Open X-Embodiment / RT-X)~~ ✅ Done: survey/2026-02-21-robotics-foundation-models.md
     - ~~Latest end-to-end driving stack (post-UniAD)~~ ✅ Done: survey/2026-02-21-e2e-driving-post-uniad.md
-    - World models / learned simulators (DreamerV3 and/or driving-focused world model)
+    - ~~World models / learned simulators (DreamerV3)~~ ✅ Done: survey/2026-02-21-world-models-dreamerv3.md
     - ~~**DreamZero** — end-to-end driving (PDF: https://dreamzero0.github.io/DreamZero.pdf)~~ ✅ Done: survey/2026-02-21-dreamzero.md
     - **GitHub open source robotic arm projects** — WeChat article: https://mp.weixin.qq.com/s/2hu2sOO6OPQ2_hJrZyeQWw
     - ~~**Contingency Planning in Autonomous Driving** — "Why stuck at last 1%"~~ ✅ Done: survey/2026-02-21-contingency-planning.md
