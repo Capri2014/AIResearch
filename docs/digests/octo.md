@@ -3,6 +3,7 @@
 **Survey:** Octo: An Open-Source Generalist Robot Policy (Ghosh et al., 2024)  
 **Date:** 2026-02-16  
 **Status:** PUBLIC ANCHOR DIGEST - Robotics Foundation Model Baseline  
+**Updated:** 2026-02-21 (Survey PR #3 - confirmed as primary anchor)  
 **Author:** Auto-generated digest  
 
 ---
