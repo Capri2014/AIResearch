@@ -18,8 +18,7 @@ It is intentionally not exhaustive.
     - ~~**Contingency Planning in Autonomous Driving** — "Why stuck at last 1%"~~ ✅ Done: survey/2026-02-21-contingency-planning.md
 
 ### Generative modeling: Flow Matching
-- **Flow Matching / Rectified Flow / Consistency-style training**
-  - TODO: survey the most useful papers + repos for *practical* flow-matching training (especially for video / world-model-ish generation).
+- ~~**Flow Matching / Rectified Flow / Consistency-style training**~~ ✅ Done: survey/2026-02-21-flow-matching.md
   - Questions to answer in a digest:
     - How Flow Matching relates to diffusion (score matching) and why it can be simpler/faster
     - Which variants are most stable in practice (rectified flow, consistency, EDM-style)
