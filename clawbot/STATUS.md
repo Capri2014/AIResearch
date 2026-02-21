@@ -1,9 +1,13 @@
 # CLAWBOT Status
 
-**Last Updated:** 2026-02-18
+**Last Updated:** 2026-02-21
 
 ## Daily Cadence
 
+- ✅ Pipeline PR #2 completed (GRPO delta-waypoint training for RL refinement after SFT)
+- ⏳ Awaiting PR review/merge
+- ✅ Pipeline PR #1 completed (SFT checkpoint loader for RL pipeline)
+- ⏳ Awaiting PR review/merge
 - ✅ Pipeline PR #6 completed (ADE/FDE metrics and comparison loader for RL refinement)
 - ⏳ Awaiting PR review/merge
 - ✅ Pipeline PR #5 completed (PPO stub for RL refinement after SFT)
@@ -13,21 +17,33 @@
 
 | Branch | Status | Latest Commit |
 |--------|--------|---------------|
-| feature/daily-2026-02-18-eval-metrics | ✅ Pushed | 56a2e4e - feat(eval): Add ADE/FDE metrics and comparison loader |
-| feature/daily-2026-02-18-rl-trainer | ✅ Pushed | 5031f7c - feat(rl): Add RL evaluation with statistical significance |
-| feature/daily-2026-02-17-e | ✅ Pushed | 80a616d - feat(eval): Add ADE/FDE metrics to deterministic toy waypoint evaluation |
-| feature/ar-decoder-cot | ✅ Pushed | b5373e1 - feat(eval): add CARLA closed-loop waypoint BC evaluation |
-| feature/daily-2026-02-17-b | ✅ Pushed | a5aede8 - feat(eval): add CARLA waypoint BC evaluation script |
-| feature/daily-2026-02-16-rebase | ✅ Pushed | 39e23fc - feat(eval): add git info to SFT vs RL comparison metrics |
-| feature/daily-2026-02-16-e | ✅ Pushed | 1c9584f |
-| feature/daily-2026-02-16-d | ✅ Pushed | eec96f7 |
-| feature/daily-2026-02-16-a | ✅ Pushed | eec96f7 |
-| feature/roadmap-update-todos | ✅ Merged | 960446b |
+| feature/daily-2026-02-21-b | ✅ Pushed | c95df22 - feat(rl): Add GRPO delta-waypoint training |
+| feature/daily-2026-02-21-a | ✅ Pushed | 43b70c3 - docs(digests): Update DreamerV3 digest |
+| feature/daily-2026-02-18-eval-metrics | ✅ Pushed | 56a2e4e - feat(eval): Add ADE/FDE metrics |
+| feature/daily-2026-02-18-rl-trainer | ✅ Pushed | 5031f7c - feat(rl): Add RL evaluation |
+| feature/daily-2026-02-17-e | ✅ Pushed | 80a616d - feat(eval): Add ADE/FDE metrics |
+| feature/ar-decoder-cot | ✅ Pushed | b5373e1 - feat(eval): add CARLA closed-loop evaluation |
 | main | - | d5dff32 |
 
 ## Recent Work
 
-### Pipeline PR #6 (2026-02-18): ADE/FDE Metrics and Comparison Loader
+### Pipeline PR #2 (2026-02-21): GRPO Delta-Waypoint Training
+- `training/rl/train_grpo_delta_waypoint.py`: GRPO training for residual delta-waypoint learning
+  - **Architecture**: `final_waypoints = sft_waypoints + delta_head(z)`
+  - **GRPO**: Group-relative advantage estimation (no value function needed)
+  - **DeltaHead**: Predicts corrections with uncertainty estimation
+  - **Integration**: Works with SFT checkpoint loader for pretrained model loading
+- `training/rl/test_grpo_delta_smoke.py`: Smoke tests for validation
+- `training/rl/sft_checkpoint_loader.py`: SFT checkpoint loading utilities
+- `training/rl/README.md`: Updated with GRPO documentation and PPO vs GRPO comparison
+- Branch: `feature/daily-2026-02-21-b`
+
+### Pipeline PR #1 (2026-02-21): SFT Checkpoint Loader
+- `training/rl/sft_checkpoint_loader.py`: SFT checkpoint loading for RL pipeline
+  - Automatic checkpoint discovery in out/ directories
+  - Model architecture inference from checkpoint metadata
+  - Lazy loading to avoid memory overhead
+  - Integration with ResAD and PPO delta-waypoint training
 - `training/rl/eval_toy_waypoint_env.py`: Extended with ADE/FDE computation per episode
   - ADE (Average Displacement Error): mean distance to all waypoints
   - FDE (Final Displacement Error): distance to final waypoint
