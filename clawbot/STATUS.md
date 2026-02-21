@@ -4,6 +4,10 @@
 
 ## Daily Cadence
 
+- ✅ Pipeline PR #4 completed (RL to CARLA pipeline integration)
+- ⏳ Awaiting PR review/merge
+- ✅ Pipeline PR #3 completed (Waypoint trajectory smoothing for kinematic feasibility)
+- ⏳ Awaiting PR review/merge
 - ✅ Pipeline PR #2 completed (GRPO delta-waypoint training for RL refinement after SFT)
 - ⏳ Awaiting PR review/merge
 - ✅ Pipeline PR #1 completed (SFT checkpoint loader for RL pipeline)
@@ -17,6 +21,8 @@
 
 | Branch | Status | Latest Commit |
 |--------|--------|---------------|
+| feature/daily-2026-02-21-d | ✅ Pushed | 77796a0 - feat(eval): Add RL to CARLA pipeline for end-to-end evaluation |
+| feature/daily-2026-02-21-c | ✅ Pushed | 9be2cb5 - feat(rl): Add waypoint trajectory smoothing |
 | feature/daily-2026-02-21-b | ✅ Pushed | c95df22 - feat(rl): Add GRPO delta-waypoint training |
 | feature/daily-2026-02-21-a | ✅ Pushed | 43b70c3 - docs(digests): Update DreamerV3 digest |
 | feature/daily-2026-02-18-eval-metrics | ✅ Pushed | 56a2e4e - feat(eval): Add ADE/FDE metrics |
@@ -26,6 +32,31 @@
 | main | - | d5dff32 |
 
 ## Recent Work
+
+### Pipeline PR #4 (2026-02-21): RL to CARLA Pipeline Integration
+- `training/eval/run_rl_to_carla_pipeline.py`: End-to-end pipeline script
+  - **Automatic checkpoint selection**: Selects best checkpoint from training metrics
+  - **SFT comparison**: Supports --compare-sft for SFT vs RL comparison
+  - **Metrics**: Route completion, collision rate improvements
+  - **Smoke test**: --smoke flag for testing without CARLA
+- Usage:
+  ```bash
+  python -m training.eval.run_rl_to_carla_pipeline \
+    --rl-run-dir out/rl_delta_waypoint/... \
+    --output-dir out/rl_carla_eval \
+    --compare-sft
+  ```
+- Branch: `feature/daily-2026-02-21-d`
+
+### Pipeline PR #3 (2026-02-21): Waypoint Trajectory Smoothing
+- `training/rl/waypoint_smoothing.py`: Trajectory smoothing for waypoint predictions
+  - **Smoothing methods**: Exponential, Moving Average, Savitzky-Golay
+  - **Kinematic feasibility**: Speed/acceleration limits enforcement
+  - **Learnable smoothing**: PyTorch module for differentiable training
+  - **ADE improvement**: 0.631m → 0.477m on noisy trajectories
+- `training/rl/test_waypoint_smoothing.py`: Smoke tests
+- **Architecture**: `final_waypoints = smooth(delta_head(z) + sft_waypoints)`
+- Branch: `feature/daily-2026-02-21-c`
 
 ### Pipeline PR #2 (2026-02-21): GRPO Delta-Waypoint Training
 - `training/rl/train_grpo_delta_waypoint.py`: GRPO training for residual delta-waypoint learning
