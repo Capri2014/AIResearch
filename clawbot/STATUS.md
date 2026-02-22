@@ -4,7 +4,9 @@
 
 ## Daily Cadence
 
-- ⏳ Pipeline PR #5: PPO residual delta-waypoint training (toy environment)
+- ⏳ Pipeline PR #6: Deterministic evaluation for waypoint RL (SFT vs RL comparison)
+- ⏳ Awaiting PR review/merge
+- ✅ Pipeline PR #5 completed (PPO residual delta-waypoint training)
 - ⏳ Awaiting PR review/merge
 - ✅ Pipeline PR #4 completed (RL to CARLA pipeline integration)
 - ⏳ Awaiting PR review/merge
@@ -13,17 +15,12 @@
 - ✅ Pipeline PR #2 completed (GRPO delta-waypoint training for RL refinement after SFT)
 - ⏳ Awaiting PR review/merge
 - ✅ Pipeline PR #1 completed (SFT checkpoint loader for RL pipeline)
-- ⏳ Awaiting PR review/merge
-- ✅ Pipeline PR #6 completed (ADE/FDE metrics and comparison loader for RL refinement)
-- ⏳ Awaiting PR review/merge
-- ✅ Pipeline PR #5 completed (PPO stub for RL refinement after SFT)
-- ⏳ Awaiting PR review/merge
 
 ## Repository Status
 
 | Branch | Status | Latest Commit |
 |--------|--------|---------------|
-| feature/daily-2026-02-21-e | ✅ Pushed | (new) - feat(rl): Add PPO residual delta-waypoint training |
+| feature/daily-2026-02-21-e | ✅ Pushed | c89df26 - feat(eval): Add deterministic evaluation for waypoint RL |
 | feature/daily-2026-02-21-d | ✅ Pushed | 77796a0 - feat(eval): Add RL to CARLA pipeline for end-to-end evaluation |
 | feature/daily-2026-02-21-c | ✅ Pushed | 9be2cb5 - feat(rl): Add waypoint trajectory smoothing |
 | feature/daily-2026-02-21-b | ✅ Pushed | c95df22 - feat(rl): Add GRPO delta-waypoint training |
