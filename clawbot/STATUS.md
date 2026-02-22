@@ -4,6 +4,8 @@
 
 ## Daily Cadence
 
+- ⏳ Pipeline PR #5: PPO residual delta-waypoint training (toy environment)
+- ⏳ Awaiting PR review/merge
 - ✅ Pipeline PR #4 completed (RL to CARLA pipeline integration)
 - ⏳ Awaiting PR review/merge
 - ✅ Pipeline PR #3 completed (Waypoint trajectory smoothing for kinematic feasibility)
@@ -21,6 +23,7 @@
 
 | Branch | Status | Latest Commit |
 |--------|--------|---------------|
+| feature/daily-2026-02-21-e | ✅ Pushed | (new) - feat(rl): Add PPO residual delta-waypoint training |
 | feature/daily-2026-02-21-d | ✅ Pushed | 77796a0 - feat(eval): Add RL to CARLA pipeline for end-to-end evaluation |
 | feature/daily-2026-02-21-c | ✅ Pushed | 9be2cb5 - feat(rl): Add waypoint trajectory smoothing |
 | feature/daily-2026-02-21-b | ✅ Pushed | c95df22 - feat(rl): Add GRPO delta-waypoint training |
@@ -32,6 +35,22 @@
 | main | - | d5dff32 |
 
 ## Recent Work
+
+### Pipeline PR #5 (2026-02-21): PPO Residual Delta-Waypoint Training
+- `training/rl/waypoint_env.py`: Toy kinematics environment for waypoint testing
+  - **State**: (x, y, vx, vy, goal_x, goal_y) - 6D
+  - **Action**: Waypoint sequence (horizon x 2)
+  - **Dynamics**: Simple velocity-based with goal-reaching reward
+  - **SFT baseline**: Linear interpolation to goal
+- `training/rl/ppo_residual_waypoint.py`: PPO with residual delta learning
+  - **Architecture**: `final_waypoints = sft_waypoints + delta_head(z)`
+  - **SFTWaypointModel**: Frozen baseline predictor
+  - **DeltaWaypointHead**: Trainable residual with hidden_dim=64
+  - **PPO**: GAE, value loss, entropy bonus
+- `out/rl_residual_smoke/`: Training artifacts
+  - `metrics.json`: episode_rewards, goals_reached, policy/value losses
+  - `train_metrics.json`: final_avg_reward=-3496.36, final_goal_rate=0.10
+- Branch: `feature/daily-2026-02-21-e`
 
 ### Pipeline PR #4 (2026-02-21): RL to CARLA Pipeline Integration
 - `training/eval/run_rl_to_carla_pipeline.py`: End-to-end pipeline script
