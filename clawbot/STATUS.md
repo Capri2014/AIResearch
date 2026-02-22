@@ -1,9 +1,11 @@
 # CLAWBOT Status
 
-**Last Updated:** 2026-02-21
+**Last Updated:** 2026-02-22
 
 ## Daily Cadence
 
+- ⏳ Pipeline PR #1 (2026-02-22): Offline vs closed-loop metrics correlation analysis
+- ⏳ Awaiting PR review/merge
 - ⏳ Pipeline PR #6: Deterministic evaluation for waypoint RL (SFT vs RL comparison)
 - ⏳ Awaiting PR review/merge
 - ✅ Pipeline PR #5 completed (PPO residual delta-waypoint training)
@@ -20,6 +22,7 @@
 
 | Branch | Status | Latest Commit |
 |--------|--------|---------------|
+| feature/daily-2026-02-22-a | ✅ Pushed | f327be0 - feat(eval): Add offline vs closed-loop metrics correlation analysis |
 | feature/daily-2026-02-21-e | ✅ Pushed | c89df26 - feat(eval): Add deterministic evaluation for waypoint RL |
 | feature/daily-2026-02-21-d | ✅ Pushed | 77796a0 - feat(eval): Add RL to CARLA pipeline for end-to-end evaluation |
 | feature/daily-2026-02-21-c | ✅ Pushed | 9be2cb5 - feat(rl): Add waypoint trajectory smoothing |
@@ -32,6 +35,22 @@
 | main | - | d5dff32 |
 
 ## Recent Work
+
+### Pipeline PR #1 (2026-02-22): Offline vs Closed-Loop Metrics Correlation Analysis
+- `training/eval/correlate_offline_closed_loop.py`: Correlation analysis script
+  - **Purpose**: Validate that offline ADE/FDE improvements translate to closed-loop performance
+  - **Inputs**: Offline metrics from eval directories, CARLA closed-loop metrics
+  - **Outputs**: Pearson correlation coefficients, interpretation, JSON report
+  - **Correlation metrics**: ade_vs_route_completion, ade_vs_collision_rate, fde_vs_route_completion, fde_vs_collision_rate
+  - **Domain-specific**: Separates SFT, PPO, GRPO correlations
+- Usage:
+  ```bash
+  python -m training.eval.correlate_offline_closed_loop \
+    --offline-dir out/eval/20260218-213206 \
+    --carla-dir out/carla_closed_loop_eval \
+    --output correlation_report.json
+  ```
+- Branch: `feature/daily-2026-02-22-a`
 
 ### Pipeline PR #5 (2026-02-21): PPO Residual Delta-Waypoint Training
 - `training/rl/waypoint_env.py`: Toy kinematics environment for waypoint testing
