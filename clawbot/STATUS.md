@@ -4,6 +4,8 @@
 
 ## Daily Cadence
 
+- ⏳ Pipeline PR #3 (2026-02-22): Multi-scenario RL with domain randomization
+- ⏳ Awaiting PR review/merge
 - ⏳ Pipeline PR #2 (2026-02-22): KL regularization for PPO residual delta-waypoint training
 - ⏳ Awaiting PR review/merge
 - ⏳ Pipeline PR #1 (2026-02-22): Offline vs closed-loop metrics correlation analysis
@@ -24,6 +26,7 @@
 
 | Branch | Status | Latest Commit |
 |--------|--------|---------------|
+| feature/daily-2026-02-22-c | ✅ Pushed | ad9fa86 - feat(rl): Add multi-scenario RL with domain randomization |
 | feature/daily-2026-02-22-b | ✅ Pushed | 19bfb47 - feat(rl): Add KL regularization to PPO residual delta-waypoint training |
 | feature/daily-2026-02-22-a | ✅ Pushed | f327be0 - feat(eval): Add offline vs closed-loop metrics correlation analysis |
 | feature/daily-2026-02-21-e | ✅ Pushed | c89df26 - feat(eval): Add deterministic evaluation for waypoint RL |
@@ -73,6 +76,24 @@
   )
   ```
 - Branch: `feature/daily-2026-02-22-b`
+
+### Pipeline PR #3 (2026-02-22): Multi-Scenario RL with Domain Randomization
+- `training/rl/multi_scenario_env.py`: Multi-scenario environment with 5 conditions
+  - **Scenario types**: clear (1.0), cloudy (1.2), night (1.5), rain (1.8), fog (2.0)
+  - **Domain randomization**: Visibility ±20%, friction ±10%, noise ±50%
+  - **Scenario-specific rewards**: Night penalizes speed, rain penalizes high velocity
+  - **CurriculumScheduler**: Cosine annealing from easy to hard scenarios
+- `training/rl/train_multi_scenario_rl.py`: Training and evaluation scripts
+  - **ResidualDeltaNetwork**: Final waypoints = SFT + delta head
+  - **Per-scenario evaluation**: Validates policy across all conditions
+  - **Training results**: 90% success rate, 161.01 avg reward (20 episodes)
+- Usage:
+  ```bash
+  python -m training.rl.train_multi_scenario_rl \
+    --episodes 500 --horizon 20 --curriculum 1.0
+  ```
+- Per-scenario eval: clear 193.19, cloudy 431.87, night 66.97, rain -10.07, fog 69.59
+- Branch: `feature/daily-2026-02-22-c`
 
 ### Pipeline PR #5 (2026-02-21): PPO Residual Delta-Waypoint Training
 - `training/rl/waypoint_env.py`: Toy kinematics environment for waypoint testing
