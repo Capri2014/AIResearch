@@ -109,6 +109,10 @@ class PPOResidualWaypointAgent:
     - SFT model is FROZEN
     - Only delta_head is trained
     - Final action = SFT_waypoints + delta_head(state)
+    
+    KL Regularization:
+        Added KL divergence penalty to keep RL policy close to SFT baseline.
+        This prevents the delta head from drifting too far from the SFT predictions.
     """
     
     def __init__(
@@ -123,6 +127,7 @@ class PPOResidualWaypointAgent:
         clip_ratio: float = 0.2,
         value_coef: float = 0.5,
         entropy_coef: float = 0.01,
+        kl_coef: float = 0.1,
         use_residual: bool = True,
         device: str = 'cpu'
     ):
@@ -134,6 +139,7 @@ class PPOResidualWaypointAgent:
         self.clip_ratio = clip_ratio
         self.value_coef = value_coef
         self.entropy_coef = entropy_coef
+        self.kl_coef = kl_coef
         self.use_residual = use_residual
         self.device = device
         
@@ -223,6 +229,38 @@ class PPOResidualWaypointAgent:
         
         return values, predicted_waypoints, entropy
     
+    def compute_kl_divergence(
+        self,
+        states: torch.Tensor,
+        old_waypoints: torch.Tensor
+    ) -> torch.Tensor:
+        """
+        Compute KL divergence between SFT waypoints and predicted waypoints.
+        
+        KL(SFT || RL) measures how much the RL policy diverges from SFT baseline.
+        Lower KL = RL policy stays closer to SFT.
+        
+        Using Gaussian KL for continuous waypoints:
+        KL = sum(0.5 * (mu_rl - mu_sft)^2 / sigma^2)
+        
+        For simplicity, we use MSE-based KL approximation.
+        """
+        with torch.no_grad():
+            sft_waypoints = self.sft_model(states)
+        
+        # Get current predicted waypoints
+        delta = self.delta_head(states)
+        if self.use_residual:
+            pred_waypoints = sft_waypoints + delta
+        else:
+            pred_waypoints = delta
+        
+        # MSE-based KL approximation: 0.5 * ||pred - sft||^2
+        # This penalizes deviation from SFT baseline
+        kl = 0.5 * torch.mean((pred_waypoints - sft_waypoints) ** 2)
+        
+        return kl
+    
     def compute_gae(
         self, 
         rewards: torch.Tensor, 
@@ -300,8 +338,13 @@ class PPOResidualWaypointAgent:
         # Entropy bonus
         entropy_loss = -self.entropy_coef * entropy
         
+        # KL regularization: penalize deviation from SFT baseline
+        # This keeps the RL policy close to the frozen SFT model
+        kl_div = self.compute_kl_divergence(states_t, actions_t)
+        kl_loss = self.kl_coef * kl_div
+        
         # Total loss
-        loss = policy_loss + self.value_coef * value_loss + entropy_loss
+        loss = policy_loss + self.value_coef * value_loss + entropy_loss + kl_loss
         
         # Backprop
         self.actor_opt.zero_grad()
@@ -314,6 +357,8 @@ class PPOResidualWaypointAgent:
             'policy_loss': policy_loss.item(),
             'value_loss': value_loss.item(),
             'entropy': entropy.item(),
+            'kl_div': kl_div.item(),
+            'kl_loss': kl_loss.item(),
             'total_loss': loss.item()
         }
 
@@ -336,6 +381,7 @@ def train_ppo_residual(
         'episode_lengths': [],
         'policy_losses': [],
         'value_losses': [],
+        'kl_divs': [],
         'goals_reached': []
     }
     
@@ -384,6 +430,7 @@ def train_ppo_residual(
             
             metrics['policy_losses'].append(update_metrics['policy_loss'])
             metrics['value_losses'].append(update_metrics['value_loss'])
+            metrics['kl_divs'].append(update_metrics['kl_div'])
         
         metrics['episode_rewards'].append(episode_reward)
         metrics['episode_lengths'].append(episode_length)
@@ -393,7 +440,8 @@ def train_ppo_residual(
             avg_reward = np.mean(metrics['episode_rewards'][-10:])
             avg_length = np.mean(metrics['episode_lengths'][-10:])
             goal_rate = np.mean(metrics['goals_reached'][-10:])
-            print(f"Episode {episode}: reward={avg_reward:.2f}, length={avg_length:.1f}, goal_rate={goal_rate:.2f}")
+            avg_kl = np.mean(metrics['kl_divs'][-10:]) if metrics['kl_divs'] else 0.0
+            print(f"Episode {episode}: reward={avg_reward:.2f}, length={avg_length:.1f}, goal_rate={goal_rate:.2f}, kl={avg_kl:.4f}")
     
     return metrics
 
