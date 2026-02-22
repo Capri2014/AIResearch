@@ -1,0 +1,226 @@
+# ============================================================
+# Docker Compose for E2EAD Training Environment
+# ============================================================
+# Development workflow with GPU support, volume mounts,
+# and services for training, evaluation, and CARLA simulation
+# ============================================================
+
+services:
+  # ----------------------------------------------------------------
+  # Training Service
+  # ----------------------------------------------------------------
+  training:
+    build:
+      context: .
+      dockerfile: Dockerfile.training
+    image: e2ead-training:latest
+    container_name: e2ead-training
+    runtime: nvidia
+    environment:
+      # PyTorch and CUDA settings
+      - PYTHONUNBUFFERED=1
+      - PYTHONDONTWRITEBYTECODE=1
+      - TORCH_CUDA_ARCH_LIST=7.0;8.0;8.6;8.9;9.0  # Optimize for multiple GPU architectures
+      
+      # Weights & Biases (optional)
+      - WANDB_API_KEY=${WANDB_API_KEY:-}
+      - WANDB_PROJECT=e2ead-training
+      - WANDB_ENTITY=${WANDB_ENTITY:-}
+      
+      # HuggingFace
+      - HF_HOME=/home/trainer/.cache/huggingface
+      - HF_TOKEN=${HF_TOKEN:-}
+      
+      # Training-specific
+      - TRAIN_DATA_DIR=/data/.openclaw/workspace/data/training
+      - OUTPUT_DIR=/data/.openclaw/workspace/outputs
+      - CHECKPOINT_DIR=/data/.openclaw/workspace/model_checkpoints
+      
+      # Distributed training (optional)
+      - WORLD_SIZE=1
+      - RANK=0
+      - LOCAL_RANK=0
+      
+    volumes:
+      # Project source code (read-write for development)
+      - .:/data/.openclaw/workspace:e2ead-training
+      
+      # Training data directory
+      - ./data:/data/.openclaw/workspace/data:e2ead-training
+      
+      # Output directory for logs, metrics, and artifacts
+      - ./out:/data/.openclaw/workspace/outputs:e2ead-training
+      
+      # Model checkpoints
+      - ./model_checkpoints:/data/.openclaw/workspace/model_checkpoints:e2ead-training
+      
+      # HuggingFace cache (persistent across runs)
+      - ~/.cache/huggingface:/home/trainer/.cache/huggingface:e2ead-training
+      
+      # Weights & Biases logs
+      - ./wandb_logs:/home/trainer/wandb_logs:e2ead-training
+      
+    ports:
+      # TensorBoard (optional)
+      - "6006:6006"
+      
+      # Jupyter (optional)
+      - "8888:8888"
+      
+    command: >
+      bash -c "
+        echo '========================================' &&
+        echo 'E2EAD Training Environment Started' &&
+        echo '========================================' &&
+        echo 'Available commands:' &&
+        echo '  - python -m training.sft.train_waypoint' &&
+        echo '  - python -m training.rl.train_ppo' &&
+        echo '  - tensorboard --logdir /data/.openclaw/workspace/outputs/logs --port 6006' &&
+        echo '  - jupyter lab --ip 0.0.0.0 --port 8888' &&
+        echo '========================================' &&
+        /bin/bash
+      "
+    
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+    
+    networks:
+      - e2ead-network
+    
+    restart: unless-stopped
+    
+    healthcheck:
+      test: ["CMD", "python3", "-c", "import torch; assert torch.cuda.is_available()"]
+      interval: 60s
+      timeout: 30s
+      retries: 3
+      start_period: 30s
+
+  # ----------------------------------------------------------------
+  # CARLA Simulator (Optional - for closed-loop evaluation)
+  # ----------------------------------------------------------------
+  carla:
+    image: carlasim/carla:0.9.15
+    container_name: e2ead-carla
+    runtime: nvidia
+    environment:
+      - NVIDIA_VISIBLE_DEVICES=all
+      - CARLA_SERVER_PORT=2000
+      - CARLA_TRAFFIC_PORT=8000
+      - CARLA_SENSORS_PORT=8090
+    ports:
+      - "2000:2000"   # CARLA server
+      - "8000:8000"   # Traffic manager
+      - "8090:8090"   # Sensors
+    volumes:
+      # CARLA data
+      - ./carla_data:/carla/Dockerfile.data:e2ead-training
+    command: >
+      /bin/bash -c "
+        ./CarlaUE4.sh 
+        -carla-server-port=2000 
+        -quality-level=Epic 
+        -fps=20 
+        -carla-no-hud
+      "
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+    networks:
+      - e2ead-network
+    restart: unless-stopped
+    profiles:
+      - simulation  # Only start with --profile simulation
+
+  # ----------------------------------------------------------------
+  # Evaluation Service
+  # ----------------------------------------------------------------
+  evaluation:
+    build:
+      context: .
+      dockerfile: Dockerfile.training
+    image: e2ead-training:latest
+    container_name: e2ead-evaluation
+    runtime: nvidia
+    environment:
+      - CARLA_HOST=carla
+      - CARLA_PORT=2000
+      - SCENARIO_RUNNER_ROOT=/data/.openclaw/workspace/sim/driving/carla_srunner
+    volumes:
+      - .:/data/.openclaw/workspace:e2ead-training
+      - ./eval_results:/data/.openclaw/workspace/eval_results:e2ead-training
+      - ./out:/data/.openclaw/workspace/outputs:e2ead-training
+    command: >
+      bash -c "
+        echo 'Starting evaluation service...' &&
+        python -m sim.driving.carla_srunner.run_srunner_eval 
+          --policy-checkpoint /data/.openclaw/workspace/outputs/latest/model.pt 
+          --suite smoke
+      "
+    depends_on:
+      carla:
+        condition: service_healthy
+    networks:
+      - e2ead-network
+    profiles:
+      - evaluation
+
+  # ----------------------------------------------------------------
+  # Jupyter Lab (Optional)
+  # ----------------------------------------------------------------
+  jupyter:
+    build:
+      context: .
+      dockerfile: Dockerfile.training
+    image: e2ead-training:latest
+    container_name: e2ead-jupyter
+    runtime: nvidia
+    environment:
+      - JUPYTER_ENABLE_LAB=1
+      - JUPYTER_TOKEN=e2ead-secure-token
+      - JUPYTER_ALLOW_INSECURE_WRITES=1
+    ports:
+      - "8888:8888"
+    volumes:
+      - .:/data/.openclaw/workspace:e2ead-training
+      - ./notebooks:/home/trainer/notebooks:e2ead-training
+    command: >
+      bash -c "
+        cd /data/.openclaw/workspace && 
+        jupyter lab 
+          --ip 0.0.0.0 
+          --port 8888 
+          --NotebookApp.token='${JUPYTER_TOKEN:-e2ead-secure-token}' 
+          --allow-root
+      "
+    networks:
+      - e2ead-network
+    profiles:
+      - notebook
+
+# ----------------------------------------------------------------
+# Networks
+# ----------------------------------------------------------------
+networks:
+  e2ead-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.28.0.0/16
+
+# ----------------------------------------------------------------
+# Volumes
+# ----------------------------------------------------------------
+volumes:
+  wandb_logs:
+  eval_results:
+  carla_data:
