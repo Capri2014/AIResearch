@@ -2,7 +2,7 @@
 
 **Paper:** Kerbl et al., SIGGRAPH 2023  
 **Topic:** Real-time neural rendering via explicit 3D Gaussians  
-**Last Updated:** 2026-02-21  
+**Last Updated:** 2026-02-22  
 **Category:** Neural Rendering / 3D Vision
 
 ---
@@ -67,8 +67,13 @@ Vanilla GS is **per-scene optimized** (train Gaussians from scratch per scene). 
 ## Citations + Links
 
 ### Primary
-- **Kerbl et al. (2023)** — "3D Gaussian Splatting for Real-Time Radiance Field Rendering"  
+- **Kerbl et al. (2023)** — "3D Gaussian Splatting for Real-Time Radiance Field Rendering" (SIGGRAPH)  
   https://repo-sam.inria.fr/fungraph/3d-gaussian-splatting/
+
+### Reference Implementation (Featured)
+- **Original (INRIA/Graphdeco)** — https://github.com/graphdeco-inria/gaussian-splatting
+  - Core algorithm: differentiable splatting, adaptive density control, fast CUDA rasterizer
+  - Training: 15-45 min on A100, rendering at 30-100+ FPS
 
 ### Reference Implementations
 
@@ -110,4 +115,4 @@ Vanilla GS is **per-scene optimized** (train Gaussians from scratch per scene). 
 
 ---
 
-*Public Anchor Digest #3 — Created for internal research tracking*
+*Public Anchor Digest #3 (Updated) — Created for internal research tracking*
