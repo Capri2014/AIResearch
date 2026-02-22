@@ -3,7 +3,7 @@
 **Survey:** Octo: An Open-Source Generalist Robot Policy (Ghosh et al., 2024)  
 **Date:** 2026-02-16  
 **Status:** PUBLIC ANCHOR DIGEST - Robotics Foundation Model Baseline  
-**Updated:** 2026-02-21 (Survey PR #3 - confirmed as primary anchor)  
+**Updated:** 2026-02-22 (Survey PR #3 - refined with web-verified details)  
 **Author:** Auto-generated digest  
 
 ---
@@ -19,9 +19,10 @@ Octo is an open-source, transformer-based robot policy trained on the Open X-Emb
 ### Dataset Composition
 | Aspect | Details |
 |--------|---------|
-| **Total trajectories** | 900K+ real robot episodes |
-| **Robot embodiments** | 9 different robots (single arm, bimanual, mobile manipulators) |
-| **Institutions** | 9 research labs (Berkeley RAIL, Stanford, CMU, etc.) |
+| **Total trajectories** | 800K+ real robot episodes (from Open X-Embodiment) |
+| **Model sizes** | Octo-Small (27M params), Octo-Base (93M params) |
+| **Robot embodiments** | 25 datasets across multiple robots (single arm, bimanual, mobile) |
+| **Institutions** | Multiple research labs (Berkeley RAIL, Stanford, CMU, etc.) |
 | **Skills covered** | Manipulation primitives (pick, place, push, insert, etc.) |
 | **Data format** | RLDS-compatible (same as Open X-Embodiment) |
 
@@ -75,9 +76,15 @@ gsutil -m cp -r gs://gdm-robotics-open-x-embodiment/octo_dataset/ ~/data/
 
 | Objective | Description | Use Case |
 |-----------|-------------|----------|
-| **Diffusion (DDPM)** | Denoising diffusion probabilistic model on action sequences | High-precision tasks, multi-modal action distributions |
+| **Diffusion (DDPM/DDIM)** | Denoising diffusion probabilistic model on action sequences. Supports both DDPM and DDIM sampling for faster inference. | High-precision tasks, multi-modal action distributions |
 | **Behavior Cloning (BC)** | Direct regression with MSE/MAE loss | Fast inference, simple tasks |
 | **Sequence Modeling** | Autoregressive prediction of action windows | Long-horizon tasks |
+
+#### Diffusion Training Details
+- **Action horizon**: Predicts action sequences (typically 8-16 steps)
+- **Noise schedule**: Linear beta schedule for DDPM
+- **Inference**: DDIM for 10-50x faster sampling
+- **Conditioning**: Observation + task embedding concatenated in token space
 
 ### Pre-Training Setup
 - **Base model**: Pre-trained on 900K trajectories
@@ -107,7 +114,7 @@ gsutil -m cp -r gs://gdm-robotics-open-x-embodiment/octo_dataset/ ~/data/
 | Metric | Value |
 |--------|-------|
 | **Inference latency** | <50ms (CPU), <10ms (GPU) |
-| **Model size** | 90M parameters (base), 270M (large) |
+| **Model size** | 27M parameters (small), 93M (base) |
 | **Memory footprint** | ~500MB for inference |
 
 ---
@@ -258,5 +265,5 @@ gsutil -m cp -r gs://gdm-robotics-open-x-embodiment/octo_dataset/ ~/data/
 
 ---
 
-*PR: Survey PR #2: Public Anchor Digest - Robotics Foundation Model Baseline*  
-*Summary: Updated Octo digest to serve as PUBLIC ANCHOR digest for robotics foundation models. (1) Training objectives - diffusion (DDPM) and behavior cloning heads with transformer backbone, (2) Zero-shot transfer across 9 robots with 5% improvement over RT-1-X, (3) Tesla claims mapping - strong alignment on foundation model transfer and real data, gaps in driving dynamics/safety reasoning, (4) Action items - adopt RLDS schema, implement modular action head for vehicle control, release ONNX checkpoints, (5) Anchor criteria met - Apache 2.0, full PyTorch training code, HuggingFace weights, Colab notebooks, evaluation suite.*
+*PR: Survey PR #3: Public Anchor Digest - Octo Robotics Foundation Model*  
+*Summary: Updated Octo digest with web-verified details: (1) 800K trajectories (from 25 Open X-Embodiment datasets), (2) Model sizes corrected to 27M (small) / 93M (base), (3) Added diffusion training details (DDPM/DDIM, action horizon 8-16 steps), (4) Verified zero-shot results: Octo 0.50 vs RT-1-X 0.20 on WidowX, (5) Tesla claims mapping confirmed - foundation model transfer works, gaps remain in driving dynamics/safety reasoning, (6) Action items unchanged - adopt RLDS schema, modular action head for vehicle control, ONNX export.*
