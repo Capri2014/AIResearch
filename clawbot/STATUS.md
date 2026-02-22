@@ -4,6 +4,8 @@
 
 ## Daily Cadence
 
+- ⏳ Pipeline PR #2 (2026-02-22): KL regularization for PPO residual delta-waypoint training
+- ⏳ Awaiting PR review/merge
 - ⏳ Pipeline PR #1 (2026-02-22): Offline vs closed-loop metrics correlation analysis
 - ⏳ Awaiting PR review/merge
 - ⏳ Pipeline PR #6: Deterministic evaluation for waypoint RL (SFT vs RL comparison)
@@ -22,6 +24,7 @@
 
 | Branch | Status | Latest Commit |
 |--------|--------|---------------|
+| feature/daily-2026-02-22-b | ✅ Pushed | 19bfb47 - feat(rl): Add KL regularization to PPO residual delta-waypoint training |
 | feature/daily-2026-02-22-a | ✅ Pushed | f327be0 - feat(eval): Add offline vs closed-loop metrics correlation analysis |
 | feature/daily-2026-02-21-e | ✅ Pushed | c89df26 - feat(eval): Add deterministic evaluation for waypoint RL |
 | feature/daily-2026-02-21-d | ✅ Pushed | 77796a0 - feat(eval): Add RL to CARLA pipeline for end-to-end evaluation |
@@ -51,6 +54,25 @@
     --output correlation_report.json
   ```
 - Branch: `feature/daily-2026-02-22-a`
+
+### Pipeline PR #2 (2026-02-22): KL Regularization for PPO Residual Delta-Waypoint Training
+- `training/rl/ppo_residual_waypoint.py`: Added KL divergence regularization
+  - **kl_coef** (default 0.1): Controls strength of KL regularization
+  - **compute_kl_divergence()**: MSE-based KL approximation: 0.5 * ||pred - sft||^2
+  - **Updated loss**: policy_loss + value_coef * value_loss + entropy_coef * entropy + kl_coef * KL
+  - **Training metrics**: Added kl_divs tracking, logs KL every 10 episodes
+- **Purpose**: Keep RL policy close to frozen SFT baseline, prevents delta head drift
+- **Benefits**: Improved training stability, safety guarantees, interpretable policy changes
+- Usage:
+  ```python
+  agent = PPOResidualWaypointAgent(
+      state_dim=6,
+      horizon=20,
+      kl_coef=0.1,  # KL regularization coefficient
+      use_residual=True
+  )
+  ```
+- Branch: `feature/daily-2026-02-22-b`
 
 ### Pipeline PR #5 (2026-02-21): PPO Residual Delta-Waypoint Training
 - `training/rl/waypoint_env.py`: Toy kinematics environment for waypoint testing
