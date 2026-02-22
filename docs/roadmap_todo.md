@@ -9,14 +9,16 @@ It is intentionally not exhaustive.
 - **"Building Foundational Models for Robotics at Tesla" — Ashok Elluswamy**
   - Digest: `docs/digests/tesla_foundational_models_robotics_elluswamy.md`
   - Follow-ups (public anchors; turn into separate digests + PRs):
-    - 3D Gaussian Splatting (Kerbl et al., 2023) + a reference implementation
-    - Robotics foundation model baseline (Octo or Open X-Embodiment / RT-X)
-    - Latest end-to-end driving stack (post-UniAD)
-    - World models / learned simulators (DreamerV3 and/or driving-focused world model)
+    - ~~3D Gaussian Splatting (Kerbl et al., 2023)~~ ✅ Done: survey/2026-02-21-3d-gaussian-splatting.md
+    - ~~Robotics foundation model baseline (Octo or Open X-Embodiment / RT-X)~~ ✅ Done: survey/2026-02-21-robotics-foundation-models.md
+    - ~~Latest end-to-end driving stack (post-UniAD)~~ ✅ Done: survey/2026-02-21-e2e-driving-post-uniad.md
+    - ~~World models / learned simulators (DreamerV3)~~ ✅ Done: survey/2026-02-21-world-models-dreamerv3.md
+    - ~~**DreamZero** — end-to-end driving (PDF: https://dreamzero0.github.io/DreamZero.pdf)~~ ✅ Done: survey/2026-02-21-dreamzero.md
+    - ~~**GitHub open source robotic arm projects**~~ ✅ Done: survey/2026-02-21-github-robotic-arms.md
+    - ~~**Contingency Planning in Autonomous Driving** — "Why stuck at last 1%"~~ ✅ Done: survey/2026-02-21-contingency-planning.md
 
 ### Generative modeling: Flow Matching
-- **Flow Matching / Rectified Flow / Consistency-style training**
-  - TODO: survey the most useful papers + repos for *practical* flow-matching training (especially for video / world-model-ish generation).
+- ~~**Flow Matching / Rectified Flow / Consistency-style training**~~ ✅ Done: survey/2026-02-21-flow-matching.md
   - Questions to answer in a digest:
     - How Flow Matching relates to diffusion (score matching) and why it can be simpler/faster
     - Which variants are most stable in practice (rectified flow, consistency, EDM-style)
