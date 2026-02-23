@@ -4,6 +4,8 @@
 
 ## Daily Cadence
 
+- ⏳ Pipeline PR #4 (2026-02-23): Waymo Episode Dataset Loader for Waypoint Prediction
+- ⏳ Awaiting PR review/merge
 - ⏳ Pipeline PR #3 (2026-02-23): Unified Training Pipeline for Latent Dynamics + Reasoning
 - ⏳ Awaiting PR review/merge
 - ⏳ Pipeline PR #2 (2026-02-23): Reasoning Trace Decoder for Interpretable Driving Decisions
@@ -38,6 +40,7 @@
 
 | Branch | Status | Latest Commit |
 |--------|--------|---------------|
+| feature/daily-2026-02-23-d | ✅ Pushed | 12e3830 - feat(rl): Add Waymo episode dataset loader for waypoint prediction |
 | feature/daily-2026-02-23-c | ✅ Pushed | 45b74a7 - feat(rl): Add unified training pipeline for latent dynamics + reasoning |
 | feature/daily-2026-02-23-b | ✅ Pushed | d1d3445 - feat(rl): Add reasoning trace decoder for interpretable driving decisions |
 | feature/daily-2026-02-23-a | ✅ Pushed | a51a7a1 - feat(rl): Add latent dynamics model for model-based RL planning |
@@ -58,6 +61,21 @@
 | main | - | d5dff32 |
 
 ## Recent Work
+
+### Pipeline PR #4 (2026-02-23): Waymo Episode Dataset Loader for Waypoint Prediction
+- `training/rl/waymo_episode_dataset.py`: New dataset loader for driving pipeline
+  - **WaymoEpisode**: Load npz episodes with waypoints (T, 2) + camera images
+  - **WaymoEpisodeDataset**: PyTorch Dataset with sliding window sampling
+    - History: window_size frames of (x, y) waypoints
+    - Future: prediction_horizon frames to predict
+    - Includes velocity and acceleration computation
+  - **WaypointPredictionModel**: Simple GRU-based baseline model
+  - **create_data_loaders**: Factory for train/val DataLoaders
+- Enables loading of 50 Waymo-style episodes → 40 train, 10 val samples
+- Pipeline: Waymo episodes → SSL pretrain → waypoint BC → CARLA
+- Branch: `feature/daily-2026-02-23-d`
+- Commit: `12e3830`
+- PR: https://github.com/Capri2014/AIResearch/pull/new/feature/daily-2026-02-23-d
 
 ### Pipeline PR #2 (2026-02-23): Reasoning Trace Decoder for Interpretable Driving Decisions
 - `training/rl/reasoning_trace_decoder.py`: New module for explainable waypoint predictions
