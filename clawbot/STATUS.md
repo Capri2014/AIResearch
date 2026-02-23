@@ -4,6 +4,10 @@
 
 ## Daily Cadence
 
+- ⏳ Pipeline PR #5 (2026-02-22): ResAD (Residual with Attention and Dynamics)
+- ⏳ Awaiting PR review/merge
+- ⏳ Pipeline PR #4 (2026-02-22): Enhanced PPO with value function improvements
+- ⏳ Awaiting PR review/merge
 - ⏳ Pipeline PR #3 (2026-02-22): Multi-scenario RL with domain randomization
 - ⏳ Awaiting PR review/merge
 - ⏳ Pipeline PR #2 (2026-02-22): KL regularization for PPO residual delta-waypoint training
@@ -26,6 +30,8 @@
 
 | Branch | Status | Latest Commit |
 |--------|--------|---------------|
+| feature/daily-2026-02-22-e | ✅ Pushed | 65dc135 - feat(rl): Add ResAD (Residual with Attention and Dynamics) |
+| feature/daily-2026-02-22-d | ✅ Pushed | b46bb5e - feat(rl): Add enhanced PPO with value function improvements |
 | feature/daily-2026-02-22-c | ✅ Pushed | ad9fa86 - feat(rl): Add multi-scenario RL with domain randomization |
 | feature/daily-2026-02-22-b | ✅ Pushed | 19bfb47 - feat(rl): Add KL regularization to PPO residual delta-waypoint training |
 | feature/daily-2026-02-22-a | ✅ Pushed | f327be0 - feat(eval): Add offline vs closed-loop metrics correlation analysis |
@@ -41,6 +47,29 @@
 | main | - | d5dff32 |
 
 ## Recent Work
+
+### Pipeline PR #5 (2026-02-22): ResAD (Residual with Attention and Dynamics)
+- `training/rl/resad.py`: ResAD core implementation
+  - **WaypointAttention**: Multi-head attention (4 heads) for temporal waypoint dependencies
+  - **DynamicsModel**: Forward dynamics for model-based RL planning
+  - **UncertaintyHead**: NLL-based uncertainty estimation for delta predictions
+- `training/rl/resad_train.py`: Training script with CLI
+- Architecture: `final_waypoints = sft_waypoints + attention_dynamics_delta(z)`
+- Key features:
+  - Attention models temporal patterns in waypoint sequences
+  - Dynamics predicts state transitions from actions
+  - Uncertainty quantifies prediction confidence
+- Training losses: policy, value, dynamics, uncertainty, KL
+- Usage:
+  ```bash
+  python -m training.rl.resad_train \
+    --episodes 100 \
+    --horizon 20 \
+    --hidden-dim 64 \
+    --out-dir out/resad_waypoint
+  ```
+- Training results (30 ep): reward=-19223.54, policy_loss=0.010, dynamics_loss=2.08
+- Branch: `feature/daily-2026-02-22-e`
 
 ### Pipeline PR #1 (2026-02-22): Offline vs Closed-Loop Metrics Correlation Analysis
 - `training/eval/correlate_offline_closed_loop.py`: Correlation analysis script
@@ -94,6 +123,27 @@
   ```
 - Per-scenario eval: clear 193.19, cloudy 431.87, night 66.97, rain -10.07, fog 69.59
 - Branch: `feature/daily-2026-02-22-c`
+
+### Pipeline PR #4 (2026-02-22): Enhanced PPO with Value Function Improvements
+- `training/rl/enhanced_ppo_residual.py`: Enhanced PPO with value improvements
+  - **Value Clipping**: PPO-style clipping to prevent large value updates
+  - **Huber Loss**: More robust to outliers than MSE (less sensitive to extreme rewards)
+  - **Value Normalization**: Running mean/std for stable learning
+  - **GAE Lambda Sweep**: Configurable advantage estimation (start MC-like, become TD-like)
+  - **Gradient Clipping**: Prevents exploding gradients
+  - **Enhanced Value Head**: Skip connections for better gradient flow
+- Key classes: `ValueNormalizer`, `EnhancedValueHead`, `EnhancedPPOResidualWaypointAgent`
+- Usage:
+  ```python
+  agent = EnhancedPPOResidualWaypointAgent(
+      state_dim=6,
+      horizon=20,
+      use_value_clipping=True,
+      use_value_norm=True,
+      use_huber_loss=True
+  )
+  ```
+- Branch: `feature/daily-2026-02-22-d`
 
 ### Pipeline PR #5 (2026-02-21): PPO Residual Delta-Waypoint Training
 - `training/rl/waypoint_env.py`: Toy kinematics environment for waypoint testing
