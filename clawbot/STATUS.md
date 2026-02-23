@@ -4,6 +4,8 @@
 
 ## Daily Cadence
 
+- ⏳ Pipeline PR #2 (2026-02-23): Reasoning Trace Decoder for Interpretable Driving Decisions
+- ⏳ Awaiting PR review/merge
 - ⏳ Pipeline PR #1 (2026-02-23): Latent Dynamics Model for Model-Based RL
 - ⏳ Awaiting PR review/merge
 - ⏳ Pipeline PR #6 (2026-02-22): Evaluation + Metrics Hardening for RL after SFT
@@ -34,6 +36,7 @@
 
 | Branch | Status | Latest Commit |
 |--------|--------|---------------|
+| feature/daily-2026-02-23-b | ✅ Pushed | d1d3445 - feat(rl): Add reasoning trace decoder for interpretable driving decisions |
 | feature/daily-2026-02-23-a | ✅ Pushed | a51a7a1 - feat(rl): Add latent dynamics model for model-based RL planning |
 | feature/daily-2026-02-22-e | ✅ Pushed | e65cc22 - feat(eval): Add metrics schema and update RL evaluation output format |
 | feature/daily-2026-02-22-d | ✅ Pushed | b46bb5e - feat(rl): Add enhanced PPO with value function improvements |
@@ -52,6 +55,20 @@
 | main | - | d5dff32 |
 
 ## Recent Work
+
+### Pipeline PR #2 (2026-02-23): Reasoning Trace Decoder for Interpretable Driving Decisions
+- `training/rl/reasoning_trace_decoder.py`: New module for explainable waypoint predictions
+  - **SceneEncoder**: Encodes state (x, y, vx, vy, goal_x, goal_y) and trajectory history
+  - **ReasoningDecoder**: Cross-attention to generate reasoning tokens
+  - **WaypointReasoningModel**: Combined prediction + explanation
+  - **ReasoningLoss**: Multi-task loss (waypoint + confidence + risk + reasoning)
+  - **ReasoningTrace**: Structured trace with observation, prediction, plan, confidence, risk
+- Architecture complements latent dynamics model (PR #1) with explainability layer
+- Enables human-interpretable decision traces for safety analysis
+- Smoke test passed with all loss components converging
+- Branch: `feature/daily-2026-02-23-b`
+- Commit: `d1d3445`
+- PR: https://github.com/Capri2014/AIResearch/pull/new/feature/daily-2026-02-23-b
 
 ### Pipeline PR #1 (2026-02-23): Latent Dynamics Model for Model-Based RL
 - `training/rl/latent_dynamics_model.py`: New latent dynamics model implementation
