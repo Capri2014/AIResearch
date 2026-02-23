@@ -4,6 +4,8 @@
 
 ## Daily Cadence
 
+- ⏳ Pipeline PR #6 (2026-02-22): Evaluation + Metrics Hardening for RL after SFT
+- ⏳ Awaiting PR review/merge
 - ⏳ Pipeline PR #5 (2026-02-22): ResAD (Residual with Attention and Dynamics)
 - ⏳ Awaiting PR review/merge
 - ⏳ Pipeline PR #4 (2026-02-22): Enhanced PPO with value function improvements
@@ -30,7 +32,7 @@
 
 | Branch | Status | Latest Commit |
 |--------|--------|---------------|
-| feature/daily-2026-02-22-e | ✅ Pushed | 65dc135 - feat(rl): Add ResAD (Residual with Attention and Dynamics) |
+| feature/daily-2026-02-22-e | ✅ Pushed | e65cc22 - feat(eval): Add metrics schema and update RL evaluation output format |
 | feature/daily-2026-02-22-d | ✅ Pushed | b46bb5e - feat(rl): Add enhanced PPO with value function improvements |
 | feature/daily-2026-02-22-c | ✅ Pushed | ad9fa86 - feat(rl): Add multi-scenario RL with domain randomization |
 | feature/daily-2026-02-22-b | ✅ Pushed | 19bfb47 - feat(rl): Add KL regularization to PPO residual delta-waypoint training |
@@ -47,6 +49,23 @@
 | main | - | d5dff32 |
 
 ## Recent Work
+
+### Pipeline PR #6 (2026-02-22): Evaluation + Metrics Hardening for RL after SFT
+- `data/schema/metrics.json`: Standard evaluation metrics schema
+  - **Domain**: Supports "driving", "robotics", "rl"
+  - **Per-scenario metrics**: ADE, FDE, route_completion, collisions, etc.
+  - **Git info**: Captures repo, commit, branch for reproducibility
+  - **Comparison**: Baseline vs target policy improvements
+- `training/rl/eval_waypoint_rl.py` (updated)
+  - Output now conforms to `data/schema/metrics.json`
+  - Added `get_git_info()` for reproducibility
+  - Added `convert_to_native()` for JSON serialization of numpy types
+  - 3-line comparison report: SFT vs RL metrics
+- Smoke eval results:
+  - SFT: ADE=3.629m, FDE=2.681m, Success=40%
+  - RL: ADE=87.425m, FDE=164.792m, Success=0% (untrained delta head)
+- Output: `out/eval/waypoint_rl_eval_2026-02-22_21-31-36/metrics.json`
+- Branch: `feature/daily-2026-02-22-e`
 
 ### Pipeline PR #5 (2026-02-22): ResAD (Residual with Attention and Dynamics)
 - `training/rl/resad.py`: ResAD core implementation
