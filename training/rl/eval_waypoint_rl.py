@@ -12,6 +12,7 @@ import os
 import sys
 import json
 import argparse
+import subprocess
 import numpy as np
 import torch
 from datetime import datetime
@@ -21,6 +22,57 @@ from typing import Dict, Any, List, Tuple
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from waypoint_env import WaypointEnv
+
+
+def get_git_info() -> Dict[str, str]:
+    """Get git repository info for reproducibility."""
+    info = {'repo': 'unknown', 'commit': 'unknown', 'branch': 'unknown'}
+    try:
+        # Get repo URL
+        result = subprocess.run(
+            ['git', 'remote', 'get-url', 'origin'],
+            cwd=os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+            capture_output=True, text=True, timeout=5
+        )
+        if result.returncode == 0:
+            info['repo'] = result.stdout.strip()
+        
+        # Get current commit
+        result = subprocess.run(
+            ['git', 'rev-parse', 'HEAD'],
+            cwd=os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+            capture_output=True, text=True, timeout=5
+        )
+        if result.returncode == 0:
+            info['commit'] = result.stdout.strip()[:8]
+        
+        # Get current branch
+        result = subprocess.run(
+            ['git', 'rev-parse', '--abbrev-ref', 'HEAD'],
+            cwd=os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+            capture_output=True, text=True, timeout=5
+        )
+        if result.returncode == 0:
+            info['branch'] = result.stdout.strip()
+    except Exception:
+        pass
+    return info
+
+
+def convert_to_native(obj):
+    """Convert numpy types to Python native types for JSON serialization."""
+    if isinstance(obj, dict):
+        return {k: convert_to_native(v) for k, v in obj.items()}
+    elif isinstance(obj, list):
+        return [convert_to_native(item) for item in obj]
+    elif isinstance(obj, (np.integer,)):
+        return int(obj)
+    elif isinstance(obj, (np.floating,)):
+        return float(obj)
+    elif isinstance(obj, np.ndarray):
+        return obj.tolist()
+    else:
+        return obj
 
 
 def set_seed(seed: int):
@@ -249,35 +301,63 @@ def run_evaluation(
     print(f"Success rate diff: {success_diff:+.2%}")
     
     # Build output metrics in standard schema format
+    # Transform to match data/schema/metrics.json format
     metrics = {
         'run_id': run_id,
         'timestamp': datetime.now().isoformat(),
-        'num_episodes': num_episodes,
-        'seed_base': seed_base,
         'domain': 'rl',
-        'sft': {
-            'ade': sft_stats['ade'],
-            'fde': sft_stats['fde'],
-            'avg_return': sft_stats['return']['mean'],
-            'std_return': sft_stats['return']['std'],
+        'git': get_git_info(),
+        'scenarios': [
+            {
+                'scenario_id': f'eval_seed_{seed}',
+                'success': e['success'],
+                'ade': e['ade'],
+                'fde': e['fde'],
+                'return': e['return'],
+                'steps': e['steps'],
+                'final_dist': e['final_dist']
+            }
+            for seed, e in zip(seeds, sft_episodes)
+        ] + [
+            {
+                'scenario_id': f'rl_seed_{seed}',
+                'success': e['success'],
+                'ade': e['ade'],
+                'fde': e['fde'],
+                'return': e['return'],
+                'steps': e['steps'],
+                'final_dist': e['final_dist']
+            }
+            for seed, e in zip(seeds, rl_episodes)
+        ],
+        'summary': {
+            'ade_mean': sft_stats['ade']['mean'],
+            'ade_std': sft_stats['ade']['std'],
+            'fde_mean': sft_stats['fde']['mean'],
+            'fde_std': sft_stats['fde']['std'],
             'success_rate': sft_stats['success_rate'],
-            'policy': 'sft'
+            'return_mean': sft_stats['return']['mean'],
+            'return_std': sft_stats['return']['std'],
+            'steps_mean': sft_stats['steps_mean'],
+            'num_episodes': num_episodes
         },
-        'rl': {
-            'ade': rl_stats['ade'],
-            'fde': rl_stats['fde'],
-            'avg_return': rl_stats['return']['mean'],
-            'std_return': rl_stats['return']['std'],
-            'success_rate': rl_stats['success_rate'],
-            'policy': 'rl'
+        'policy': {
+            'name': 'sft_vs_rl_comparison',
+            'type': 'hybrid'
         },
-        'comparison': comparison
+        'comparison': {
+            'baseline_policy': 'sft',
+            'target_policy': 'rl',
+            'ade_improvement_pct': comparison['ade_improvement_pct'],
+            'fde_improvement_pct': comparison['fde_improvement_pct'],
+            'success_rate_diff': comparison['success_rate_diff']
+        }
     }
     
     # Save metrics
     metrics_path = os.path.join(out_path, 'metrics.json')
     with open(metrics_path, 'w') as f:
-        json.dump(metrics, f, indent=2)
+        json.dump(convert_to_native(metrics), f, indent=2)
     
     print(f"\nMetrics saved to: {metrics_path}")
     
