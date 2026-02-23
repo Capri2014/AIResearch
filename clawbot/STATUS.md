@@ -4,6 +4,8 @@
 
 ## Daily Cadence
 
+- ⏳ Pipeline PR #3 (2026-02-23): Unified Training Pipeline for Latent Dynamics + Reasoning
+- ⏳ Awaiting PR review/merge
 - ⏳ Pipeline PR #2 (2026-02-23): Reasoning Trace Decoder for Interpretable Driving Decisions
 - ⏳ Awaiting PR review/merge
 - ⏳ Pipeline PR #1 (2026-02-23): Latent Dynamics Model for Model-Based RL
@@ -36,6 +38,7 @@
 
 | Branch | Status | Latest Commit |
 |--------|--------|---------------|
+| feature/daily-2026-02-23-c | ✅ Pushed | 45b74a7 - feat(rl): Add unified training pipeline for latent dynamics + reasoning |
 | feature/daily-2026-02-23-b | ✅ Pushed | d1d3445 - feat(rl): Add reasoning trace decoder for interpretable driving decisions |
 | feature/daily-2026-02-23-a | ✅ Pushed | a51a7a1 - feat(rl): Add latent dynamics model for model-based RL planning |
 | feature/daily-2026-02-22-e | ✅ Pushed | e65cc22 - feat(eval): Add metrics schema and update RL evaluation output format |
