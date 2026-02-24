@@ -1,9 +1,10 @@
 # CLAWBOT Status
 
-**Last Updated:** 2026-02-23
+**Last Updated:** 2026-02-24
 
 ## Daily Cadence
 
+- ✅ Pipeline PR #6 (2026-02-23): Evaluation + Metrics Hardening for RL after SFT → Pushed
 - ⏳ Pipeline PR #5 (2026-02-23): RL after SFT - Residual Delta Waypoint Learning
 - ⏳ Awaiting PR review/merge
 - ⏳ Pipeline PR #4 (2026-02-23): Waymo Episode Dataset Loader for Waypoint Prediction
@@ -42,6 +43,7 @@
 
 | Branch | Status | Latest Commit |
 |--------|--------|---------------|
+| feature/daily-2026-02-24-a | ⏳ Pushing | Proper SFT + RL training pipeline |
 | feature/daily-2026-02-23-e | ✅ Pushed | RL after SFT - gym wrapper + training runner |
 | feature/daily-2026-02-23-d | ✅ Pushed | 12e3830 - feat(rl): Add Waymo episode dataset loader for waypoint prediction |
 | feature/daily-2026-02-23-c | ✅ Pushed | 45b74a7 - feat(rl): Add unified training pipeline for latent dynamics + reasoning |
