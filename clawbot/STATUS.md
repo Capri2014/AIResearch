@@ -4,6 +4,8 @@
 
 ## Daily Cadence
 
+- ⏳ Pipeline PR #5 (2026-02-23): RL after SFT - Residual Delta Waypoint Learning
+- ⏳ Awaiting PR review/merge
 - ⏳ Pipeline PR #4 (2026-02-23): Waymo Episode Dataset Loader for Waypoint Prediction
 - ⏳ Awaiting PR review/merge
 - ⏳ Pipeline PR #3 (2026-02-23): Unified Training Pipeline for Latent Dynamics + Reasoning
@@ -40,6 +42,7 @@
 
 | Branch | Status | Latest Commit |
 |--------|--------|---------------|
+| feature/daily-2026-02-23-e | ✅ Pushed | RL after SFT - gym wrapper + training runner |
 | feature/daily-2026-02-23-d | ✅ Pushed | 12e3830 - feat(rl): Add Waymo episode dataset loader for waypoint prediction |
 | feature/daily-2026-02-23-c | ✅ Pushed | 45b74a7 - feat(rl): Add unified training pipeline for latent dynamics + reasoning |
 | feature/daily-2026-02-23-b | ✅ Pushed | d1d3445 - feat(rl): Add reasoning trace decoder for interpretable driving decisions |

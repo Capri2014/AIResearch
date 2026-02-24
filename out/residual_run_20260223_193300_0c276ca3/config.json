@@ -1,0 +1,10 @@
+{
+  "run_id": "residual_run_20260223_193300_0c276ca3",
+  "num_episodes": 30,
+  "horizon": 20,
+  "hidden_dim": 64,
+  "lr": 0.0003,
+  "use_residual": true,
+  "kl_coef": 0.1,
+  "timestamp": "2026-02-23T19:33:00.911133"
+}

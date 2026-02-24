@@ -1,0 +1,9 @@
+{
+  "run_id": "residual_run_20260223_193300_0c276ca3",
+  "final_avg_reward": -26075.39453125,
+  "final_goal_rate": 0.0,
+  "final_avg_length": 100.0,
+  "total_episodes": 30,
+  "use_residual": true,
+  "kl_coef": 0.1
+}
