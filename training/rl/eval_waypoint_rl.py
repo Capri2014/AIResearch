@@ -186,7 +186,24 @@ def create_rl_agent(env: WaypointEnv, checkpoint_path: str = None):
     # Optionally load checkpoint
     if checkpoint_path and os.path.exists(checkpoint_path):
         checkpoint = torch.load(checkpoint_path, map_location='cpu')
-        agent.delta_head.load_state_dict(checkpoint['delta_head'])
+        # Handle different checkpoint formats and key naming
+        if 'delta_head' in checkpoint:
+            state_dict = checkpoint['delta_head']
+        elif 'delta_head_state' in checkpoint:
+            state_dict = checkpoint['delta_head_state']
+        else:
+            state_dict = {}
+        
+        # Handle key name differences (net vs network)
+        fixed_state_dict = {}
+        for k, v in state_dict.items():
+            new_k = k.replace('net.', 'network.', 1)
+            fixed_state_dict[new_k] = v
+        
+        agent.delta_head.load_state_dict(fixed_state_dict, strict=False)
+        
+        if 'value_head_state' in checkpoint:
+            agent.value_fn.load_state_dict(checkpoint['value_head_state'])
         print(f"Loaded checkpoint from {checkpoint_path}")
     
     agent.delta_head.eval()
