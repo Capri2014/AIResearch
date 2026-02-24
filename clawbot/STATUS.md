@@ -4,6 +4,9 @@
 
 ## Daily Cadence
 
+- ⏳ Pipeline PR #3 (2026-02-24): GRPO Implementation for RL Pipeline → Pushed
+- ⏳ Pipeline PR #2 (2026-02-24): CARLA Integration for SFT+RL Pipeline → Pushed
+- ⏳ Pipeline PR #1 (2026-02-24): Proper SFT + RL Training Pipeline
 - ✅ Pipeline PR #6 (2026-02-23): Evaluation + Metrics Hardening for RL after SFT → Pushed
 - ⏳ Pipeline PR #5 (2026-02-23): RL after SFT - Residual Delta Waypoint Learning
 - ⏳ Awaiting PR review/merge
@@ -43,7 +46,9 @@
 
 | Branch | Status | Latest Commit |
 |--------|--------|---------------|
-| feature/daily-2026-02-24-a | ⏳ Pushing | Proper SFT + RL training pipeline |
+| feature/daily-2026-02-24-c | ✅ Pushed | d610cec - feat: Implement GRPO for waypoint prediction |
+| feature/daily-2026-02-24-b | ✅ Pushed | c9a6dd9 - feat(rl): Add CARLA integration for SFT+RL pipeline |
+| feature/daily-2026-02-24-a | ✅ Pushed | Proper SFT + RL training pipeline |
 | feature/daily-2026-02-23-e | ✅ Pushed | RL after SFT - gym wrapper + training runner |
 | feature/daily-2026-02-23-d | ✅ Pushed | 12e3830 - feat(rl): Add Waymo episode dataset loader for waypoint prediction |
 | feature/daily-2026-02-23-c | ✅ Pushed | 45b74a7 - feat(rl): Add unified training pipeline for latent dynamics + reasoning |
@@ -66,6 +71,38 @@
 | main | - | d5dff32 |
 
 ## Recent Work
+
+### Pipeline PR #2 (2026-02-24): CARLA Integration for SFT+RL Pipeline
+- `training/rl/carla_sft_rl_eval.py`: CARLA evaluation for SFT+RL pipeline
+  - **CarlaWaypointBCModel**: Load checkpoints from proper_sft_rl_pipeline
+    - Loads SFT model + delta head from checkpoint
+    - Provides `predict_waypoints(state)` for CARLA inference
+    - Fallback to linear interpolation if SFT not available
+  - **CarlaSFTRLMetrics**: Aggregate CARLA evaluation metrics
+    - Route completion percentage, collision rate, red violations
+    - Off-road rate, average speed, ADE/FDE
+  - **run_smoke_test**: Test model inference without CARLA
+  - **run_carla_evaluation**: Full CARLA ScenarioRunner integration
+- Smoke test results:
+  - Test checkpoint created ✓
+  - Model loaded successfully ✓
+  - Inference works: waypoints shape = (20, 2) ✓
+- Usage:
+  ```bash
+  python -m training.rl.carla_sft_rl_eval --checkpoint <path> --smoke
+  ```
+- Branch: `feature/daily-2026-02-24-b`
+- Commit: `c9a6dd9`
+- PR: https://github.com/Capri2014/AIResearch/pull/new/feature/daily-2026-02-24-b
+
+### Pipeline PR #1 (2026-02-24): Proper SFT + RL Training Pipeline
+- `training/rl/proper_sft_rl_pipeline.py`: Fixed two-stage training
+  - Stage 1: Train SFT model via supervised learning
+  - Stage 2: Train residual delta head on frozen SFT
+- `training/rl/load_checkpoint.py`: Checkpoint loading utilities
+- Key insight: RL can only improve on a REASONABLE baseline
+- Smoke test: 80% goal rate (vs 0% before!)
+- Branch: `feature/daily-2026-02-24-a`
 
 ### Pipeline PR #4 (2026-02-23): Waymo Episode Dataset Loader for Waypoint Prediction
 - `training/rl/waymo_episode_dataset.py`: New dataset loader for driving pipeline
