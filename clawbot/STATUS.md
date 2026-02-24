@@ -4,6 +4,7 @@
 
 ## Daily Cadence
 
+- ⏳ Pipeline PR #4 (2026-02-24): SSL Pretrain for Driving Pipeline → Pushed
 - ⏳ Pipeline PR #3 (2026-02-24): GRPO Implementation for RL Pipeline → Pushed
 - ⏳ Pipeline PR #2 (2026-02-24): CARLA Integration for SFT+RL Pipeline → Pushed
 - ⏳ Pipeline PR #1 (2026-02-24): Proper SFT + RL Training Pipeline
@@ -46,6 +47,7 @@
 
 | Branch | Status | Latest Commit |
 |--------|--------|---------------|
+| feature/daily-2026-02-24-d | ✅ Pushed | 43e9f86 - feat(pretrain): Add SSL pretrain for driving pipeline |
 | feature/daily-2026-02-24-c | ✅ Pushed | d610cec - feat: Implement GRPO for waypoint prediction |
 | feature/daily-2026-02-24-b | ✅ Pushed | c9a6dd9 - feat(rl): Add CARLA integration for SFT+RL pipeline |
 | feature/daily-2026-02-24-a | ✅ Pushed | Proper SFT + RL training pipeline |
@@ -71,6 +73,19 @@
 | main | - | d5dff32 |
 
 ## Recent Work
+
+### Pipeline PR #4 (2026-02-24): SSL Pretrain for Driving Pipeline
+- `training/pretrain/ssl_pretrain.py`: New SSL pretrain module
+  - **DrivingEncoder**: Bidirectional GRU encoder for temporal waypoint sequences
+  - **ContrastiveLoss**: NT-Xent loss for contrastive learning
+  - **FuturePredictionLoss**: Predict future waypoints from current state
+  - **SSLPretrainModel**: Combined model with contrastive + masked + future objectives
+  - **WaypointSequenceDataset**: PyTorch Dataset for driving sequences
+- Pipeline now complete: Waymo → SSL Pretrain → Waypoint BC → RL → CARLA
+- Smoke test: 2 epochs, loss converging (total: 29.82, contrastive: -1.88)
+- Branch: `feature/daily-2026-02-24-d`
+- Commit: `43e9f86`
+- PR: https://github.com/Capri2014/AIResearch/pull/new/feature/daily-2026-02-24-d
 
 ### Pipeline PR #2 (2026-02-24): CARLA Integration for SFT+RL Pipeline
 - `training/rl/carla_sft_rl_eval.py`: CARLA evaluation for SFT+RL pipeline
