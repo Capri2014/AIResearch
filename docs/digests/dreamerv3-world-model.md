@@ -1,9 +1,9 @@
 # DreamerV3 World Model: Learned Simulator for Autonomous Driving (PUBLIC ANCHOR DIGEST)
 
-**Survey:** DreamerV3 (Hafner et al., Nature 2025) + Driving World Model Applications  
-**Date:** 2026-02-17  
+**Survey:** DreamerV3 (Hafner et al., Nature 2025) + GAIA-1 Direction + Driving World Model Applications  
+**Date:** 2026-02-22  
 **Status:** PUBLIC ANCHOR DIGEST - World Model Foundation for Driving Simulators  
-**Context:** Ashok's "video + action → next video" simulator claim  
+**Context:** Ashok's "video + action → next video" simulator claim (Survey PR #4)  
 
 ---
 
@@ -69,6 +69,25 @@ z_t → actor(z_t) → a_t → dynamics(h_t, a_t, z_t) → h_{t+1}, z_{t+1} → 
 ```
 
 ---
+
+### GAIA-1 Direction: Driving-Specific World Models
+
+For autonomous driving specifically, the **GAIA-1** approach (Wayve) extends DreamerV3 principles with:
+
+| Feature | DreamerV3 (General) | GAIA-1 (Driving) |
+|---------|---------------------|-------------------|
+| **Input** | Single-frame pixels | Multi-view cameras + CAN bus |
+| **Architecture** | RSSM (latent dynamics) | Video Diffusion Transformer |
+| **Multi-camera** | Not native | Cross-view attention |
+| **Action conditioning** | Discrete actions | Continuous steer/throttle/brake |
+| **Ego-motion** | Implicit in latent | Physics-informed latents |
+| **Output** | Latent predictions | Full multi-view video |
+
+**GAIA-1 key innovations**:
+1. **Temporal-Cross-View Attention**: Ensures consistency across front/left/right cameras
+2. **Action autoregression**: Each frame conditioned on current action (speed, steering)
+3. **Physics-aware latents**: Vehicle dynamics embedded to handle ego-motion
+4. **Long-horizon generation**: 10+ second rollouts for complete scenarios
 
 ## Action-Conditioned Video Generation Requirements
 
