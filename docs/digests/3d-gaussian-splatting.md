@@ -2,12 +2,12 @@
 
 **Paper:** Kerbl et al., SIGGRAPH 2023  
 **Topic:** Real-time neural rendering via explicit 3D Gaussians  
-**Last Updated:** 2026-02-24  
+**Last Updated:** 2026-02-25  
 **Category:** Neural Rendering / 3D Vision
 
 ---
 
-> **Survey PR #1 (Feb 24, 2026)** — Public anchor digest for 3D Gaussian Splatting
+> **Survey PR #1 (Feb 25, 2026)** — Public anchor digest for 3D Gaussian Splatting
 
 ---
 
@@ -119,4 +119,4 @@ Vanilla GS is **per-scene optimized** (train Gaussians from scratch per scene). 
 
 ---
 
-*Public Anchor Digest — 3D Gaussian Splatting (Survey PR #1, Feb 24, 2026)*
+*Public Anchor Digest — 3D Gaussian Splatting (Survey PR #1, Feb 25, 2026)*
