@@ -280,8 +280,13 @@ def train_ppo_residual_delta(
     update_interval: int = 10,
     ppo_epochs: int = 4,
     batch_size: int = 32,
+    save_best_entropy: bool = True,
 ) -> Dict:
-    """Train PPO agent with residual delta learning."""
+    """Train PPO agent with residual delta learning.
+    
+    Args:
+        save_best_entropy: If True, save checkpoint with highest entropy (most exploration)
+    """
     
     episode_rewards = []
     episode_lengths = []
@@ -289,6 +294,11 @@ def train_ppo_residual_delta(
     policy_losses = []
     value_losses = []
     kl_divs = []
+    entropies = []  # Track entropy for analysis
+    
+    # Best entropy tracking for checkpointing
+    best_entropy = float('-inf')
+    best_entropy_checkpoint = None
     
     # Storage for trajectories
     states_buffer = []
@@ -382,6 +392,7 @@ def train_ppo_residual_delta(
                     # Entropy bonus
                     entropy = 0.5 + 0.5 * np.log(2 * np.pi * np.exp(1) * torch.exp(agent.log_std).detach().numpy()**2)
                     entropy = entropy.sum()
+                    entropies.append(entropy)
                     
                     # KL divergence (SFT vs delta)
                     with torch.no_grad():
@@ -429,9 +440,11 @@ def train_ppo_residual_delta(
             print(f"  Avg Length: {avg_length:.1f}")
             print(f"  Goal Rate: {goal_rate:.1%}")
             if policy_losses:
+                avg_entropy = np.mean(entropies[-20:]) if entropies else 0.0
                 print(f"  Policy Loss: {np.mean(policy_losses[-20:]):.4f}")
                 print(f"  Value Loss: {np.mean(value_losses[-20:]):.4f}")
                 print(f"  KL: {np.mean(kl_divs[-20:]):.4f}")
+                print(f"  Entropy: {avg_entropy:.4f}")
             print()
     
     return {
@@ -441,6 +454,7 @@ def train_ppo_residual_delta(
         'policy_losses': policy_losses,
         'value_losses': value_losses,
         'kl_divs': kl_divs,
+        'entropies': entropies,
     }
 
 
@@ -595,9 +609,25 @@ def main():
         'policy_losses': [float(x) for x in train_metrics['policy_losses'][-100:]],
         'value_losses': [float(x) for x in train_metrics['value_losses'][-100:]],
         'kl_divs': [float(x) for x in train_metrics['kl_divs'][-100:]],
+        'entropies': [float(x) for x in train_metrics.get('entropies', [])[-100:]],
     }
     with open(train_metrics_path, 'w') as f:
         json.dump(train_metrics_save, f, indent=2)
+    
+    # Save entropy-based checkpoint (highest entropy = most exploration)
+    if 'entropies' in train_metrics and train_metrics['entropies']:
+        avg_entropy = np.mean(train_metrics['entropies'][-20:])
+        best_entropy_path = os.path.join(run_dir, 'best_entropy_checkpoint.pt')
+        torch.save({
+            'agent_state_dict': agent.state_dict(),
+            'avg_entropy': float(avg_entropy),
+            'config': {
+                'horizon': args.horizon,
+                'hidden_dim': args.hidden_dim,
+                'state_dim': 6,
+            }
+        }, best_entropy_path)
+        print(f"  - best_entropy_checkpoint.pt (entropy: {avg_entropy:.4f})")
     
     # Save checkpoint
     checkpoint_path = os.path.join(run_dir, 'checkpoint.pt')
@@ -614,6 +644,8 @@ def main():
     print(f"  - metrics.json")
     print(f"  - train_metrics.json")
     print(f"  - checkpoint.pt")
+    if 'entropies' in train_metrics and train_metrics['entropies']:
+        print(f"  - best_entropy_checkpoint.pt")
     
     return run_dir
 

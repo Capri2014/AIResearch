@@ -449,7 +449,7 @@ class GRPOAgent:
         entropy = 0.5 * (1 + torch.log(2 * np.pi * std ** 2)).sum()
         entropy_loss = -self.config.entropy_coef * entropy
         
-        return policy_loss, value_loss, entropy_loss
+        return policy_loss, value_loss, entropy_loss, entropy
     
     def update(self) -> Dict[str, float]:
         """
@@ -459,7 +459,7 @@ class GRPOAgent:
             Dictionary of loss values
         """
         if not self.trajectory_groups:
-            return {'policy_loss': 0.0, 'value_loss': 0.0, 'entropy_loss': 0.0}
+            return {'policy_loss': 0.0, 'value_loss': 0.0, 'entropy_loss': 0.0, 'entropy': 0.0}
         
         # Collect all data
         all_states = []
@@ -513,7 +513,7 @@ class GRPOAgent:
         
         # Update policy
         self.optimizer.zero_grad()
-        policy_loss, value_loss, entropy_loss = self.compute_grpo_loss(
+        policy_loss, value_loss, entropy_loss, entropy = self.compute_grpo_loss(
             all_states,
             all_actions,
             old_log_probs,
@@ -532,6 +532,7 @@ class GRPOAgent:
             'policy_loss': policy_loss.item(),
             'value_loss': value_loss.item(),
             'entropy_loss': entropy_loss.item(),
+            'entropy': entropy.item(),  # Actual entropy value
             'total_loss': total_loss.item()
         }
     
@@ -623,6 +624,7 @@ def train_grpo(
         'policy_loss': [],
         'value_loss': [],
         'entropy_loss': [],
+        'entropy': [],  # Actual entropy value (not loss)
         'episode_rewards': [],
     }
     
@@ -648,12 +650,15 @@ def train_grpo(
         metrics['policy_loss'].append(losses['policy_loss'])
         metrics['value_loss'].append(losses['value_loss'])
         metrics['entropy_loss'].append(losses['entropy_loss'])
+        metrics['entropy'].append(losses.get('entropy', 0.0))
         
         if verbose and (update + 1) % 2 == 0:
+            ent = losses.get('entropy', 0.0)
             print(f"Update {update + 1}/{num_updates} | "
                   f"Avg Reward: {avg_reward:.2f} | "
                   f"Policy Loss: {losses['policy_loss']:.4f} | "
-                  f"Value Loss: {losses['value_loss']:.4f}")
+                  f"Value Loss: {losses['value_loss']:.4f} | "
+                  f"Entropy: {ent:.4f}")
     
     return metrics
 
