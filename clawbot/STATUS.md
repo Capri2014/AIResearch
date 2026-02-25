@@ -4,6 +4,7 @@
 
 ## Daily Cadence
 
+- ⏳ Pipeline PR #3 (2026-02-25): Checkpoint Manager → Pushed
 - ⏳ Pipeline PR #2 (2026-02-25): Entropy Tracking & Best-Entropy Checkpointing → Pushed
 - ⏳ Pipeline PR #1 (2026-02-25): Learning Rate Scheduling for RL Training → Pushed
 - ✅ Pipeline PR #5 (2026-02-24): RL Refinement After SFT (Waypoint Deltas) → Pushed
@@ -13,6 +14,17 @@
 - ⏳ Awaiting PR review/merge
 
 ## Recent Work
+
+### Pipeline PR #3 (2026-02-25): Checkpoint Manager for Training Run Comparison
+- `training/rl/checkpoint_manager.py`: New checkpoint management utility
+  - **CheckpointManager**: Load metrics from multiple training runs
+  - **CheckpointSelector**: Select best checkpoints by reward, entropy, ADE, FDE, success
+  - **CLI interface**: --list, --report, --best, --compare
+  - Supports comparing runs across different seeds
+- Benefits: Unified interface for comparing RL runs, flexible checkpoint selection
+- Branch: `feature/daily-2026-02-25-c`
+- Commit: `8dde66e`
+- PR: https://github.com/Capri2014/AIResearch/pull/new/feature/daily-2026-02-25-c
 
 ### Pipeline PR #1 (2026-02-25): Learning Rate Scheduling for RL Training
 - `training/rl/train_rl_delta_waypoint.py`: Added LR scheduling
@@ -54,8 +66,8 @@
 
 ## Next (top 3)
 1. Run training with entropy tracking to generate curves
-2. Compare entropy curves across different seeds
-3. Integrate entropy-based checkpointing with CARLA evaluation
+2. Use checkpoint manager to compare runs across different seeds
+3. Integrate ADE/FDE metrics with checkpoint selection
 
 ## Blockers / questions for owner
 - PR reviews pending for #9, #8, #5
