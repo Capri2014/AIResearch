@@ -4,6 +4,7 @@
 
 ## Daily Cadence
 
+- ✅ Pipeline PR #4 (2026-02-25): Multi-Run Comparison & Metric-Based Selection → Pushed
 - ⏳ Pipeline PR #3 (2026-02-25): Checkpoint Manager → Pushed
 - ⏳ Pipeline PR #2 (2026-02-25): Entropy Tracking & Best-Entropy Checkpointing → Pushed
 - ⏳ Pipeline PR #1 (2026-02-25): Learning Rate Scheduling for RL Training → Pushed
@@ -14,6 +15,17 @@
 - ⏳ Awaiting PR review/merge
 
 ## Recent Work
+
+### Pipeline PR #4 (2026-02-25): Multi-Run Comparison & Metric-Based Selection
+- `training/rl/multi_run_compare.py`: New multi-run comparison utility
+  - **MultiRunComparator**: Scan and compare RL training runs across seeds
+  - **Best-by-Metric Selection**: reward, entropy, ADE, FDE, success_rate
+  - **CLI Interface**: --list, --compare, --best, --report, --domain
+  - Integrates ADE/FDE from eval_metrics.py into checkpoint selection
+- Benefits: Cross-seed analysis, metric-driven checkpoint decisions, markdown reports
+- Branch: `feature/daily-2026-02-25-d`
+- Commit: `be09828`
+- PR: https://github.com/Capri2014/AIResearch/pull/new/feature/daily-2026-02-25-d
 
 ### Pipeline PR #3 (2026-02-25): Checkpoint Manager for Training Run Comparison
 - `training/rl/checkpoint_manager.py`: New checkpoint management utility
@@ -66,8 +78,8 @@
 
 ## Next (top 3)
 1. Run training with entropy tracking to generate curves
-2. Use checkpoint manager to compare runs across different seeds
-3. Integrate ADE/FDE metrics with checkpoint selection
+2. Use multi-run comparison to analyze runs across different seeds
+3. Integrate checkpoint selection into CARLA evaluation pipeline
 
 ## Blockers / questions for owner
 - PR reviews pending for #9, #8, #5
