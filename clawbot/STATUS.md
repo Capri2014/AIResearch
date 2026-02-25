@@ -4,6 +4,7 @@
 
 ## Daily Cadence
 
+- ⏳ Pipeline PR #5 (2026-02-24): RL Refinement After SFT (Waypoint Deltas) → Pushed
 - ⏳ Pipeline PR #4 (2026-02-24): SSL Pretrain for Driving Pipeline → Pushed
 - ⏳ Pipeline PR #3 (2026-02-24): GRPO Implementation for RL Pipeline → Pushed
 - ⏳ Pipeline PR #2 (2026-02-24): CARLA Integration for SFT+RL Pipeline → Pushed
@@ -73,6 +74,21 @@
 | main | - | d5dff32 |
 
 ## Recent Work
+
+### Pipeline PR #5 (2026-02-24): RL Refinement After SFT (Waypoint Deltas)
+- `training/rl/waypoint_rl_env.py`: Gym-style environment for waypoint RL
+  - **State**: position, velocity, goal, SFT waypoints (6 + H*2)
+  - **Action**: delta waypoints (H × 2) - adjustments to SFT predictions
+  - **Reward**: goal proximity + smoothness + collision avoidance
+- `training/rl/ppo_residual_delta_train.py`: PPO training implementation
+  - **Architecture**: `final_waypoints = sft_waypoints + delta_head(state)`
+  - **SFTWaypointModel**: Frozen baseline predictor (MLP)
+  - **DeltaWaypointHead**: Trainable residual with Tanh bounded output
+  - **PPO Features**: GAE, clipping, entropy, KL regularization
+- Smoke test (30 ep): Goal Rate: 10%, ADE: 1.15m
+- Branch: `feature/daily-2026-02-24-e`
+- Commit: `7944b86`
+- PR: https://github.com/Capri2014/AIResearch/pull/new/feature/daily-2026-02-24-e
 
 ### Pipeline PR #4 (2026-02-24): SSL Pretrain for Driving Pipeline
 - `training/pretrain/ssl_pretrain.py`: New SSL pretrain module
