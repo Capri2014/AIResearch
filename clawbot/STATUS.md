@@ -1,32 +1,31 @@
-# Status (ClawBot)
+# CLAWBOT Status
 
-_Last updated: 2026-02-18 (Pipeline PR #1)_
-
-## Current focus
-Driving-first pipeline: **Waymo episodes → PyTorch SSL pretrain → waypoint BC → RL refinement → CARLA ScenarioRunner eval**.
+**Last Updated:** 2026-02-25
 
 ## Daily Cadence
 
-- ✅ **Pipeline PR #1** (2026-02-18): RL Checkpoint Selection with Policy Entropy
-- ⏳ **Pipeline PR #9** (2026-02-17): Evaluation + Metrics Hardening for RL Refinement - awaiting review
-- ⏳ **Pipeline PR #8** (2026-02-17): CARLA Closed-Loop Waypoint BC Evaluation - awaiting review
-- ⏳ **Pipeline PR #5** (2026-02-16): RL Refinement Stub for Residual Delta-Waypoint Learning - awaiting review
+- ⏳ Pipeline PR #1 (2026-02-25): Learning Rate Scheduling for RL Training → Pushed
+- ✅ Pipeline PR #5 (2026-02-24): RL Refinement After SFT (Waypoint Deltas) → Pushed
+- ✅ Pipeline PR #4 (2026-02-24): SSL Pretrain for Driving Pipeline → Pushed
+- ✅ Pipeline PR #3 (2026-02-24): GRPO Implementation for RL Pipeline → Pushed
+- ✅ Pipeline PR #2 (2026-02-24): CARLA Integration for SFT+RL Pipeline → Pushed
+- ⏳ Pipeline PR #1 (2026-02-24): Proper SFT + RL Training Pipeline
+- ⏳ Awaiting PR review/merge
 
-## Recent changes
+## Recent Work
 
-### Pipeline PR #1: RL Checkpoint Selection with Policy Entropy (Today, 5:30am PT)
-- **Updated: `training/rl/train_rl_delta_waypoint.py`**
-  - Added `policy_entropy` field to evaluation metrics
-  - Best checkpoint selection: saves `best_entropy.pt` when entropy improves
-  - Entropy history tracking: `entropy_history.json` with episode-wise records
-  - Enhanced training summary with `best_checkpoint` section
-  - Higher entropy = more exploration = better for RL generalization
-
-**Key additions:**
-- `_save_best_checkpoint()`: Saves checkpoint when entropy reaches new best
-- `_save_entropy_history()`: Records entropy per eval interval
-- Updated `compute_metrics()` to include entropy
-- Updated `_save_train_summary()` with best checkpoint metadata
+### Pipeline PR #1 (2026-02-25): Learning Rate Scheduling for RL Training
+- `training/rl/train_rl_delta_waypoint.py`: Added LR scheduling
+  - **lr_min** (default 1e-5): Minimum learning rate for cosine decay
+  - **lr_warmup_epochs** (default 10): Warmup epochs before cosine decay
+  - **SequentialLR**: LinearLR warmup + CosineAnnealingLR decay
+  - Added LR logging to training metrics
+- `training/rl/train_grpo_delta_waypoint.py`: Added same LR scheduling
+  - Added CLI args: `--delta-lr-min`, `--delta-lr-warmup-epochs`
+- Benefits: Improved training stability via warmup, better convergence via cosine decay
+- Branch: `feature/daily-2026-02-25-a`
+- Commit: `16e07f0`
+- PR: https://github.com/Capri2014/AIResearch/pull/new/feature/daily-2026-02-25-a
 
 ### Pipeline PR #9: Evaluation + Metrics Hardening for RL Refinement (Yesterday)
 - `training/rl/eval_toy_waypoint_env.py`: Deterministic evaluation with ADE/FDE
