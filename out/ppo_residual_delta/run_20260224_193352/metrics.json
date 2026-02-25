@@ -1,0 +1,22 @@
+{
+  "run_id": "ppo_residual_delta_20260224_193352",
+  "timestamp": "20260224_193352",
+  "config": {
+    "horizon": 20,
+    "hidden_dim": 64,
+    "episodes": 30,
+    "max_steps": 100,
+    "eval_episodes": 10,
+    "seed": 42
+  },
+  "evaluation": {
+    "avg_reward": -364.9898616560465,
+    "std_reward": 300.26062997380023,
+    "goal_rate": 0.1,
+    "ade": 1.1463347038787017
+  },
+  "training": {
+    "final_avg_reward": -374.59658994777584,
+    "final_goal_rate": 0.1
+  }
+}
