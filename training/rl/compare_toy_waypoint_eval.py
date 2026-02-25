@@ -19,14 +19,23 @@ def _load(path: Path) -> Dict[str, Any]:
     return json.loads(path.read_text())
 
 
-def _summarize(m: Dict[str, Any]) -> Tuple[float, float, float]:
+def _summarize(m: Dict[str, Any]) -> Tuple[float, float, float, float, float, float]:
+    """Return (success_rate, avg_return, avg_steps, ade_mean, fde_mean)."""
     rows = list(m.get("scenarios", []))
     if not rows:
-        return 0.0, 0.0, 0.0
+        return 0.0, 0.0, 0.0, 0.0, 0.0, 0.0
+    
     succ = sum(1.0 for r in rows if bool(r.get("success"))) / float(len(rows))
     avg_ret = sum(float(r.get("return", 0.0)) for r in rows) / float(len(rows))
     avg_steps = sum(float(r.get("steps", 0.0)) for r in rows) / float(len(rows))
-    return succ, avg_ret, avg_steps
+    
+    # ADE/FDE
+    ades = [float(r.get("ade", 0.0)) for r in rows if "ade" in r]
+    fdes = [float(r.get("fde", 0.0)) for r in rows if "fde" in r]
+    ade_mean = sum(ades) / len(ades) if ades else 0.0
+    fde_mean = sum(fdes) / len(fdes) if fdes else 0.0
+    
+    return succ, avg_ret, avg_steps, ade_mean, fde_mean
 
 
 def main() -> None:
@@ -38,15 +47,16 @@ def main() -> None:
     ma = _load(a.a)
     mb = _load(a.b)
 
-    sa, ra, ta = _summarize(ma)
-    sb, rb, tb = _summarize(mb)
+    sa, ra, ta, adea, fdea = _summarize(ma)
+    sb, rb, tb, adeb, fdeb = _summarize(mb)
 
     na = str(ma.get("policy", {}).get("name", "A"))
     nb = str(mb.get("policy", {}).get("name", "B"))
 
-    print(f"A {na}: success={sa:.2f} avg_return={ra:.3f} avg_steps={ta:.1f}")
-    print(f"B {nb}: success={sb:.2f} avg_return={rb:.3f} avg_steps={tb:.1f}")
-    print(f"Δ (B-A): success={sb-sa:+.2f} avg_return={rb-ra:+.3f} avg_steps={tb-ta:+.1f}")
+    # 3-line report with ADE/FDE
+    print(f"SFT:  ADE={adea:.3f}m, FDE={fdea:.3f}m, Success={sa:.1%}, Return={ra:.3f}")
+    print(f"RL:   ADE={adeb:.3f}m, FDE={fdeb:.3f}m, Success={sb:.1%}, Return={rb:.3f}")
+    print(f"Δ:    ADE={adeb-adea:+.3f}m, FDE={fdeb-fdea:+.3f}m, Success={sb-sa:+.1%}, Return={rb-ra:+.3f}")
 
 
 if __name__ == "__main__":
