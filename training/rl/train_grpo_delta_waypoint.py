@@ -62,6 +62,8 @@ class GRPODeltaWaypointConfig:
     # Delta Head
     delta_hidden_dim: int = 128
     delta_lr: float = 3e-4
+    delta_lr_min: float = 1e-5  # Minimum LR for cosine decay
+    delta_lr_warmup_epochs: int = 10  # Warmup epochs
     delta_weight_decay: float = 1e-4
     
     # GRPO
@@ -406,6 +408,25 @@ def train_grpo_delta_waypoint(config: GRPODeltaWaypointConfig) -> Dict:
         weight_decay=config.delta_weight_decay,
     )
     
+    # Learning rate scheduler: warmup + cosine decay
+    lr_scheduler = torch.optim.lr_scheduler.SequentialLR(
+        optimizer,
+        schedulers=[
+            # Linear warmup
+            torch.optim.lr_scheduler.LinearLR(
+                start_factor=0.1,
+                end_factor=1.0,
+                total_iters=config.delta_lr_warmup_epochs
+            ),
+            # Cosine annealing to lr_min
+            torch.optim.lr_scheduler.CosineAnnealingLR(
+                T_max=config.num_episodes - config.delta_lr_warmup_epochs,
+                eta_min=config.delta_lr_min
+            )
+        ],
+        milestones=[config.delta_lr_warmup_epochs]
+    )
+    
     # GRPO configuration
     grpo_config = GRPOConfig(
         clip_epsilon=config.grpo_clip_epsilon,
@@ -501,14 +522,18 @@ def train_grpo_delta_waypoint(config: GRPODeltaWaypointConfig) -> Dict:
             metrics["policy_losses"].append(policy_loss)
             metrics["kl_divergences"].append(kl)
         
+        # Step learning rate scheduler
+        lr_scheduler.step()
+        
         # Logging
         if (episode + 1) % config.eval_interval == 0:
             avg_reward = np.mean(metrics["episode_rewards"][-config.eval_interval:])
             avg_ade = np.mean(metrics["episode_ades"][-config.eval_interval:]) if metrics["episode_ades"] else 0
             avg_fde = np.mean(metrics["episode_fdes"][-config.eval_interval:]) if metrics["episode_fdes"] else 0
+            current_lr = optimizer.param_groups[0]['lr']
             
             print(f"Episode {episode + 1}/{config.num_episodes}: "
-                  f"reward={avg_reward:.2f}, ADE={avg_ade:.3f}, FDE={avg_fde:.3f}")
+                  f"reward={avg_reward:.2f}, ADE={avg_ade:.3f}, FDE={avg_fde:.3f}, lr={current_lr:.6f}")
         
         # Save checkpoint
         if (episode + 1) % config.save_interval == 0:
@@ -586,6 +611,10 @@ def main():
                         help="Hidden dimension for delta head")
     parser.add_argument("--delta-lr", type=float, default=3e-4,
                         help="Learning rate for delta head")
+    parser.add_argument("--delta-lr-min", type=float, default=1e-5,
+                        help="Minimum learning rate for cosine decay")
+    parser.add_argument("--delta-lr-warmup-epochs", type=int, default=10,
+                        help="Number of warmup epochs for LR")
     
     # GRPO
     parser.add_argument("--grpo-clip-epsilon", type=float, default=0.2,
@@ -618,6 +647,8 @@ def main():
         sft_domain=args.sft_domain,
         delta_hidden_dim=args.delta_hidden_dim,
         delta_lr=args.delta_lr,
+        delta_lr_min=args.delta_lr_min,
+        delta_lr_warmup_epochs=args.delta_lr_warmup_epochs,
         grpo_clip_epsilon=args.grpo_clip_epsilon,
         grpo_entropy_coef=args.grpo_entropy_coef,
         grpo_group_size=args.grpo_group_size,

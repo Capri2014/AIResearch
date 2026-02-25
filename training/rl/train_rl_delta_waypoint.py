@@ -81,6 +81,8 @@ class PPOConfig:
     # Training
     episodes: int = 500
     lr: float = 3e-4
+    lr_min: float = 1e-5  # Minimum learning rate for cosine decay
+    lr_warmup_epochs: int = 10  # Warmup epochs before cosine decay
     weight_decay: float = 1e-4
     gamma: float = 0.99  # discount
     lam: float = 0.95    # GAE lambda
@@ -424,6 +426,25 @@ class PPOAgent:
             list(self.delta_head.parameters()) + list(self.value_head.parameters()),
             lr=cfg.lr,
             weight_decay=cfg.weight_decay,
+        )
+        
+        # Learning rate scheduler: warmup + cosine decay
+        self.lr_scheduler = optim.lr_scheduler.SequentialLR(
+            self.optimizer,
+            schedulers=[
+                # Linear warmup
+                optim.lr_scheduler.LinearLR(
+                    start_factor=0.1,
+                    end_factor=1.0,
+                    total_iters=cfg.lr_warmup_epochs
+                ),
+                # Cosine annealing to lr_min
+                optim.lr_scheduler.CosineAnnealingLR(
+                    T_max=cfg.episodes - cfg.lr_warmup_epochs,
+                    eta_min=cfg.lr_min
+                )
+            ],
+            milestones=[cfg.lr_warmup_epochs]
         )
         
         # PPO buffers
@@ -787,6 +808,10 @@ class RLDeltaTrainer:
             else:
                 update_info['update_epochs_used'] = self.cfg.ppo.update_epochs
             
+            # Step learning rate scheduler (after each episode)
+            self.agent.lr_scheduler.step()
+            update_info['lr'] = self.agent.optimizer.param_groups[0]['lr']
+            
             # Episode stats
             ep_reward = sum(rewards)
             ep_length = len(rewards)
@@ -814,7 +839,7 @@ class RLDeltaTrainer:
                 
                 print(f"[rl/delta] ep={ep+1:4d} reward={metrics['mean_reward']:7.2f} "
                       f"len={metrics['mean_length']:5.1f} kl={update_info.get('kl_mean', 0):.4f} "
-                      f"target_kl={update_info.get('target_kl', self.cfg.ppo.target_kl):.4f} "
+                      f"lr={update_info.get('lr', self.cfg.ppo.lr):.6f} "
                       f"delta_norm={eval_info['mean_delta_norm']:.3f} entropy={entropy:.4f}")
                 
                 # Save best checkpoint based on entropy
