@@ -374,13 +374,107 @@ def run_carla_evaluation(
     }
 
 
+def auto_select_checkpoint(
+    out_dir: str = 'out/',
+    criterion: str = 'reward',
+    domain: str = 'rl'
+) -> Tuple[Optional[str], Dict[str, Any]]:
+    """
+    Automatically select best checkpoint from training runs.
+    
+    Args:
+        out_dir: Output directory containing training runs
+        criterion: Selection criterion (reward, entropy, ade, fde, success)
+        domain: Domain filter for runs
+    
+    Returns:
+        Tuple of (checkpoint_path, selection_info)
+    """
+    try:
+        from checkpoint_manager import CheckpointManager, CheckpointSelector
+        
+        manager = CheckpointManager(out_dir)
+        runs = manager.list_runs(domain=domain)
+        
+        if not runs:
+            print(f"Warning: No training runs found in {out_dir}")
+            return None, {'error': 'No runs found'}
+        
+        selector = CheckpointSelector(manager)
+        best = selector.select_best(criterion)
+        
+        if best is None:
+            print(f"Warning: Could not select best checkpoint for criterion '{criterion}'")
+            return None, {'error': 'Selection failed'}
+        
+        checkpoint_path = best.checkpoint_path
+        if not checkpoint_path or not os.path.exists(checkpoint_path):
+            # Try to find checkpoint in run directory
+            run_dir = best.run_path
+            for fname in ['final_checkpoint.pt', 'best_reward_checkpoint.pt', 
+                         'best_entropy_checkpoint.pt', 'checkpoint.pt']:
+                candidate = os.path.join(run_dir, fname)
+                if os.path.exists(candidate):
+                    checkpoint_path = candidate
+                    break
+        
+        info = {
+            'criterion': criterion,
+            'run_id': best.run_id,
+            'run_path': best.run_path,
+            'reward': best.final_reward,
+            'entropy': best.entropy,
+            'ade': best.ade,
+            'fde': best.fde,
+            'success_rate': best.success_rate,
+            'checkpoint': checkpoint_path
+        }
+        
+        print(f"Auto-selected checkpoint:")
+        print(f"  Criterion: {criterion}")
+        print(f"  Run: {best.run_id}")
+        print(f"  Reward: {best.final_reward:.2f}")
+        print(f"  Entropy: {best.entropy:.4f}" if best.entropy else "")
+        print(f"  ADE: {best.ade:.3f}m" if best.ade else "")
+        print(f"  FDE: {best.fde:.3f}m" if best.fde else "")
+        print(f"  Success: {best.success_rate:.1%}" if best.success_rate else "")
+        print(f"  Path: {checkpoint_path}")
+        
+        return checkpoint_path, info
+        
+    except ImportError:
+        print("Warning: checkpoint_manager not available")
+        return None, {'error': 'checkpoint_manager not available'}
+    except Exception as e:
+        print(f"Warning: Auto-selection failed: {e}")
+        return None, {'error': str(e)}
+
+
 def main():
     parser = argparse.ArgumentParser(description='CARLA SFT+RL Evaluation')
     parser.add_argument(
         '--checkpoint',
         type=str,
-        required=True,
-        help='Path to SFT+RL checkpoint'
+        default=None,
+        help='Path to SFT+RL checkpoint (or use --auto-select)'
+    )
+    parser.add_argument(
+        '--auto-select',
+        action='store_true',
+        help='Automatically select best checkpoint from training runs'
+    )
+    parser.add_argument(
+        '--select-criterion',
+        type=str,
+        default='reward',
+        choices=['reward', 'entropy', 'ade', 'fde', 'success'],
+        help='Criterion for auto-selecting checkpoint'
+    )
+    parser.add_argument(
+        '--select-domain',
+        type=str,
+        default='rl',
+        help='Domain filter for auto-selecting checkpoints'
     )
     parser.add_argument(
         '--scenarios',
@@ -414,6 +508,23 @@ def main():
     
     args = parser.parse_args()
     
+    # Auto-select checkpoint if requested
+    selection_info = None
+    if args.auto_select:
+        checkpoint_path, selection_info = auto_select_checkpoint(
+            out_dir='out/',
+            criterion=args.select_criterion,
+            domain=args.select_domain
+        )
+        if checkpoint_path is None:
+            print("Error: Could not auto-select checkpoint")
+            return
+        args.checkpoint = checkpoint_path
+    elif args.checkpoint is None:
+        parser.error("--checkpoint is required unless --auto-select is used")
+    
+    # Rest of the function continues...
+    
     # Get git info
     git_info = get_git_info()
     
@@ -432,6 +543,10 @@ def main():
     results['git_info'] = git_info
     results['timestamp'] = datetime.now().isoformat()
     results['checkpoint'] = args.checkpoint
+    
+    # Add auto-selection info if applicable
+    if selection_info is not None:
+        results['auto_selection'] = selection_info
     
     # Save results
     os.makedirs(args.output_dir, exist_ok=True)
