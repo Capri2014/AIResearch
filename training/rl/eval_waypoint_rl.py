@@ -348,14 +348,26 @@ def run_evaluation(
             for seed, e in zip(seeds, rl_episodes)
         ],
         'summary': {
-            'ade_mean': sft_stats['ade']['mean'],
-            'ade_std': sft_stats['ade']['std'],
-            'fde_mean': sft_stats['fde']['mean'],
-            'fde_std': sft_stats['fde']['std'],
-            'success_rate': sft_stats['success_rate'],
-            'return_mean': sft_stats['return']['mean'],
-            'return_std': sft_stats['return']['std'],
-            'steps_mean': sft_stats['steps_mean'],
+            'sft': {
+                'ade_mean': sft_stats['ade']['mean'],
+                'ade_std': sft_stats['ade']['std'],
+                'fde_mean': sft_stats['fde']['mean'],
+                'fde_std': sft_stats['fde']['std'],
+                'success_rate': sft_stats['success_rate'],
+                'return_mean': sft_stats['return']['mean'],
+                'return_std': sft_stats['return']['std'],
+                'steps_mean': sft_stats['steps_mean'],
+            },
+            'rl': {
+                'ade_mean': rl_stats['ade']['mean'],
+                'ade_std': rl_stats['ade']['std'],
+                'fde_mean': rl_stats['fde']['mean'],
+                'fde_std': rl_stats['fde']['std'],
+                'success_rate': rl_stats['success_rate'],
+                'return_mean': rl_stats['return']['mean'],
+                'return_std': rl_stats['return']['std'],
+                'steps_mean': rl_stats['steps_mean'],
+            },
             'num_episodes': num_episodes
         },
         'policy': {
