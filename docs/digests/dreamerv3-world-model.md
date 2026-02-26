@@ -1,7 +1,7 @@
 # DreamerV3 World Model: Learned Simulator for Autonomous Driving (PUBLIC ANCHOR DIGEST)
 
 **Survey:** DreamerV3 (Hafner et al., Nature 2025) + GAIA-1 Direction + Driving World Model Applications  
-**Date:** 2026-02-22  
+**Date:** 2026-02-22 (Updated 2026-02-25)  
 **Status:** PUBLIC ANCHOR DIGEST - World Model Foundation for Driving Simulators  
 **Context:** Ashok's "video + action → next video" simulator claim (Survey PR #4)  
 
