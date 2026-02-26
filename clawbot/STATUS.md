@@ -1,22 +1,31 @@
 # CLAWBOT Status
 
-**Last Updated:** 2026-02-25
+**Last Updated:** 2026-02-26
 
 ## Daily Cadence
 
+- ⏳ Pipeline PR #1 (2026-02-26): Auto Checkpoint Selection for CARLA Eval → Pushed (commit 7605c48)
 - ⏳ Pipeline PR #6 (2026-02-25): Eval Metrics Hardening → Pushed (commit db0fa16)
 - ✅ Pipeline PR #5 (2026-02-25): SFT Checkpoint Loading for Residual Delta Training → Pushed
 - ✅ Pipeline PR #4 (2026-02-25): Multi-Run Comparison & Metric-Based Selection → Pushed
 - ✅ Pipeline PR #3 (2026-02-25): Checkpoint Manager → Pushed
 - ✅ Pipeline PR #2 (2026-02-25): Entropy Tracking & Best-Entropy Checkpointing → Pushed
 - ✅ Pipeline PR #1 (2026-02-25): Learning Rate Scheduling for RL Training → Pushed
-- ✅ Pipeline PR #5 (2026-02-24): RL Refinement After SFT (Waypoint Deltas) → Pushed
-- ✅ Pipeline PR #4 (2026-02-24): SSL Pretrain for Driving Pipeline → Pushed
-- ✅ Pipeline PR #3 (2026-02-24): GRPO Implementation for RL Pipeline → Pushed
-- ✅ Pipeline PR #2 (2026-02-24): CARLA Integration for SFT+RL Pipeline → Pushed
 - ⏳ Awaiting PR review/merge
 
 ## Recent Work
+
+### Pipeline PR #1: Auto Checkpoint Selection for CARLA Evaluation (2026-02-26)
+- `training/rl/carla_sft_rl_eval.py`: Added automatic checkpoint selection
+  - **--auto-select flag**: Automatically select best checkpoint from training runs
+  - **--select-criterion**: Choose selection metric (reward/entropy/ade/fde/success)
+  - **--select-domain**: Filter runs by domain (default: rl)
+  - **auto_select_checkpoint()**: Integrates with CheckpointManager
+  - Selection info saved in metrics.json output
+- Benefits: No manual checkpoint selection needed, flexible criteria, metrics-driven
+- Branch: `feature/daily-2026-02-26-a`
+- Commit: `7605c48`
+- PR: https://github.com/Capri2014/AIResearch/pull/new/feature/daily-2026-02-26-a
 
 ### Pipeline PR #6: Eval Metrics Hardening (2026-02-25)
 - `training/rl/eval_waypoint_rl.py`: Fix metrics summary to include both SFT and RL stats
