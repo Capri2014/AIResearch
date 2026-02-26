@@ -524,9 +524,16 @@ class EnhancedPPOResidualWaypointAgent:
         self.critic_opt.zero_grad()
         loss.backward()
         
-        # Gradient clipping for stability
-        torch.nn.utils.clip_grad_norm_(self.delta_head.parameters(), max_norm=0.5)
-        torch.nn.utils.clip_grad_norm_(self.value_fn.parameters(), max_norm=0.5)
+        # Gradient clipping for stability with norm tracking
+        delta_grad_norm = torch.nn.utils.clip_grad_norm_(self.delta_head.parameters(), max_norm=0.5)
+        value_grad_norm = torch.nn.utils.clip_grad_norm_(self.value_fn.parameters(), max_norm=0.5)
+        
+        # Track gradient norms
+        total_grad_norm = (
+            delta_grad_norm.item() if isinstance(delta_grad_norm, torch.Tensor) else delta_grad_norm
+        ) + (
+            value_grad_norm.item() if isinstance(value_grad_norm, torch.Tensor) else value_grad_norm
+        )
         
         self.actor_opt.step()
         self.critic_opt.step()
@@ -541,7 +548,8 @@ class EnhancedPPOResidualWaypointAgent:
             'kl_div': kl_div.item(),
             'kl_loss': kl_loss.item(),
             'total_loss': loss.item(),
-            'value_loss_avg': np.mean(self.value_losses_history)
+            'value_loss_avg': np.mean(self.value_losses_history),
+            'grad_norm': total_grad_norm,  # Gradient norm for stability monitoring
         }
 
 
@@ -571,7 +579,8 @@ def train_enhanced_ppo_residual(
         'value_losses': [],
         'kl_divs': [],
         'goals_reached': [],
-        'gae_lam_used': []
+        'gae_lam_used': [],
+        'grad_norms': [],  # Gradient norm for training stability
     }
     
     # Default schedule: constant lambda
@@ -644,6 +653,7 @@ def train_enhanced_ppo_residual(
             metrics['value_losses'].append(update_metrics['value_loss'])
             metrics['kl_divs'].append(update_metrics['kl_div'])
             metrics['gae_lam_used'].append(current_lam)
+            metrics['grad_norms'].append(update_metrics.get('grad_norm', 0.0))
         
         metrics['episode_rewards'].append(episode_reward)
         metrics['episode_lengths'].append(episode_length)
@@ -654,7 +664,8 @@ def train_enhanced_ppo_residual(
             avg_length = np.mean(metrics['episode_lengths'][-10:])
             goal_rate = np.mean(metrics['goals_reached'][-10:])
             avg_kl = np.mean(metrics['kl_divs'][-10:]) if metrics['kl_divs'] else 0.0
-            print(f"Episode {episode}: reward={avg_reward:.2f}, length={avg_length:.1f}, goal_rate={goal_rate:.2f}, kl={avg_kl:.4f}, lam={current_lam:.3f}")
+            avg_grad = np.mean(metrics['grad_norms'][-10:]) if metrics['grad_norms'] else 0.0
+            print(f"Episode {episode}: reward={avg_reward:.2f}, length={avg_length:.1f}, goal_rate={goal_rate:.2f}, kl={avg_kl:.4f}, lam={current_lam:.3f}, grad_norm={avg_grad:.4f}")
     
     return metrics
 

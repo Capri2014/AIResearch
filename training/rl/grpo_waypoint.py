@@ -523,6 +523,11 @@ class GRPOAgent:
         
         total_loss = policy_loss + value_loss + entropy_loss
         total_loss.backward()
+        
+        # Gradient norm tracking for training stability
+        grad_norm = torch.nn.utils.clip_grad_norm_(self.model.parameters(), 0.5)
+        grad_norm_value = grad_norm.item() if isinstance(grad_norm, torch.Tensor) else grad_norm
+        
         self.optimizer.step()
         
         # Clear trajectory storage
@@ -533,7 +538,8 @@ class GRPOAgent:
             'value_loss': value_loss.item(),
             'entropy_loss': entropy_loss.item(),
             'entropy': entropy.item(),  # Actual entropy value
-            'total_loss': total_loss.item()
+            'total_loss': total_loss.item(),
+            'grad_norm': grad_norm_value,  # Gradient norm for stability monitoring
         }
     
     def get_action(self, state: np.ndarray, deterministic: bool = False) -> Tuple[np.ndarray, float, float]:
@@ -625,6 +631,7 @@ def train_grpo(
         'value_loss': [],
         'entropy_loss': [],
         'entropy': [],  # Actual entropy value (not loss)
+        'grad_norm': [],  # Gradient norm for training stability
         'episode_rewards': [],
     }
     
@@ -651,14 +658,17 @@ def train_grpo(
         metrics['value_loss'].append(losses['value_loss'])
         metrics['entropy_loss'].append(losses['entropy_loss'])
         metrics['entropy'].append(losses.get('entropy', 0.0))
+        metrics['grad_norm'].append(losses.get('grad_norm', 0.0))
         
         if verbose and (update + 1) % 2 == 0:
             ent = losses.get('entropy', 0.0)
+            grad_n = losses.get('grad_norm', 0.0)
             print(f"Update {update + 1}/{num_updates} | "
                   f"Avg Reward: {avg_reward:.2f} | "
                   f"Policy Loss: {losses['policy_loss']:.4f} | "
                   f"Value Loss: {losses['value_loss']:.4f} | "
-                  f"Entropy: {ent:.4f}")
+                  f"Entropy: {ent:.4f} | "
+                  f"Grad Norm: {grad_n:.4f}")
     
     return metrics
 

@@ -349,6 +349,7 @@ def train_ppo_residual_delta(
     value_losses = []
     kl_divs = []
     entropies = []  # Track entropy for analysis
+    grad_norms = []  # Track gradient norms for training stability
     
     # Best entropy tracking for checkpointing
     best_entropy = float('-inf')
@@ -465,7 +466,12 @@ def train_ppo_residual_delta(
                     # Update
                     agent.optimizer.zero_grad()
                     loss.backward()
-                    torch.nn.utils.clip_grad_norm_(agent.parameters(), 0.5)
+                    
+                    # Gradient norm tracking for training stability
+                    grad_norm_before = torch.nn.utils.clip_grad_norm_(agent.parameters(), 0.5)
+                    grad_norm_after = sum(p.grad.norm().item() ** 2 for p in agent.parameters() if p.grad is not None) ** 0.5
+                    grad_norms.append(grad_norm_before.item() if isinstance(grad_norm_before, torch.Tensor) else grad_norm_before)
+                    
                     agent.optimizer.step()
                     
                     policy_losses.append(policy_loss.item())
@@ -495,10 +501,12 @@ def train_ppo_residual_delta(
             print(f"  Goal Rate: {goal_rate:.1%}")
             if policy_losses:
                 avg_entropy = np.mean(entropies[-20:]) if entropies else 0.0
+                avg_grad_norm = np.mean(grad_norms[-20:]) if grad_norms else 0.0
                 print(f"  Policy Loss: {np.mean(policy_losses[-20:]):.4f}")
                 print(f"  Value Loss: {np.mean(value_losses[-20:]):.4f}")
                 print(f"  KL: {np.mean(kl_divs[-20:]):.4f}")
                 print(f"  Entropy: {avg_entropy:.4f}")
+                print(f"  Grad Norm: {avg_grad_norm:.4f}")
             print()
     
     return {
@@ -509,6 +517,7 @@ def train_ppo_residual_delta(
         'value_losses': value_losses,
         'kl_divs': kl_divs,
         'entropies': entropies,
+        'grad_norms': grad_norms,  # Gradient norm tracking for stability
     }
 
 
