@@ -4,6 +4,8 @@
 
 ## Daily Cadence
 
+- ⏳ Pipeline PR #3 (2026-02-26): Training Visualization Utility → Pushed (commit 803851b)
+- ⏳ Pipeline PR #2 (2026-02-26): Gradient Norm Tracking for RL Training → Pushed (commit 317f8a3)
 - ⏳ Pipeline PR #1 (2026-02-26): Auto Checkpoint Selection for CARLA Eval → Pushed (commit 7605c48)
 - ⏳ Pipeline PR #6 (2026-02-25): Eval Metrics Hardening → Pushed (commit db0fa16)
 - ✅ Pipeline PR #5 (2026-02-25): SFT Checkpoint Loading for Residual Delta Training → Pushed
@@ -14,6 +16,34 @@
 - ⏳ Awaiting PR review/merge
 
 ## Recent Work
+
+### Pipeline PR #3: Training Visualization Utility (2026-02-26)
+- `training/rl/visualize_training.py`: New comprehensive visualization script
+  - **Training curves**: reward, entropy, gradient norm, loss over episodes
+  - **Evaluation metrics**: ADE, FDE, success rate, average return
+  - **Multi-run comparison**: Compare metrics across checkpoints
+  - **HTML reports**: Generate self-contained HTML reports
+  - **CLI options**: --run, --compare, --plot, --metric, --output, --format
+- Benefits: Visualize training progress, compare eval metrics, generate shareable reports
+- Branch: `feature/daily-2026-02-26-c`
+- Commit: `803851b`
+- PR: https://github.com/Capri2014/AIResearch/pull/new/feature/daily-2026-02-26-c
+
+### Pipeline PR #2: Gradient Norm Tracking for Training Stability (2026-02-26)
+- `training/rl/ppo_residual_delta_train.py`: Track gradient norms per update
+  - Added `grad_norms` list to track norms
+  - Log average grad norm every 20 episodes
+  - Include in train_metrics.json output
+- `training/rl/grpo_waypoint.py`: Added gradient clipping with norm tracking
+  - Track grad_norm in update() return dict
+  - Log grad norm in training progress
+- `training/rl/enhanced_ppo_residual.py`: Track delta_head and value_fn norms
+  - Separate tracking for delta head vs value function
+  - Total grad norm for stability monitoring
+- Benefits: Debugging training instability, monitor clipping activity, checkpoint selection criterion
+- Branch: `feature/daily-2026-02-26-b`
+- Commit: `317f8a3`
+- PR: https://github.com/Capri2014/AIResearch/pull/new/feature/daily-2026-02-26-b
 
 ### Pipeline PR #1: Auto Checkpoint Selection for CARLA Evaluation (2026-02-26)
 - `training/rl/carla_sft_rl_eval.py`: Added automatic checkpoint selection
@@ -106,9 +136,9 @@
 - WaypointBCModelWrapper for checkpoint loading
 
 ## Next (top 3)
-1. Run training with entropy tracking to generate curves
-2. Use multi-run comparison to analyze runs across different seeds
-3. Integrate checkpoint selection into CARLA evaluation pipeline
+1. Run training with generated visualization curves
+2. Compare multi-seed runs using new visualization tool
+3. Use HTML reports for sharing results
 
 ## Blockers / questions for owner
 - PR reviews pending for #9, #8, #5
