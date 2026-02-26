@@ -4,10 +4,11 @@
 
 ## Daily Cadence
 
+- ⏳ Pipeline PR #5 (2026-02-25): SFT Checkpoint Loading for Residual Delta Training → Pushed
 - ✅ Pipeline PR #4 (2026-02-25): Multi-Run Comparison & Metric-Based Selection → Pushed
-- ⏳ Pipeline PR #3 (2026-02-25): Checkpoint Manager → Pushed
-- ⏳ Pipeline PR #2 (2026-02-25): Entropy Tracking & Best-Entropy Checkpointing → Pushed
-- ⏳ Pipeline PR #1 (2026-02-25): Learning Rate Scheduling for RL Training → Pushed
+- ✅ Pipeline PR #3 (2026-02-25): Checkpoint Manager → Pushed
+- ✅ Pipeline PR #2 (2026-02-25): Entropy Tracking & Best-Entropy Checkpointing → Pushed
+- ✅ Pipeline PR #1 (2026-02-25): Learning Rate Scheduling for RL Training → Pushed
 - ✅ Pipeline PR #5 (2026-02-24): RL Refinement After SFT (Waypoint Deltas) → Pushed
 - ✅ Pipeline PR #4 (2026-02-24): SSL Pretrain for Driving Pipeline → Pushed
 - ✅ Pipeline PR #3 (2026-02-24): GRPO Implementation for RL Pipeline → Pushed
@@ -16,7 +17,16 @@
 
 ## Recent Work
 
-### Pipeline PR #4 (2026-02-25): Multi-Run Comparison & Metric-Based Selection
+### Pipeline PR #5 (2026-02-25): SFT Checkpoint Loading for Residual Delta Training
+- `training/rl/ppo_residual_delta_train.py`: Added SFT checkpoint loading
+  - **load_sft_checkpoint()**: Load pretrained SFT waypoint model from .pt file
+  - **PPOResidualDeltaAgent update**: Accept pre-loaded SFT model via sft_model param
+  - **New CLI args**: `--sft-checkpoint <path>`, `--lr`
+- Benefits: Enables RL refinement AFTER SFT - load frozen SFT, train delta head
+- Architecture: final_waypoints = sft_waypoints + delta_head(state)
+- Branch: `feature/daily-2026-02-25-e`
+- Commit: `fd47524`
+- PR: https://github.com/Capri2014/AIResearch/pull/new/feature/daily-2026-02-25-e
 - `training/rl/multi_run_compare.py`: New multi-run comparison utility
   - **MultiRunComparator**: Scan and compare RL training runs across seeds
   - **Best-by-Metric Selection**: reward, entropy, ADE, FDE, success_rate
