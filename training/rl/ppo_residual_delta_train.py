@@ -32,15 +32,15 @@ from waypoint_rl_env import WaypointRLEnv
 class SFTWaypointModel(nn.Module):
     """
     SFT (Supervised Fine-Tuned) waypoint model.
-    In this simplified version, we use linear interpolation as the SFT baseline.
-    In production, this would load from a trained checkpoint.
+    In production, loads from a trained checkpoint via load_sft_checkpoint().
+    Can also use linear interpolation as baseline (see get_sft_waypoints).
     """
     
     def __init__(self, state_dim: int = 6, horizon: int = 20, hidden_dim: int = 64):
         super().__init__()
         self.horizon = horizon
         
-        # Simple MLP to predict waypoints (replaces linear interpolation)
+        # Simple MLP to predict waypoints
         self.net = nn.Sequential(
             nn.Linear(state_dim, hidden_dim),
             nn.ReLU(),
@@ -67,6 +67,47 @@ class SFTWaypointModel(nn.Module):
             state_t = torch.FloatTensor(state[:6].reshape(1, -1))
             waypoints = self.forward(state_t).numpy().reshape(self.horizon, 2)
         return waypoints
+
+
+def load_sft_checkpoint(
+    checkpoint_path: str,
+    state_dim: int = 6,
+    horizon: int = 20,
+    hidden_dim: int = 64
+) -> SFTWaypointModel:
+    """
+    Load pretrained SFT waypoint model from checkpoint.
+    
+    Args:
+        checkpoint_path: Path to SFT checkpoint file (.pt)
+        state_dim: State dimension
+        horizon: Waypoint horizon
+        hidden_dim: Hidden dimension
+        
+    Returns:
+        Loaded SFT model with eval() mode and frozen params
+    """
+    sft_model = SFTWaypointModel(state_dim, horizon, hidden_dim)
+    
+    if os.path.exists(checkpoint_path):
+        checkpoint = torch.load(checkpoint_path, map_location='cpu')
+        if 'model_state' in checkpoint:
+            sft_model.load_state_dict(checkpoint['model_state'])
+        elif 'state_dict' in checkpoint:
+            sft_model.load_state_dict(checkpoint['state_dict'])
+        else:
+            # Try loading directly
+            sft_model.load_state_dict(checkpoint)
+        print(f"Loaded SFT checkpoint from: {checkpoint_path}")
+    else:
+        print(f"Warning: SFT checkpoint not found at {checkpoint_path}, using random init")
+    
+    # Freeze SFT model
+    for param in sft_model.parameters():
+        param.requires_grad = False
+    sft_model.eval()
+    
+    return sft_model
 
 
 class DeltaWaypointHead(nn.Module):
@@ -137,6 +178,7 @@ class PPOResidualDeltaAgent(nn.Module):
     PPO agent with residual delta learning.
     
     Combines frozen SFT model + trainable delta head + value function.
+    Architecture: final_waypoints = sft_waypoints + delta_head(state)
     """
     
     def __init__(
@@ -146,16 +188,28 @@ class PPOResidualDeltaAgent(nn.Module):
         hidden_dim: int = 64,
         action_std: float = 0.5,
         lr: float = 3e-4,
+        sft_model: Optional[SFTWaypointModel] = None,
     ):
+        """
+        Args:
+            sft_model: Optional pre-loaded SFT model. If None, creates new one.
+        """
         super().__init__()
         self.horizon = horizon
         self.state_dim = state_dim
         self.action_dim = horizon * 2
         
-        # SFT model (frozen)
-        self.sft_model = SFTWaypointModel(state_dim, horizon, hidden_dim)
-        for param in self.sft_model.parameters():
-            param.requires_grad = False
+        # SFT model (frozen) - use provided or create new
+        if sft_model is not None:
+            self.sft_model = sft_model
+            # Ensure it's frozen
+            for param in self.sft_model.parameters():
+                param.requires_grad = False
+            self.sft_model.eval()
+        else:
+            self.sft_model = SFTWaypointModel(state_dim, horizon, hidden_dim)
+            for param in self.sft_model.parameters():
+                param.requires_grad = False
             
         # Delta head (trainable)
         self.delta_head = DeltaWaypointHead(state_dim, horizon, hidden_dim)
@@ -525,6 +579,8 @@ def main():
     parser.add_argument('--eval-episodes', type=int, default=50, help='Evaluation episodes')
     parser.add_argument('--output-dir', type=str, default='out/ppo_residual_delta', help='Output directory')
     parser.add_argument('--seed', type=int, default=42, help='Random seed')
+    parser.add_argument('--sft-checkpoint', type=str, default=None, help='Path to SFT checkpoint (.pt)')
+    parser.add_argument('--lr', type=float, default=3e-4, help='Learning rate')
     args = parser.parse_args()
     
     # Set seeds
@@ -541,16 +597,30 @@ def main():
     print(f"  Hidden Dim: {args.hidden_dim}")
     print(f"  Episodes: {args.episodes}")
     print(f"  Output: {run_dir}")
+    if args.sft_checkpoint:
+        print(f"  SFT Checkpoint: {args.sft_checkpoint}")
     print()
     
     # Create environment
     env = WaypointRLEnv(horizon=args.horizon)
     
-    # Create agent
+    # Load SFT model from checkpoint if provided
+    sft_model = None
+    if args.sft_checkpoint:
+        sft_model = load_sft_checkpoint(
+            args.sft_checkpoint,
+            state_dim=6,
+            horizon=args.horizon,
+            hidden_dim=args.hidden_dim
+        )
+    
+    # Create agent with optional loaded SFT model
     agent = PPOResidualDeltaAgent(
         state_dim=6,
         horizon=args.horizon,
         hidden_dim=args.hidden_dim,
+        lr=args.lr,
+        sft_model=sft_model,
     )
     
     # Train
