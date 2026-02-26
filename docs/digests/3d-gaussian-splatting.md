@@ -2,12 +2,12 @@
 
 **Paper:** Kerbl et al., SIGGRAPH 2023  
 **Topic:** Real-time neural rendering via explicit 3D Gaussians  
-**Last Updated:** 2026-02-25  
+**Last Updated:** 2026-02-26  
 **Category:** Neural Rendering / 3D Vision
 
 ---
 
-> **Survey PR #1 (Feb 25, 2026)** — Public anchor digest for 3D Gaussian Splatting
+> **Survey PR #1 (Feb 25, 2026)** — Public anchor digest for 3D Gaussian Splatting - Daily refresh
 
 ---
 
