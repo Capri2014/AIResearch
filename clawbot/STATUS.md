@@ -4,7 +4,8 @@
 
 ## Daily Cadence
 
-- ⏳ Pipeline PR #5 (2026-02-25): SFT Checkpoint Loading for Residual Delta Training → Pushed
+- ⏳ Pipeline PR #6 (2026-02-25): Eval Metrics Hardening → Pushed (commit db0fa16)
+- ✅ Pipeline PR #5 (2026-02-25): SFT Checkpoint Loading for Residual Delta Training → Pushed
 - ✅ Pipeline PR #4 (2026-02-25): Multi-Run Comparison & Metric-Based Selection → Pushed
 - ✅ Pipeline PR #3 (2026-02-25): Checkpoint Manager → Pushed
 - ✅ Pipeline PR #2 (2026-02-25): Entropy Tracking & Best-Entropy Checkpointing → Pushed
@@ -16,6 +17,15 @@
 - ⏳ Awaiting PR review/merge
 
 ## Recent Work
+
+### Pipeline PR #6: Eval Metrics Hardening (2026-02-25)
+- `training/rl/eval_waypoint_rl.py`: Fix metrics summary to include both SFT and RL stats
+  - **Summary fix**: Expand to nested `sft` and `rl` objects with ade/fde/success/return
+  - Enables proper metrics comparison in JSON output
+- Branch: `feature/daily-2026-02-25-e`
+- Commit: `db0fa16`
+- PR: https://github.com/Capri2014/AIResearch/pull/new/feature/daily-2026-02-25-e
+- Note: PR creation failed (token permissions)
 
 ### Pipeline PR #5 (2026-02-25): SFT Checkpoint Loading for Residual Delta Training
 - `training/rl/ppo_residual_delta_train.py`: Added SFT checkpoint loading
