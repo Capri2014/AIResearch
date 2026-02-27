@@ -274,6 +274,7 @@ gsutil -m cp -r gs://gdm-robotics-open-x-embodiment/octo_dataset/ ~/data/
 3. **Apache 2.0**: No commercial restrictions
 4. **Active maintenance**: Rail-berkeley community responds to issues
 5. **Diffusion + BC support**: Dual training objectives in single codebase
+6. **Best-in-class reproducibility**: Full training code + weights + Colab + evaluation suite
 
 ---
 
