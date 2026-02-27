@@ -4,10 +4,11 @@
 
 ## Daily Cadence
 
-- ⏳ Pipeline PR #3 (2026-02-26): Training Visualization Utility → Pushed (commit 803851b)
-- ⏳ Pipeline PR #2 (2026-02-26): Gradient Norm Tracking for RL Training → Pushed (commit 317f8a3)
-- ⏳ Pipeline PR #1 (2026-02-26): Auto Checkpoint Selection for CARLA Eval → Pushed (commit 7605c48)
-- ⏳ Pipeline PR #6 (2026-02-25): Eval Metrics Hardening → Pushed (commit db0fa16)
+- ⏳ Pipeline PR #5 (2026-02-26): Toy Kinematics Environment for RL After SFT → Pushed (commit 37f3415)
+- ⏳ Pipeline PR #4 (2026-02-26): Training Visualization Utility → Pushed (commit 803851b)
+- ⏳ Pipeline PR #3 (2026-02-26): Gradient Norm Tracking for RL Training → Pushed (commit 317f8a3)
+- ⏳ Pipeline PR #2 (2026-02-26): Auto Checkpoint Selection for CARLA Eval → Pushed (commit 7605c48)
+- ⏳ Pipeline PR #7 (2026-02-25): Eval Metrics Hardening → Pushed (commit db0fa16)
 - ✅ Pipeline PR #5 (2026-02-25): SFT Checkpoint Loading for Residual Delta Training → Pushed
 - ✅ Pipeline PR #4 (2026-02-25): Multi-Run Comparison & Metric-Based Selection → Pushed
 - ✅ Pipeline PR #3 (2026-02-25): Checkpoint Manager → Pushed
@@ -56,6 +57,21 @@
 - Branch: `feature/daily-2026-02-26-a`
 - Commit: `7605c48`
 - PR: https://github.com/Capri2014/AIResearch/pull/new/feature/daily-2026-02-26-a
+
+### Pipeline PR #5: Toy Kinematics Environment for RL After SFT (2026-02-26)
+- `training/rl/toy_kinematics_env.py`: 2D kinematics environment
+  - **State**: position, heading, speed, goal, SFT waypoints
+  - **Action**: delta waypoints to refine SFT predictions
+  - **Reward**: goal proximity + progress + smoothness + efficiency
+- `training/rl/train_toy_delta.py`: Simple PPO training script
+  - **DeltaWaypointAgent**: learns delta adjustments to SFT predictions
+  - **PPOLearner**: PPO with GAE advantages
+  - Outputs proper train_metrics.json format
+- Benefits: Clean toy environment for testing RL-after-SFT pipeline
+- Architecture: final_waypoints = sft_waypoints + delta_head(state)
+- Branch: `feature/daily-2026-02-26-e`
+- Commit: `37f3415`
+- PR: https://github.com/Capri2014/AIResearch/pull/new/feature/daily-2026-02-26-e
 
 ### Pipeline PR #6: Eval Metrics Hardening (2026-02-25)
 - `training/rl/eval_waypoint_rl.py`: Fix metrics summary to include both SFT and RL stats
