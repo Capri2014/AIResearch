@@ -4,6 +4,7 @@
 
 ## Daily Cadence
 
+- ⏳ Pipeline PR #4 (2026-02-27): Driving Reward Function Utilities → Pushed (commit 5b220ff)
 - ⏳ Pipeline PR #3 (2026-02-27): Multi-Seed Training & Trajectory Logging → Pushed (commit aab64b6)
 - ⚠️ PR creation failed (token permissions) - manual PR needed
 - ⏳ Pipeline PR #2 (2026-02-27): LR Warmup & Early Stopping → Pushed (commit 8d60a6a)
@@ -22,6 +23,22 @@
 - ⏳ Awaiting PR review/merge
 
 ## Recent Work
+
+### Pipeline PR #4: Driving Reward Function Utilities (2026-02-27)
+- `training/rl/driving_reward.py`: New reward function module
+  - **DrivingRewardFunction**: Modular reward with configurable components
+  - **RewardWeights**: Dataclass for multi-objective optimization weighting
+  - **RewardMetrics**: Individual reward components for logging/debugging
+  - **ScenarioRewardConfig**: Presets for highway/urban/parking/defensive scenarios
+  - **create_reward_function()**: Factory function for common scenarios
+  - Comfort metrics: jerk and lateral acceleration penalties
+  - Speed efficiency, collision, off-road penalties
+  - CLI for testing and visualization
+- Benefits: Configurable reward shaping, debugging support, predefined configs
+- Branch: `feature/daily-2026-02-27-d`
+- Commit: `5b220ff`
+- PR: https://github.com/Capri2014/AIResearch/pull/new/feature/daily-2026-02-27-d
+- Note: PR creation failed (token permissions)
 
 ### Pipeline PR #3: Multi-Seed Training & Trajectory Logging (2026-02-27)
 - `training/rl/multi_seed_train.py`: Multi-seed training runner
