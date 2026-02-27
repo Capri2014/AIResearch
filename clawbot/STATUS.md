@@ -4,6 +4,7 @@
 
 ## Daily Cadence
 
+- ⏳ Pipeline PR #6 (2026-02-26): Deterministic Policy Comparison Loader → Pushed (commit de9e186)
 - ⏳ Pipeline PR #5 (2026-02-26): Toy Kinematics Environment for RL After SFT → Pushed (commit 37f3415)
 - ⏳ Pipeline PR #4 (2026-02-26): Training Visualization Utility → Pushed (commit 803851b)
 - ⏳ Pipeline PR #3 (2026-02-26): Gradient Norm Tracking for RL Training → Pushed (commit 317f8a3)
@@ -57,6 +58,26 @@
 - Branch: `feature/daily-2026-02-26-a`
 - Commit: `7605c48`
 - PR: https://github.com/Capri2014/AIResearch/pull/new/feature/daily-2026-02-26-a
+
+### Pipeline PR #6: Deterministic Policy Comparison Loader (2026-02-26)
+- `training/rl/compare_policies.py`: Rewritten as self-contained CLI tool
+  - Deterministic evaluation on toy waypoint RL environment
+  - Compares SFT-only vs RL-refined policy on identical seeds
+  - Outputs 3-line report to stdout + metrics.json to `out/eval/<run_id>/`
+  - Follows metrics schema from `data/schema/metrics.json`
+  - Supports `--checkpoint` for loading trained RL delta heads
+  - `--smoke` mode for quick 5-episode validation
+- Benefits: Easy comparison of SFT vs RL policies, reproducible metrics
+- Example:
+  ```
+  SFT:  ADE=3.568m, FDE=2.752m, Success=30.0%
+  RL:   ADE=3.546m, FDE=2.716m, Success=20.0%
+  Delta: ADE=+0.6%, FDE=+1.3%, Success=-10.0%
+  ```
+- Branch: `feature/daily-2026-02-26-e`
+- Commit: `de9e186`
+- Pushed to: `origin/feature/daily-2026-02-26-e`
+- Note: PR creation failed (token permissions)
 
 ### Pipeline PR #5: Toy Kinematics Environment for RL After SFT (2026-02-26)
 - `training/rl/toy_kinematics_env.py`: 2D kinematics environment
