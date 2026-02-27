@@ -320,6 +320,134 @@ def compute_gae(
     return advantages
 
 
+class LearningRateWarmup:
+    """Learning rate warmup scheduler for stable training.
+    
+    Linearly increases learning rate from warmup_ratio * lr to lr
+    over warmup_episodes, then continues with constant lr.
+    """
+    
+    def __init__(
+        self,
+        optimizer: torch.optim.Optimizer,
+        warmup_episodes: int = 5,
+        warmup_ratio: float = 0.1,
+    ):
+        """
+        Args:
+            optimizer: The optimizer to schedule
+            warmup_episodes: Number of episodes for warmup
+            warmup_ratio: Starting lr = warmup_ratio * lr
+        """
+        self.optimizer = optimizer
+        self.warmup_episodes = warmup_episodes
+        self.warmup_ratio = warmup_ratio
+        
+        # Store base lr for each param group
+        self.base_lrs = [group['lr'] for group in optimizer.param_groups]
+        
+    def step(self, episode: int):
+        """Update learning rate based on current episode."""
+        if episode < self.warmup_episodes:
+            # Linear warmup: lr = base_lr * (warmup_ratio + (1 - warmup_ratio) * episode / warmup_episodes)
+            factor = self.warmup_ratio + (1 - self.warmup_ratio) * episode / self.warmup_episodes
+            for param_group, base_lr in zip(self.optimizer.param_groups, self.base_lrs):
+                param_group['lr'] = base_lr * factor
+    
+    def get_lr(self) -> float:
+        """Get current learning rate (from first param group)."""
+        return self.optimizer.param_groups[0]['lr']
+    
+    def get_status(self) -> Dict:
+        """Get warmup status."""
+        return {
+            'warmup_episodes': self.warmup_episodes,
+            'current_lr': self.get_lr(),
+            'base_lrs': self.base_lrs,
+        }
+
+
+class EarlyStopping:
+    """Early stopping handler for Monitors training metrics training.
+    
+    and stops when improvement stalls or 
+    training becomes unstable (gradient explosion).
+    """
+    
+    def __init__(
+        self,
+        patience: int = 20,
+        min_delta: float = 0.01,
+        mode: str = 'max',
+        monitor_grad_norm: bool = True,
+        grad_norm_threshold: float = 10.0,
+    ):
+        """
+        Args:
+            patience: Number of episodes to wait for improvement
+            min_delta: Minimum change to qualify as improvement
+            mode: 'max' (reward/entropy) or 'min' (loss/ADE)
+            monitor_grad_norm: If True, stop when gradient explodes
+            grad_norm_threshold: Gradient norm threshold for explosion
+        """
+        self.patience = patience
+        self.min_delta = min_delta
+        self.mode = mode
+        self.monitor_grad_norm = monitor_grad_norm
+        self.grad_norm_threshold = grad_norm_threshold
+        
+        self.best_value = float('-inf') if mode == 'max' else float('inf')
+        self.wait_count = 0
+        self.early_stop = False
+        self.stop_reason = None
+        
+    def __call__(self, episode: int, metric_value: float, grad_norm: float = 0.0) -> bool:
+        """
+        Check if training should stop.
+        
+        Args:
+            episode: Current episode number
+            metric_value: Current metric value to check
+            grad_norm: Current gradient norm
+            
+        Returns:
+            True if training should stop
+        """
+        # Check gradient explosion
+        if self.monitor_grad_norm and grad_norm > self.grad_norm_threshold:
+            self.early_stop = True
+            self.stop_reason = f'gradient_explosion (norm={grad_norm:.2f})'
+            return True
+        
+        # Check improvement
+        if self.mode == 'max':
+            improved = metric_value > self.best_value + self.min_delta
+        else:
+            improved = metric_value < self.best_value - self.min_delta
+            
+        if improved:
+            self.best_value = metric_value
+            self.wait_count = 0
+        else:
+            self.wait_count += 1
+            
+        if self.wait_count >= self.patience:
+            self.early_stop = True
+            self.stop_reason = f'no_improvement (patience={self.patience})'
+            return True
+            
+        return False
+        
+    def get_status(self) -> Dict:
+        """Get early stopping status."""
+        return {
+            'early_stop': self.early_stop,
+            'best_value': self.best_value,
+            'wait_count': self.wait_count,
+            'stop_reason': self.stop_reason,
+        }
+
+
 def train_ppo_residual_delta(
     env: WaypointRLEnv,
     agent: PPOResidualDeltaAgent,
@@ -335,11 +463,19 @@ def train_ppo_residual_delta(
     ppo_epochs: int = 4,
     batch_size: int = 32,
     save_best_entropy: bool = True,
+    early_stopping_patience: int = 0,  # 0 = disabled
+    early_stopping_metric: str = 'reward',
+    warmup_episodes: int = 0,  # 0 = disabled
+    warmup_ratio: float = 0.1,  # Starting lr = warmup_ratio * lr
 ) -> Dict:
     """Train PPO agent with residual delta learning.
     
     Args:
         save_best_entropy: If True, save checkpoint with highest entropy (most exploration)
+        early_stopping_patience: Episodes to wait for improvement (0 = disabled)
+        early_stopping_metric: Metric to monitor ('reward', 'goal_rate', 'entropy')
+        warmup_episodes: Number of episodes for LR warmup (0 = disabled)
+        warmup_ratio: Starting lr = warmup_ratio * target lr
     """
     
     episode_rewards = []
@@ -354,6 +490,28 @@ def train_ppo_residual_delta(
     # Best entropy tracking for checkpointing
     best_entropy = float('-inf')
     best_entropy_checkpoint = None
+    
+    # Early stopping setup
+    early_stopping = None
+    if early_stopping_patience > 0:
+        es_mode = 'max' if early_stopping_metric in ['reward', 'goal_rate', 'entropy'] else 'min'
+        early_stopping = EarlyStopping(
+            patience=early_stopping_patience,
+            mode=es_mode,
+            monitor_grad_norm=True,
+            grad_norm_threshold=10.0,
+        )
+        print(f"Early stopping enabled: {early_stopping_metric} (patience={early_stopping_patience})")
+    
+    # Learning rate warmup setup
+    warmup_scheduler = None
+    if warmup_episodes > 0:
+        warmup_scheduler = LearningRateWarmup(
+            optimizer=agent.optimizer,
+            warmup_episodes=warmup_episodes,
+            warmup_ratio=warmup_ratio,
+        )
+        print(f"LR warmup enabled: {warmup_episodes} episodes (ratio={warmup_ratio}, base_lr={lr})")
     
     # Storage for trajectories
     states_buffer = []
@@ -508,6 +666,29 @@ def train_ppo_residual_delta(
                 print(f"  Entropy: {avg_entropy:.4f}")
                 print(f"  Grad Norm: {avg_grad_norm:.4f}")
             print()
+            
+            # Learning rate warmup step
+            if warmup_scheduler is not None:
+                warmup_scheduler.step(episode + 1)
+                if (episode + 1) % 20 == 0:
+                    print(f"  LR (warmup): {warmup_scheduler.get_lr():.6f}")
+            
+            # Early stopping check
+            if early_stopping is not None:
+                current_grad_norm = grad_norms[-1] if grad_norms else 0.0
+                if early_stopping_metric == 'reward':
+                    metric_value = avg_reward
+                elif early_stopping_metric == 'goal_rate':
+                    metric_value = goal_rate
+                elif early_stopping_metric == 'entropy':
+                    metric_value = np.mean(entropies[-20:]) if entropies else 0.0
+                else:
+                    metric_value = 0.0
+                    
+                if early_stopping(episode + 1, metric_value, current_grad_norm):
+                    print(f"Early stopping triggered at episode {episode + 1}: {early_stopping.stop_reason}")
+                    print(f"Best {early_stopping_metric}: {early_stopping.best_value:.4f}")
+                    break
     
     return {
         'episode_rewards': episode_rewards,
@@ -518,6 +699,7 @@ def train_ppo_residual_delta(
         'kl_divs': kl_divs,
         'entropies': entropies,
         'grad_norms': grad_norms,  # Gradient norm tracking for stability
+        'warmup_status': warmup_scheduler.get_status() if warmup_scheduler else None,
     }
 
 
@@ -590,6 +772,19 @@ def main():
     parser.add_argument('--seed', type=int, default=42, help='Random seed')
     parser.add_argument('--sft-checkpoint', type=str, default=None, help='Path to SFT checkpoint (.pt)')
     parser.add_argument('--lr', type=float, default=3e-4, help='Learning rate')
+    
+    # Early stopping arguments
+    parser.add_argument('--early-stopping-patience', type=int, default=0, 
+                        help='Early stopping patience (0=disabled)')
+    parser.add_argument('--early-stopping-metric', type=str, default='reward',
+                        choices=['reward', 'goal_rate', 'entropy'],
+                        help='Metric to monitor for early stopping')
+    
+    # Learning rate warmup arguments
+    parser.add_argument('--warmup-episodes', type=int, default=0,
+                        help='Number of episodes for LR warmup (0=disabled)')
+    parser.add_argument('--warmup-ratio', type=float, default=0.1,
+                        help='Starting LR = warmup_ratio * target LR')
     args = parser.parse_args()
     
     # Set seeds
@@ -639,6 +834,10 @@ def main():
         agent=agent,
         num_episodes=args.episodes,
         max_steps=args.max_steps,
+        early_stopping_patience=args.early_stopping_patience,
+        early_stopping_metric=args.early_stopping_metric,
+        warmup_episodes=args.warmup_episodes,
+        warmup_ratio=args.warmup_ratio,
     )
     
     # Evaluate
@@ -662,6 +861,8 @@ def main():
             'max_steps': args.max_steps,
             'eval_episodes': args.eval_episodes,
             'seed': args.seed,
+            'early_stopping_patience': args.early_stopping_patience,
+            'early_stopping_metric': args.early_stopping_metric,
         },
         'evaluation': {
             'avg_reward': float(eval_metrics['avg_reward']),
@@ -672,6 +873,8 @@ def main():
         'training': {
             'final_avg_reward': float(np.mean(train_metrics['episode_rewards'][-20:])),
             'final_goal_rate': float(np.mean(train_metrics['goals_reached'][-20:])),
+            'total_episodes': len(train_metrics['episode_rewards']),
+            'early_stopping': train_metrics.get('early_stopping', None),
         }
     }
     
