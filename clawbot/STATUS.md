@@ -1,9 +1,12 @@
 # CLAWBOT Status
 
-**Last Updated:** 2026-02-26
+**Last Updated:** 2026-02-27
 
 ## Daily Cadence
 
+- ⏳ Pipeline PR #3 (2026-02-27): Multi-Seed Training & Trajectory Logging → Ready to push
+- ⏳ Pipeline PR #2 (2026-02-27): LR Warmup & Early Stopping → Pushed (commit 8d60a6a)
+- ⏳ Pipeline PR #1 (2026-02-27): [First PR of the day] → Pushed
 - ⏳ Pipeline PR #6 (2026-02-26): Deterministic Policy Comparison Loader → Pushed (commit de9e186)
 - ⏳ Pipeline PR #5 (2026-02-26): Toy Kinematics Environment for RL After SFT → Pushed (commit 37f3415)
 - ⏳ Pipeline PR #4 (2026-02-26): Training Visualization Utility → Pushed (commit 803851b)
@@ -19,7 +22,35 @@
 
 ## Recent Work
 
-### Pipeline PR #3: Training Visualization Utility (2026-02-26)
+### Pipeline PR #3: Multi-Seed Training & Trajectory Logging (2026-02-27)
+- `training/rl/multi_seed_train.py`: Multi-seed training runner
+  - Run same config with multiple seeds, aggregate metrics
+  - Compute mean/std/min/max across seeds
+  - Find robust checkpoints by mean performance
+  - Generate markdown reports with per-seed results
+  - CLI: --seeds, --episodes, --parallel, --metric
+- `training/rl/trajectory_logger.py`: Episode trajectory logging
+  - Record states, actions, rewards per timestep
+  - Compare SFT vs RL waypoints automatically
+  - Track goal reach, collisions, timeouts
+  - TrajectoryAnalyzer for post-hoc analysis
+  - Failure mode categorization
+- Benefits: Measure training variance, find robust checkpoints, debug with full trajectories
+- Branch: `feature/daily-2026-02-27-b`
+- Commit: (pending)
+- PR: https://github.com/Capri2014/AIResearch/pull/new/feature/daily-2026-02-27-b
+
+### Pipeline PR #2: LR Warmup & Early Stopping (2026-02-27)
+- `training/rl/ppo_residual_delta_train.py`: Added training stability utilities
+  - **LearningRateWarmup**: Linear LR increase from warmup_ratio * lr to lr over warmup_episodes
+  - **EarlyStopping**: Monitor metrics and stop when improvement stalls or gradient explodes
+  - CLI args: --warmup-episodes, --warmup-ratio, --early-stopping-patience, --early-stopping-metric
+- Benefits: Prevents early training instability, avoids overfitting, saves compute
+- Branch: `feature/daily-2026-02-27-b`
+- Commit: `8d60a6a`
+- PR: https://github.com/Capri2014/AIResearch/pull/new/feature/daily-2026-02-27-b
+
+### Pipeline PR #1: Training Visualization Utility (2026-02-27)
 - `training/rl/visualize_training.py`: New comprehensive visualization script
   - **Training curves**: reward, entropy, gradient norm, loss over episodes
   - **Evaluation metrics**: ADE, FDE, success rate, average return
