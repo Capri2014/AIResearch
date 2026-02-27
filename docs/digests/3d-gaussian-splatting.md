@@ -2,12 +2,12 @@
 
 **Paper:** Kerbl et al., SIGGRAPH 2023  
 **Topic:** Real-time neural rendering via explicit 3D Gaussians  
-**Last Updated:** 2026-02-26  
+**Last Updated:** 2026-02-27  
 **Category:** Neural Rendering / 3D Vision
 
 ---
 
-> **Survey PR #1 (Feb 25, 2026)** — Public anchor digest for 3D Gaussian Splatting - Daily refresh
+> **Survey PR #1 (Feb 27, 2026)** — Public anchor digest for 3D Gaussian Splatting - Daily refresh
 
 ---
 
@@ -116,7 +116,8 @@ Vanilla GS is **per-scene optimized** (train Gaussians from scratch per scene). 
 | 2024 | **Compact-3DGS** — 100x compression | Makes GS viable for mobile/web deployment |
 | 2024 | **LGM** — Fast text-to-3D (2-5 sec) | Democratizes 3D content creation |
 | 2025 | **GS-DF** — Differentiable rendering for robot learning | Closed-loop control with learned priors |
+| 2026 | **Foundation Models for 3D** — Diffusion-based GS generation | Scalable text-to-3D for world sim |
 
 ---
 
-*Public Anchor Digest — 3D Gaussian Splatting (Survey PR #1, Feb 25, 2026)*
+*Public Anchor Digest — 3D Gaussian Splatting (Survey PR #1, Feb 27, 2026)*
