@@ -21,9 +21,9 @@
 - [ ] 3.5 Run basic test in toy sim
 
 ## Phase 4: Simulation & Comparison (Week 6)
-- [ ] 4.1 Implement CARLA scenario runner
-- [ ] 4.2 Implement comparison benchmark
-- [ ] 4.3 Create visualization dashboard
+- [x] 4.1 Implement CARLA scenario runner (carla_benchmark.py)
+- [x] 4.2 Implement comparison benchmark (in carla_benchmark.py)
+- [x] 4.3 Create visualization dashboard (dashboard.py)
 - [ ] 4.4 Run full comparison and generate report
 
 ## Status
