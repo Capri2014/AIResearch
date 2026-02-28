@@ -275,7 +275,26 @@ Our implementation (`feature/contingency-planning-impl`) aligns with the **React
 
 ---
 
-## 12. Summary
+## 13. Open Source Resources
+
+### Contingency Planning
+1. **PuYuuu/dive-into-contingency-planning**
+   - C++ implementation for adaptive cruise control in pedestrian crossing
+   - Uses **Control-Tree Optimization** (ICRA 2021)
+   - Shared trunk + branching for risk-efficiency balance
+   - Link: https://github.com/PuYuuu/dive-into-contingency-planning
+
+### Control Barrier Functions (Python)
+- **pycbf** - Python CBF library (search recommended)
+- **drake** - MIT's robotics toolbox with CBF support
+- **gym-carla** - CARLA + RL (can integrate safety filters)
+
+### HJ Reachability
+- **reachability-analyzer** - UCLA ACT lab
+- **NeuralReach** - learning-based HJ approximation
+
+### Papers with Code
+- Search: "site:github.com contingency planning autonomous driving"
 
 This survey establishes contingency planning as a formal discipline with:
 1. **Rigorous mathematical foundation** (stochastic hybrid systems)
