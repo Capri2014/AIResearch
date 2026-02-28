@@ -14,11 +14,11 @@
 - [ ] 2.5 Basic test in simulation
 
 ## Phase 3: Model-Based (Week 4-5)
-- [ ] 3.1 Implement ContingencyNetwork (neural branching)
-- [ ] 3.2 Implement ControlBarrierFilter (CBF-QP)
-- [ ] 3.3 Create training loop for contingency network
-- [ ] 3.4 Integrate safety filter with planning
-- [ ] 3.5 Basic test in simulation
+- [x] 3.1 Implement ContingencyNetwork (neural branching)
+- [x] 3.2 Implement ControlBarrierFilter (CBF-QP) [part of contingency_network.py]
+- [x] 3.3 Create training loop for contingency network
+- [x] 3.4 Add toy simulation for quick testing
+- [ ] 3.5 Run basic test in toy sim
 
 ## Phase 4: Simulation & Comparison (Week 6)
 - [ ] 4.1 Implement CARLA scenario runner
