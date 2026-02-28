@@ -1,9 +1,10 @@
 # CLAWBOT Status
 
-**Last Updated:** 2026-02-27 21:33 PM
+**Last Updated:** 2026-02-28 08:30 AM
 
 ## Daily Cadence
 
+- ⏳ Pipeline PR #1 (2026-02-28): GRPO Training for Residual Delta Waypoint Learning → Pushed (commit fe417bc)
 - ⏳ Pipeline PR #6 (2026-02-27): RL Evaluation Metrics Hardening → Pushed (commit d964805)
 - ⏳ Pipeline PR #5 (2026-02-27): Gym Wrapper + Toy Training Run → Pushed (commit af0b5e8)
 - ⏳ Pipeline PR #4 (2026-02-27): Driving Reward Function Utilities → Pushed (commit 5b220ff)
@@ -25,6 +26,29 @@
 - ⏳ Awaiting PR review/merge
 
 ## Recent Work
+
+### Pipeline PR #1: GRPO Training for Residual Delta Waypoint Learning (2026-02-28)
+- `training/rl/train_grpo_delta_waypoint.py`: NEW GRPO training script (549 lines)
+  - **GRPODeltaConfig**: Configuration for SFT checkpoint loading + GRPO training
+  - **GRPODeltaTrainer**: Complete training loop with group-relative advantages
+  - Loads frozen SFT model for waypoint prediction
+  - Trains delta_head using GRPO algorithm
+  - Supports multi-scenario training via MultiScenarioEnv
+  - Integrates with existing SFT checkpoint loader
+  - Checkpoint saving and metrics logging
+- Architecture: `final_waypoints = sft_waypoints + delta_head(state)`
+- GRPO Benefits:
+  - No value function needed (simpler, more stable)
+  - Group-based advantage estimation for related scenarios
+  - Sample multiple actions per state for better exploration
+- Usage:
+  ```
+  python train_grpo_delta_waypoint.py --sft-checkpoint path/to/sft_model.pt --episodes 500
+  python train_grpo_delta_waypoint.py --smoke --episodes 50
+  ```
+- Branch: `feature/daily-2026-02-28-a`
+- Commit: `fe417bc`
+- PR: https://github.com/Capri2014/AIResearch/pull/new/feature/daily-2026-02-28-a
 
 ### Pipeline PR #6: RL Evaluation Metrics Hardening (2026-02-27)
 - `training/rl/eval_waypoint_rl.py`: Fixed evaluation metrics output
@@ -255,12 +279,12 @@
 - WaypointBCModelWrapper for checkpoint loading
 
 ## Next (top 3)
-1. Run training with generated visualization curves
-2. Compare multi-seed runs using new visualization tool
-3. Use HTML reports for sharing results
+1. Run GRPO training with new train_grpo_delta_waypoint.py
+2. Compare GRPO vs PPO on toy waypoint environment
+3. Multi-scenario CARLA evaluation with GRPO policy
 
 ## Blockers / questions for owner
-- PR reviews pending for #9, #8, #5
+- PR creation may fail (token permissions) - manual PR may be needed
 
 ## Architecture Reference
 
