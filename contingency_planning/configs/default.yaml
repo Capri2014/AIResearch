@@ -1,0 +1,90 @@
+# Contingency Planning Configuration
+
+# === Tree-Based Planning ===
+tree:
+  # Tree structure
+  max_depth: 4
+  n_branches: 6
+  steps_per_phase: 4  # Phases before observation point
+  
+  # Dynamics
+  dt: 0.1  # Time step (s)
+  horizon: 20  # Planning horizon (steps)
+  
+  # Optimization
+  solver_type: "osqp"
+  qp_iterations: 100
+  
+  # Costs
+  q_weight: 1.0    # State cost weight
+  r_weight: 0.1    # Control cost weight
+  terminal_weight: 2.0
+  
+  # Safety
+  safety_margin: 2.0  # meters
+  min_distance: 3.0   # meters
+
+
+# === Model-Based Planning ===
+model:
+  # Network architecture
+  state_dim: 256
+  hidden_dim: 512
+  action_dim: 2  # [acceleration, steering]
+  horizon: 20
+  n_contingencies: 4
+  
+  # Training
+  batch_size: 64
+  lr: 0.0001
+  epochs: 100
+  lambda_plan: 1.0
+  lambda_uncertainty: 0.5
+  lambda_safety: 1.0
+  
+  # Pretrained waypoint model
+  waypoint_model_path: "training/models/waypoint_bc.pt"
+  freeze_waypoint: true
+
+
+# === Safety Filter (CBF) ===
+safety_filter:
+  enable: true
+  safety_margin: 1.5  # meters
+  barrier_gain: 2.0   # Class-K function parameter
+  qp_solver: "osqp"
+
+
+# === Simulation ===
+simulation:
+  host: "localhost"
+  port: 2000
+  map: "Town04"
+  fps: 20
+  
+  # Scenario parameters
+  max_episode_length: 300  # seconds
+  spawn_distance: 50       # meters ahead of ego
+  
+  # Metrics
+  save_trajectories: true
+  save_dir: "out/contingency_planning"
+
+
+# === Scenarios ===
+scenarios:
+  - name: "pedestrian_crossing"
+    n_episodes: 100
+    random_seed: 42
+    
+  - name: "highway_cut_in"
+    n_episodes: 100
+    random_seed: 42
+    
+  - name: "occluded_intersection"
+    n_episodes: 50
+    random_seed: 42
+    
+  - name: "sensor_degradation"
+    n_episodes: 50
+    random_seed: 42
