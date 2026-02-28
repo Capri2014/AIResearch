@@ -275,6 +275,65 @@ Our implementation (`feature/contingency-planning-impl`) aligns with the **React
 
 ---
 
+## 13. Open Source Implementations
+
+### 1. Control-Tree Optimization (Primary Reference)
+
+**Paper:** Phiquepal & Toussaint, "Control-Tree Optimization: an approach to MPC under discrete Partial Observability", ICRA 2021
+- **arXiv:** https://arxiv.org/abs/2302.00116
+- **Original Code:** https://github.com/ControlTrees/icra2021
+- **Application Code:** https://github.com/PuYuuu/dive-into-contingency-planning
+
+**Key Concepts:**
+- **Control-Tree**: Tree structure where each branch assumes a different discrete state hypothesis
+- **Shared Trunk**: Common trajectory prefix until uncertainty resolves
+- **Delayed Decision**: Branching point when discrete variables become observable
+- **Belief-Aware**: Optimizes using probability distribution over discrete states
+
+**Algorithm:**
+```
+1. Construct tree: root → shared trunk → branching at observation points
+2. Each branch: assumes specific hypothesis (e.g., "pedestrian crosses" vs "yields")
+3. Optimize: QP solver (OSQP) for each branch in parallel
+4. Execute: Follow shared trunk until observation resolves, then commit to branch
+```
+
+**Key Features:**
+- Guarantees constraint satisfaction for ALL hypotheses
+- Balances risk (optimizes for likely states) vs robustness (safe for unlikely)
+- Parallel optimization for scalability
+- Applied to: adaptive cruise control, pedestrian crossing, obstacle avoidance
+
+**Configuration (from dive-into-contingency-planning):**
+```yaml
+planning:
+  steps_per_phase: 4    # Phases before observation
+  n_branches: 6         # Number of contingencies
+  desired_speed: 13.89  # 50 km/h
+  u_max: 2.0            # Max acceleration
+  u_min: -6.0           # Min acceleration (braking)
+  solver_type: "osqp"    # QP solver
+```
+
+### 2. Other Related Resources
+
+| Resource | Type | Description |
+|----------|------|-------------|
+| ControlTrees/solver | Standalone | ROS-free solver (fewer dependencies) |
+| pycbf | Python | Control Barrier Functions library |
+| drake | C++ | MIT robotics toolbox with CBF/JBJ reachability |
+| reachability-analyzer | Python | UCLA ACT lab HJ reachability |
+
+### 3. How Control-Tree Relates to Paper Framework
+
+| Control-Tree Concept | Paper Paradigm | Description |
+|---------------------|----------------|-------------|
+| Branch over hypotheses | Proactive | Anticipates multiple futures |
+| Shared trunk | Common nominal | Reduces conservatism |
+| Delayed decision | Deferred optimization | Wait until observation |
+| Belief-weighted cost | Risk-constrained | Optimize for likely states |
+
+This is exactly the **Proactive** paradigm from the Zheng et al. survey!
 ## 12. Summary
 
 This survey establishes contingency planning as a formal discipline with:
