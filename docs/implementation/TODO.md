@@ -10,8 +10,11 @@
 - [x] 2.1 Implement TreeNode and ControlTree data structures
 - [x] 2.2 Implement TreeQPOptimizer (OSQP integration)
 - [x] 2.3 Implement BeliefTracker for discrete uncertainties
-- [ ] 2.4 Integrate with existing waypoint model
-- [ ] 2.5 Basic test in simulation
+- [x] 2.4 Extended Belief Tracker (EKF, TTC computation) ← NEW
+- [x] 2.5 Fast QP Optimizer (warm start, sparse) ← NEW
+- [x] 2.6 Real-Time Async Planner ← NEW
+- [ ] 2.7 Integrate with existing waypoint model
+- [ ] 2.8 Basic test in simulation
 
 ## Phase 3: Model-Based (Week 4-5)
 - [x] 3.1 Implement ContingencyNetwork (neural branching)
