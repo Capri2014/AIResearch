@@ -65,9 +65,9 @@ def convert_to_native(obj):
         return {k: convert_to_native(v) for k, v in obj.items()}
     elif isinstance(obj, list):
         return [convert_to_native(item) for item in obj]
-    elif isinstance(obj, (np.integer,)):
+    elif isinstance(obj, (np.integer, np.int8, np.int16, np.int32, np.int64)):
         return int(obj)
-    elif isinstance(obj, (np.floating,)):
+    elif isinstance(obj, (np.floating, np.float16, np.float32, np.float64)):
         return float(obj)
     elif isinstance(obj, np.ndarray):
         return obj.tolist()
@@ -251,7 +251,8 @@ def run_evaluation(
     agent,
     num_episodes: int = 20,
     seed_base: int = 42,
-    output_dir: str = 'out/eval'
+    output_dir: str = 'out/eval',
+    checkpoint_path: str = None
 ) -> Dict[str, Any]:
     """
     Run full evaluation comparing SFT vs RL policies.
@@ -317,22 +318,30 @@ def run_evaluation(
     print(f"FDE improvement: {fde_improvement:+.2f}%")
     print(f"Success rate diff: {success_diff:+.2%}")
     
-    # Build output metrics in standard schema format
-    # Transform to match data/schema/metrics.json format
+    # Build output metrics in STRICT schema format matching data/schema/metrics.json
+    # The schema expects summary with flat ade_mean, ade_std, fde_mean, etc.
+    # For comparison runs, we output the RL policy metrics as primary and include SFT in comparison
     metrics = {
         'run_id': run_id,
         'timestamp': datetime.now().isoformat(),
         'domain': 'rl',
         'git': get_git_info(),
+        'policy': {
+            'name': 'rl_refined',
+            'type': 'hybrid',
+            'checkpoint': checkpoint_path
+        },
+        # Scenarios: combine both policy runs with clear policy_type label
         'scenarios': [
             {
-                'scenario_id': f'eval_seed_{seed}',
+                'scenario_id': f'sft_seed_{seed}',
                 'success': e['success'],
                 'ade': e['ade'],
                 'fde': e['fde'],
                 'return': e['return'],
                 'steps': e['steps'],
-                'final_dist': e['final_dist']
+                'final_dist': e['final_dist'],
+                'policy_type': 'sft'
             }
             for seed, e in zip(seeds, sft_episodes)
         ] + [
@@ -343,12 +352,24 @@ def run_evaluation(
                 'fde': e['fde'],
                 'return': e['return'],
                 'steps': e['steps'],
-                'final_dist': e['final_dist']
+                'final_dist': e['final_dist'],
+                'policy_type': 'rl'
             }
             for seed, e in zip(seeds, rl_episodes)
         ],
+        # Summary follows schema exactly: ade_mean, ade_std, fde_mean, etc.
         'summary': {
-            'sft': {
+            'ade_mean': rl_stats['ade']['mean'],
+            'ade_std': rl_stats['ade']['std'],
+            'fde_mean': rl_stats['fde']['mean'],
+            'fde_std': rl_stats['fde']['std'],
+            'success_rate': rl_stats['success_rate'],
+            'return_mean': rl_stats['return']['mean'],
+            'return_std': rl_stats['return']['std'],
+            'steps_mean': rl_stats['steps_mean'],
+            'num_episodes': num_episodes,
+            # Include SFT stats as additional metadata for comparison
+            '_sft_baseline': {
                 'ade_mean': sft_stats['ade']['mean'],
                 'ade_std': sft_stats['ade']['std'],
                 'fde_mean': sft_stats['fde']['mean'],
@@ -356,37 +377,36 @@ def run_evaluation(
                 'success_rate': sft_stats['success_rate'],
                 'return_mean': sft_stats['return']['mean'],
                 'return_std': sft_stats['return']['std'],
-                'steps_mean': sft_stats['steps_mean'],
-            },
-            'rl': {
-                'ade_mean': rl_stats['ade']['mean'],
-                'ade_std': rl_stats['ade']['std'],
-                'fde_mean': rl_stats['fde']['mean'],
-                'fde_std': rl_stats['fde']['std'],
-                'success_rate': rl_stats['success_rate'],
-                'return_mean': rl_stats['return']['mean'],
-                'return_std': rl_stats['return']['std'],
-                'steps_mean': rl_stats['steps_mean'],
-            },
-            'num_episodes': num_episodes
-        },
-        'policy': {
-            'name': 'sft_vs_rl_comparison',
-            'type': 'hybrid'
+            }
         },
         'comparison': {
             'baseline_policy': 'sft',
-            'target_policy': 'rl',
+            'target_policy': 'rl_refined',
             'ade_improvement_pct': comparison['ade_improvement_pct'],
             'fde_improvement_pct': comparison['fde_improvement_pct'],
             'success_rate_diff': comparison['success_rate_diff']
         }
     }
     
-    # Save metrics
+    # Save metrics - convert to native types first
+    metrics_native = convert_to_native(metrics)
     metrics_path = os.path.join(out_path, 'metrics.json')
     with open(metrics_path, 'w') as f:
-        json.dump(convert_to_native(metrics), f, indent=2)
+        json.dump(metrics_native, f, indent=2)
+    
+    # Validate against schema
+    try:
+        from validate_metrics import validate_metrics as vm, load_schema
+        schema = load_schema('data/schema/metrics.json')
+        is_valid, errors = vm(metrics_native, schema)
+        if is_valid:
+            print(f"✅ Schema validation passed")
+        else:
+            print(f"⚠️ Schema validation warnings:")
+            for err in errors[:5]:
+                print(f"  - {err}")
+    except Exception as e:
+        print(f"(Schema validation skipped: {e})")
     
     print(f"\nMetrics saved to: {metrics_path}")
     
@@ -433,7 +453,8 @@ def main():
         agent=agent,
         num_episodes=args.num_episodes,
         seed_base=args.seed_base,
-        output_dir=args.output_dir
+        output_dir=args.output_dir,
+        checkpoint_path=args.checkpoint
     )
     
     print(f"\nEvaluation complete. Results in: {out_path}")
