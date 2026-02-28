@@ -45,16 +45,11 @@ It is intentionally not exhaustive.
   - Based on arXiv 2601.14880 (Zheng et al., 2026)
   - Key insights: Reactive vs Proactive paradigms, internal vs external contingencies
   - Core finding: Internal faults → Reactive; External interactions → Proactive
+  - Recommendation: Hybrid architecture (learning + classical safety filters)
 
-- **Implementation:** Fallback waypoint prediction + behavior tree (PR pushed)
+- **Status:** Survey ready for review
   - Branch: `feature/contingency-planning-impl`
-  - Files: `training/models/planning/contingency_planner.py`, `failure_detector.py`
-  - Current coverage: Reactive paradigm (partial)
-  - Next steps:
-    - [ ] Add MRC (Minimal Risk Condition) fail-safe
-    - [ ] Implement branching MPC for proactive planning
-    - [ ] Integrate HJ reachability for invariant sets
-    - [ ] Hybrid architecture (proactive guidance + reactive filter)
+  - Implementation: TBD based on review
 
 ## Quick Wins (High Impact, Low Effort)
 
