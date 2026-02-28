@@ -334,6 +334,7 @@ planning:
 | Belief-weighted cost | Risk-constrained | Optimize for likely states |
 
 This is exactly the **Proactive** paradigm from the Zheng et al. survey!
+## 12. Summary
 
 This survey establishes contingency planning as a formal discipline with:
 1. **Rigorous mathematical foundation** (stochastic hybrid systems)
