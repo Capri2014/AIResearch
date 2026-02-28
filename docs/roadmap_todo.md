@@ -34,11 +34,22 @@ It is intentionally not exhaustive.
     - residual RL (policy = BC + delta)
     - safe RL / constraint-based RL relevant to long-tail safety
   - Questions to answer in a digest:
-    - What is the best "minimal" RL setup that consistently improves over BC in practice?
+    - What is the "minimal" RL setup that consistently improves over BC in practice?
     - What reward shaping / proxy metrics are used when real-world rewards are sparse?
     - What evaluation protocols are standard (closed-loop metrics, regressions, safety counters)?
     - Which open repos are most reusable for our waypoint-policy + sim-eval stack?
   - Deliverable: one digest under `docs/digests/` with citations + action items.
+
+### Contingency Planning (2026-02-27)
+- **Formal Survey:** `docs/surveys/2026-02-27-contingency-planning-arxiv.md`
+  - Based on arXiv 2601.14880 (Zheng et al., 2026)
+  - Key insights: Reactive vs Proactive paradigms, internal vs external contingencies
+  - Core finding: Internal faults → Reactive; External interactions → Proactive
+  - Recommendation: Hybrid architecture (learning + classical safety filters)
+
+- **Status:** Survey ready for review
+  - Branch: `feature/contingency-planning-impl`
+  - Implementation: TBD based on review
 
 ## Quick Wins (High Impact, Low Effort)
 
