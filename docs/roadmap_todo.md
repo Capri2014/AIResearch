@@ -34,11 +34,25 @@ It is intentionally not exhaustive.
     - residual RL (policy = BC + delta)
     - safe RL / constraint-based RL relevant to long-tail safety
   - Questions to answer in a digest:
-    - What is the best "minimal" RL setup that consistently improves over BC in practice?
+    - What is the "minimal" RL setup that consistently improves over BC in practice?
     - What reward shaping / proxy metrics are used when real-world rewards are sparse?
     - What evaluation protocols are standard (closed-loop metrics, regressions, safety counters)?
     - Which open repos are most reusable for our waypoint-policy + sim-eval stack?
   - Deliverable: one digest under `docs/digests/` with citations + action items.
+
+### Contingency Planning (2026-02-27)
+- **Implementation: Fallback waypoint prediction + behavior tree**
+  - PR: `feature/contingency-planning-impl` (just pushed)
+  - Files: `training/models/planning/contingency_planner.py`, `failure_detector.py`
+  - Features:
+    - ContingencyNetwork: predict multiple fallback trajectories
+    - BehaviorTree: emergency → conservative → normal fallback chain
+    - GracefulDegradationController: handle sensor failures
+    - FailureDetector: multi-modal failure detection
+  - Next steps:
+    - [ ] Integrate with waypoint BC model
+    - [ ] Test in CARLA with failure scenarios
+    - [ ] Add edge case evaluation dataset
 
 ## Quick Wins (High Impact, Low Effort)
 
