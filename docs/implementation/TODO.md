@@ -10,21 +10,21 @@
 - [x] 2.1 Implement TreeNode and ControlTree data structures
 - [x] 2.2 Implement TreeQPOptimizer (OSQP integration)
 - [x] 2.3 Implement BeliefTracker for discrete uncertainties
-- [ ] 2.4 Integrate with existing waypoint model
-- [ ] 2.5 Basic test in simulation
+- [x] 2.4 Extended Belief Tracker (EKF, TTC computation) ← NEW
+- [x] 2.5 Fast QP Optimizer (warm start, sparse) ← NEW
+- [x] 2.6 Real-Time Async Planner ← NEW
+- [ ] 2.7 Integrate with existing waypoint model
+- [ ] 2.8 Basic test in simulation
 
 ## Phase 3: Model-Based (Week 4-5)
 - [x] 3.1 Implement ContingencyNetwork (neural branching)
 - [x] 3.2 Implement ControlBarrierFilter (CBF-QP) [part of contingency_network.py]
 - [x] 3.3 Create training loop for contingency network
 - [x] 3.4 Add toy simulation for quick testing
-- [ ] 3.5 Run basic test in toy sim
+- [x] 3.5 Run basic test in toy sim
 
 ## Phase 4: Simulation & Comparison (Week 6)
 - [x] 4.1 Implement CARLA scenario runner (carla_benchmark.py)
 - [x] 4.2 Implement comparison benchmark (in carla_benchmark.py)
 - [x] 4.3 Create visualization dashboard (dashboard.py)
 - [ ] 4.4 Run full comparison and generate report
-
-## Status
-Current: Phase 1 - Environment Setup
