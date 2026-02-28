@@ -4,6 +4,7 @@
 
 ## Daily Cadence
 
+- ⏳ Pipeline PR #2 (2026-02-28): GRPO vs PPO Comparison Utility → Pushed (commit 17c6e88)
 - ⏳ Pipeline PR #1 (2026-02-28): GRPO Training for Residual Delta Waypoint Learning → Pushed (commit fe417bc)
 - ⏳ Pipeline PR #6 (2026-02-27): RL Evaluation Metrics Hardening → Pushed (commit d964805)
 - ⏳ Pipeline PR #5 (2026-02-27): Gym Wrapper + Toy Training Run → Pushed (commit af0b5e8)
@@ -26,6 +27,19 @@
 - ⏳ Awaiting PR review/merge
 
 ## Recent Work
+
+### Pipeline PR #2: GRPO vs PPO Comparison Utility (2026-02-28)
+- `training/rl/compare_grpo_ppo.py`: NEW comparison utility (522 lines)
+  - **TrainingResult**: Dataclass for training metrics
+  - **run_ppo_training()**: PPO with policy + value networks
+  - **run_grpo_training()**: GRPO with group-relative advantages
+  - Multi-seed comparison for robust metrics
+  - Outputs JSON with reward, goal rate, training time
+- Usage: `python compare_grpo_ppo.py --episodes 200 --seeds 3`
+- Output: `out/compare_grpo_ppo/metrics.json`
+- Branch: `feature/daily-2026-02-28-b`
+- Commit: `17c6e88`
+- PR: https://github.com/Capri2014/AIResearch/pull/new/feature/daily-2026-02-28-b
 
 ### Pipeline PR #1: GRPO Training for Residual Delta Waypoint Learning (2026-02-28)
 - `training/rl/train_grpo_delta_waypoint.py`: NEW GRPO training script (549 lines)
