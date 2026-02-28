@@ -1,9 +1,11 @@
 # CLAWBOT Status
 
-**Last Updated:** 2026-02-27
+**Last Updated:** 2026-02-27 21:33 PM
 
 ## Daily Cadence
 
+- ⏳ Pipeline PR #6 (2026-02-27): RL Evaluation Metrics Hardening → Pushed (commit d964805)
+- ⏳ Pipeline PR #5 (2026-02-27): Gym Wrapper + Toy Training Run → Pushed (commit af0b5e8)
 - ⏳ Pipeline PR #4 (2026-02-27): Driving Reward Function Utilities → Pushed (commit 5b220ff)
 - ⏳ Pipeline PR #3 (2026-02-27): Multi-Seed Training & Trajectory Logging → Pushed (commit aab64b6)
 - ⚠️ PR creation failed (token permissions) - manual PR needed
@@ -24,6 +26,22 @@
 
 ## Recent Work
 
+### Pipeline PR #6: RL Evaluation Metrics Hardening (2026-02-27)
+- `training/rl/eval_waypoint_rl.py`: Fixed evaluation metrics output
+  - Output now strictly conforms to `data/schema/metrics.json` format
+  - Summary has flat structure with `ade_mean`, `ade_std`, `fde_mean`, etc. at top level
+  - Added `checkpoint_path` param to track which checkpoint was evaluated
+  - Added schema validation check after each evaluation run
+  - Fixed numpy float32 -> Python float for JSON serialization
+  - Added `policy_type` field to scenarios for SFT vs RL differentiation
+- Usage: `python training/rl/eval_waypoint_rl.py --smoke --horizon 10`
+- 3-line report shows SFT vs RL comparison with ADE/FDE/Success
+- Output: `out/eval/<run_id>/metrics.json` (schema-valid)
+- Branch: `feature/daily-2026-02-27-e`
+- Commit: `d964805`
+- PR: https://github.com/Capri2014/AIResearch/pull/new/feature/daily-2026-02-27-e
+- Note: PR creation failed (token permissions)
+
 ### Pipeline PR #4: Driving Reward Function Utilities (2026-02-27)
 - `training/rl/driving_reward.py`: New reward function module
   - **DrivingRewardFunction**: Modular reward with configurable components
@@ -39,6 +57,21 @@
 - Commit: `5b220ff`
 - PR: https://github.com/Capri2014/AIResearch/pull/new/feature/daily-2026-02-27-d
 - Note: PR creation failed (token permissions)
+
+### Pipeline PR #5: Gym Wrapper + Toy Training Run (2026-02-27)
+- `training/rl/toy_kinematics_gym.py`: NEW Gymnasium wrapper
+  - ToyKinematicsEnvGym: Gymnasium-compatible wrapper
+  - Standard interface: reset(), step(), observation_space, action_space
+  - Registered as 'ToyKinematics-v0' for gym.make() compatibility
+- Completed toy delta waypoint training:
+  - Run ID: run_20260227_193213, 50 episodes, horizon=20
+  - Final avg reward: 21.24, goal rate: 70%
+  - Artifacts: checkpoint.pt, train_metrics.json, metrics.json
+- Complete RL-After-SFT slice: toy env + PPO training + gym wrapper
+- Architecture: final_waypoints = sft_waypoints + delta_head(state)
+- Branch: feature/daily-2026-02-27-e
+- Commit: af0b5e8
+- PR: https://github.com/Capri2014/AIResearch/pull/new/feature/daily-2026-02-27-e
 
 ### Pipeline PR #3: Multi-Seed Training & Trajectory Logging (2026-02-27)
 - `training/rl/multi_seed_train.py`: Multi-seed training runner
