@@ -1,0 +1,11 @@
+# Contingency Planning Requirements
+carla>=0.9.14
+numpy>=1.21
+torch>=2.0
+pyyaml
+osqp
+scipy
+matplotlib
+plotly
+pandas
+scikit-learn
