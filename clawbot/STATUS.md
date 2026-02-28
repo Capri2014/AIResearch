@@ -4,6 +4,7 @@
 
 ## Daily Cadence
 
+- ⏳ Pipeline PR #3 (2026-02-28): Waypoint BC Model + SFT vs RL Evaluation → Pushed (commit 97d26f9)
 - ⏳ Pipeline PR #2 (2026-02-28): GRPO vs PPO Comparison Utility → Pushed (commit 17c6e88)
 - ⏳ Pipeline PR #1 (2026-02-28): GRPO Training for Residual Delta Waypoint Learning → Pushed (commit fe417bc)
 - ⏳ Pipeline PR #6 (2026-02-27): RL Evaluation Metrics Hardening → Pushed (commit d964805)
@@ -43,26 +44,21 @@
 
 ### Pipeline PR #1: GRPO Training for Residual Delta Waypoint Learning (2026-02-28)
 - `training/rl/train_grpo_delta_waypoint.py`: NEW GRPO training script (549 lines)
-  - **GRPODeltaConfig**: Configuration for SFT checkpoint loading + GRPO training
-  - **GRPODeltaTrainer**: Complete training loop with group-relative advantages
-  - Loads frozen SFT model for waypoint prediction
-  - Trains delta_head using GRPO algorithm
-  - Supports multi-scenario training via MultiScenarioEnv
-  - Integrates with existing SFT checkpoint loader
-  - Checkpoint saving and metrics logging
 - Architecture: `final_waypoints = sft_waypoints + delta_head(state)`
-- GRPO Benefits:
-  - No value function needed (simpler, more stable)
-  - Group-based advantage estimation for related scenarios
-  - Sample multiple actions per state for better exploration
-- Usage:
-  ```
-  python train_grpo_delta_waypoint.py --sft-checkpoint path/to/sft_model.pt --episodes 500
-  python train_grpo_delta_waypoint.py --smoke --episodes 50
-  ```
 - Branch: `feature/daily-2026-02-28-a`
 - Commit: `fe417bc`
-- PR: https://github.com/Capri2014/AIResearch/pull/new/feature/daily-2026-02-28-a
+
+### Pipeline PR #3: Waypoint BC Model + SFT vs RL Evaluation (2026-02-28)
+- `training/rl/waypoint_bc_model.py`: NEW neural network waypoint predictor (450 lines)
+  - WaypointBCModel: Encoder-decoder for waypoint prediction
+  - ResidualDeltaHead: RL refinement head for delta corrections
+  - WaypointBCWithResidual: Combined SFT + RL model
+- `training/rl/eval_sft_vs_rl_waypoints.py`: NEW evaluation script (440 lines)
+  - ADE/FDE metrics for SFT vs RL comparison
+  - Smoke test: 8.6% ADE improvement, 5.9% FDE improvement
+- Branch: `feature/daily-2026-02-28-c`
+- Commit: `97d26f9`
+- PR: https://github.com/Capri2014/AIResearch/pull/new/feature/daily-2026-02-28-c
 
 ### Pipeline PR #6: RL Evaluation Metrics Hardening (2026-02-27)
 - `training/rl/eval_waypoint_rl.py`: Fixed evaluation metrics output
