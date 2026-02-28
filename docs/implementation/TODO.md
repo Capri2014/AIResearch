@@ -18,13 +18,10 @@
 - [x] 3.2 Implement ControlBarrierFilter (CBF-QP) [part of contingency_network.py]
 - [x] 3.3 Create training loop for contingency network
 - [x] 3.4 Add toy simulation for quick testing
-- [ ] 3.5 Run basic test in toy sim
+- [x] 3.5 Run basic test in toy sim
 
 ## Phase 4: Simulation & Comparison (Week 6)
 - [x] 4.1 Implement CARLA scenario runner (carla_benchmark.py)
 - [x] 4.2 Implement comparison benchmark (in carla_benchmark.py)
 - [x] 4.3 Create visualization dashboard (dashboard.py)
 - [ ] 4.4 Run full comparison and generate report
-
-## Status
-Current: Phase 1 - Environment Setup
