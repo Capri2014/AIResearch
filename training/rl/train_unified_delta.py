@@ -25,6 +25,13 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
+# Import LoRA utilities
+try:
+    from lora_utils import LoRALinear, LoRADeltaHead, count_lora_parameters
+    LORA_AVAILABLE = True
+except ImportError:
+    LORA_AVAILABLE = False
+
 
 @dataclass
 class UnifiedDeltaConfig:
@@ -48,6 +55,11 @@ class UnifiedDeltaConfig:
     delta_scale: float = 1.0
     log_interval: int = 20
     save_interval: int = 50
+    # LoRA configuration for efficient delta head training
+    use_lora: bool = False
+    lora_rank: int = 8
+    lora_alpha: int = 16
+    lora_dropout: float = 0.1
     output_dir: str = "out/unified_delta"
     seed: int = 42
 
@@ -127,21 +139,38 @@ class ToyKinematicsEnv:
 
 
 class DeltaNetwork(nn.Module):
-    """Network for delta waypoint prediction."""
+    """Network for delta waypoint prediction with optional LoRA adaptation."""
     
     def __init__(self, config: UnifiedDeltaConfig):
         super().__init__()
+        self.config = config
+        self.use_lora = config.use_lora and LORA_AVAILABLE
+        
         self.encoder = nn.Sequential(
             nn.Linear(config.state_dim, config.hidden_dim),
             nn.Tanh(),
             nn.Linear(config.hidden_dim, config.hidden_dim),
             nn.Tanh()
         )
-        self.delta_head = nn.Linear(config.hidden_dim, config.n_waypoints * config.waypoint_dim)
-        self.value_head = nn.Linear(config.hidden_dim, 1)
         
-        nn.init.normal_(self.delta_head.weight, std=0.1)
-        nn.init.zeros_(self.delta_head.bias)
+        output_dim = config.n_waypoints * config.waypoint_dim
+        
+        if self.use_lora:
+            # Use LoRA-adapted delta head for efficient fine-tuning
+            self.delta_head = LoRALinear(
+                config.hidden_dim,
+                output_dim,
+                rank=config.lora_rank,
+                alpha=config.lora_alpha,
+                dropout=config.lora_dropout,
+                freeze_original=True
+            )
+        else:
+            self.delta_head = nn.Linear(config.hidden_dim, output_dim)
+            nn.init.normal_(self.delta_head.weight, std=0.1)
+            nn.init.zeros_(self.delta_head.bias)
+        
+        self.value_head = nn.Linear(config.hidden_dim, 1)
     
     def forward(self, x: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
         z = self.encoder(x)
@@ -150,6 +179,20 @@ class DeltaNetwork(nn.Module):
     def get_delta(self, x: torch.Tensor) -> torch.Tensor:
         z = self.encoder(x)
         return self.delta_head(z)
+    
+    def get_parameter_info(self):
+        """Get information about parameters (LoRA vs standard)."""
+        if self.use_lora:
+            return count_lora_parameters(self)
+        else:
+            total = sum(p.numel() for p in self.parameters())
+            trainable = sum(p.numel() for p in self.parameters() if p.requires_grad)
+            return {
+                'total_params': total,
+                'trainable_params': trainable,
+                'lora_params': 0,
+                'lora_ratio': 0.0
+            }
 
 
 class UnifiedLearner:
@@ -383,6 +426,11 @@ def main():
     parser.add_argument("--output-dir", type=str, default="out/unified_delta")
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--smoke", action="store_true")
+    # LoRA options
+    parser.add_argument("--use-lora", action="store_true", help="Use LoRA for delta head")
+    parser.add_argument("--lora-rank", type=int, default=8, help="LoRA rank (r)")
+    parser.add_argument("--lora-alpha", type=int, default=16, help="LoRA scaling factor")
+    parser.add_argument("--lora-dropout", type=float, default=0.1, help="LoRA dropout")
     
     args = parser.parse_args()
     
@@ -399,7 +447,11 @@ def main():
         lr=args.lr,
         gamma=args.gamma,
         output_dir=args.output_dir,
-        seed=args.seed
+        seed=args.seed,
+        use_lora=args.use_lora,
+        lora_rank=args.lora_rank,
+        lora_alpha=args.lora_alpha,
+        lora_dropout=args.lora_dropout
     )
     
     train_unified_delta(config)
