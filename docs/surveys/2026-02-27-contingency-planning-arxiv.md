@@ -343,3 +343,205 @@ This survey establishes contingency planning as a formal discipline with:
 4. **Identified gaps** (semantic/OOD verification, hybrid architectures)
 
 The field is moving toward **hybrid architectures** that combine reactive safety filters with proactive planning — exactly what our implementation should evolve toward.
+
+---
+
+## 13. Iterative Planner Comparison (2026-03-01 Update)
+
+### Comprehensive Comparison Table
+
+| Approach | What the "Tree" Expands | Strengths | Weaknesses / Failure Modes | Best Fit Scenarios | Typical Stack Pattern |
+|----------|-------------------------|-----------|---------------------------|-------------------|----------------------|
+| **Lattice DP / Graph Search** | Discrete trajectory samples in s-l-t (or x-y-t) | Very reliable, deterministic, easy to debug; great pruning; strong for comfort if sampling is good | Can miss solutions if lattice is too coarse; struggles with interactive negotiation unless you add modes | Highway, structured roads, lane changes, merges with clear rules | Lattice for proposal → continuous smoother/QP |
+| **Semantic / Behavior Tree + Rollout** | High-level maneuvers (keep, change left, yield, creep, commit…) then rollout | Human-interpretable decisions; stable; low branching; easy to add "abort/creep" | Needs careful design to avoid deadlocks/hesitation; limited optimality | Urban negotiation (unprotected turns, merges), policy-heavy domains | Maneuver tree → trajectory optimizer per maneuver |
+| **MCTS (UCT / PUCT)** | Actions over time (often maneuver + control) | Anytime; can handle interaction/multi-agent uncertainty well; naturally explores alternatives | Hard to make deterministic; compute heavy; needs good priors + value estimate; can be noisy | Dense interactive scenes, merges, cut-ins, nudging, ambiguous right-of-way | MCTS over maneuvers + short-horizon controls; learned value/priors help a lot |
+| **Beam Search over Modes** | Mode sequences (lane/gap/speed profile) | Simple, fast, very "production-friendly"; good tradeoff of exploration vs stability | Can get stuck if K small or scoring biased; needs good pruning & diversity | L2++ highway + ramp merges; cases where you want "top-K" options fast | Enumerate mode sequences → optimize each → pick best |
+| **Scenario Tree / Multi-Hypothesis** | Branches on prediction hypotheses (agent intentions) | Robust to prediction uncertainty; explicit risk handling | Explosion in branches; requires strong pruning / risk aggregation | VRU-heavy urban, uncertain oncoming vehicles | Candidate trajs × prediction modes → risk aggregation |
+| **RRT / Kinodynamic Sampling** | Continuous state samples (randomized) | Great for complex geometry/off-road; finds feasible paths in clutter | Usually too random/noisy for on-road comfort; hard to guarantee smoothness | Low-speed parking, pull-over, tight maneuvers | RRT* / kinodynamic → smoothing |
+| **MPPI / CEM Sampling** | Many sampled control sequences (iterative, not a classic tree) | Works with nonlinear dynamics; good anytime; easy GPU scaling | Can be jittery; needs good cost shaping; safety constraints tricky | High-speed control-ish problems, aggressive avoidance, race-like | Sample controls → weighted average → safety filter |
+
+### Key Insights
+
+1. **Production Reality**: Lattice DP + Behavior Tree combinations dominate actual deployments
+2. **Interactive Scenes**: MCTS or Scenario Tree approaches are needed for multi-agent uncertainty
+3. **Comfort vs Capability**: RRT/MPPI are great for capability but need smoothing for comfort
+4. **Hybrid is Common**: Most production systems combine approaches (e.g., lattice for proposal → QP smooth)
+
+---
+
+## 14. Production Planner Implementation Plan (2026-03-01)
+
+### Core Loop Targets
+- **Planner rate**: 20 Hz
+- **Budget**: ≤ 50 ms wall time
+- **Output**: 1 committed trajectory + MRM/fallback + top-K debug
+
+### Suggested Parameters (Starter Configuration)
+
+#### Corridor Hypotheses
+- **N = 4** (min 2, max 6)
+  - 1 map-aligned nominal
+  - 1-2 perception-shifted (cones/barrels)
+  - 1 conservative "tight boundary + lower speed"
+- **Corridor horizon**: 120-200 m (or 8-10 s, whichever smaller)
+
+#### Candidate Count
+- **K = 128** total candidates per cycle
+- **Per corridor**: Kc = 32
+- **Modes per corridor**:
+  - lane keep / follow lead (10)
+  - lane change/merge left/right variants (10)
+  - merge-early/merge-late around taper (8)
+  - yield / abort variants (4)
+
+#### Rollout Discretization
+- **Horizon**: 6.0 s
+- **Coarse eval**: T = 60 steps (Δt = 0.1 s) for all K candidates
+- **Fine check**: top Kf = 12 candidates at Δt = 0.05 s (T = 120)
+
+#### Prediction Hypotheses
+- **Option A (Actor-wise)**: A = 16 relevant actors, Mi = 3 modes each
+- **Option B (Joint samples, recommended)**: M = 16 joint scenarios per cycle
+- **Total evaluations**: K × M × T = 128 × 16 × 60 = 122,880 state-steps
+
+#### Compute Budget Split (50 ms)
+| Stage | Time | Notes |
+|-------|------|-------|
+| CPU (corridors + candidates) | 5-10 ms | Corridor manager + candidate generator |
+| GPU coarse eval | 15-25 ms | All K candidates |
+| GPU fine check | 5-10 ms | Top Kf candidates |
+| CPU selection + arbitration | 5-10 ms | Final selection + smoothing |
+
+### Data Representation (GPU-Friendly)
+
+**Per corridor SDFs:**
+- `SDF_drivable[c]`: signed distance to corridor boundary
+- `SDF_keepout[c]`: signed distance to keepout zones
+- `SpeedLimit[c]`: piecewise along arclength
+
+**Dynamic obstacles:**
+- Time-indexed occupancy in corridor-aligned coordinates
+- 60 time slices at Δt=0.1s for 6s horizon
+
+### Module Breakdown
+
+1. **Corridor Manager** (CPU, deterministic)
+   - Generate N corridor hypotheses with confidence
+   - Temporal filtering + ID tracking + hysteresis
+   - Outputs: Corridor list + SDF handles + constraints
+
+2. **Candidate Generator** (CPU)
+   - Enumerate K candidates: (corridor_id, maneuver_mode, speed_profile, gap_policy)
+   - Warm-start from previous best
+   - Ensure diversity
+
+3. **Trajectory Synthesizer** (GPU)
+   - Convert candidate seed → trajectory states
+   - Representation: (s,l,ds,dl) in corridor frame
+
+4. **Evaluator** (GPU, workhorse)
+   - Compute per (k,m,t): boundary margin, collision, comfort, rules, risk
+   - Aggregate using CVaR(α=0.2) for robustness
+
+5. **Selector + Arbitration** (CPU)
+   - Pick best feasible candidate
+   - MRM fallback if none feasible
+   - Apply hysteresis
+
+6. **Finalizer / Smoother** (CPU/GPU)
+   - Enforce accel/jerk bounds
+   - Lateral smoothing
+
+7. **Safety Supervisor** (separate, production-critical)
+   - Independent hard violation checks
+   - Can override with brake-to-stop or MRM policy
+
+### Minimal Prototype Timeline
+
+| Week | Tasks |
+|------|-------|
+| 1-2 | Corridor manager (map + mocked shifts), K=64, CPU eval |
+| 3-4 | SDF boundaries + obstacles, top-K logging |
+| 5-8 | GPU port, N=4, K=128, M=16, CVaR risk |
+
+### Concrete Configuration Defaults
+
+```yaml
+planner:
+  rate_hz: 20
+  N_corridors: 4
+  K_candidates: 128
+  T_coarse: 60
+  dt_coarse: 0.1
+  K_fine: 12
+  T_fine: 120
+  dt_fine: 0.05
+  M_scenarios: 16
+  risk_metric: "CVaR(alpha=0.2)"
+  A_relevant_actors: 16
+
+safety:
+  hard_margins:
+    boundary: 0.3      # m
+    keepout: 0.5       # m  
+    collision_buffer: 0.0  # vehicle inflation
+```
+
+---
+
+## 15. What We've Implemented vs What's Needed
+
+### ✅ Already Implemented (This Work)
+
+| Component | Status | Location |
+|-----------|--------|----------|
+| Contingency survey | Done | `docs/surveys/2026-02-27-contingency-planning-arxiv.md` |
+| Tree-based planner (Control-Tree) | Done | `contingency_planning/planning/tree/` |
+| Model-based planner (neural) | Done | `contingency_planning/planning/models/` |
+| Simulation benchmark | Done | `contingency_planning/simulation/` |
+| Visualizations (GIFs) | Done | `out/contingency_animation/` |
+| Extended belief tracker (EKF) | Done | `contingency_planning/planning/tree/extended_belief_tracker.py` |
+| Fast QP optimizer (OSQP) | Done | `contingency_planning/planning/tree/fast_optimizer.py` |
+| Real-time async planner | Done | `contingency_planning/planning/tree/realtime_planner.py` |
+
+### ❌ Not Yet Implemented (Future Work)
+
+| Component | Priority | Notes |
+|-----------|----------|-------|
+| Lattice DP / graph search | Medium | Traditional approach, highly reliable |
+| Behavior tree + rollout | High | Good for urban negotiation |
+| MCTS for multi-agent | High | For interactive scenarios |
+| Beam search top-K | Medium | Production-friendly |
+| Full SDF/raster collision | High | GPU optimization |
+| CVaR risk aggregation | High | Better than worst-case |
+| Corridor manager | High | Multi-hypothesis corridors |
+| MRM/fallback system | Critical | Safety-critical |
+| Safety supervisor (parallel) | Critical | Independent verification |
+| Production config (K=128, etc.) | Medium | Scale from prototype |
+
+---
+
+## 16. Updated Action Items
+
+### Immediate (This Week)
+- [ ] Finalize contingency planning PR review/merge
+
+### Short-Term (This Month)
+- [ ] Implement Lattice DP baseline for comparison
+- [ ] Add Behavior Tree + Rollout approach
+- [ ] Implement corridor manager module
+- [ ] Add SDF-based collision checking
+
+### Medium-Term (This Quarter)
+- [ ] Implement MCTS for interactive scenarios
+- [ ] Add beam search top-K candidate selection
+- [ ] GPU-accelerated evaluation
+- [ ] CVaR risk aggregation
+- [ ] Full MRM/fallback system
+- [ ] Safety Supervisor module
+
+### Integration with RL Pipeline
+- [ ] Combine VLAW world model with contingency planning
+- [ ] Use world model to simulate contingency outcomes
+- [ ] Branch planning based on predicted futures
+

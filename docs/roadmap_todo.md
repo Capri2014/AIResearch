@@ -16,6 +16,10 @@ It is intentionally not exhaustive.
     - ~~**DreamZero** — end-to-end driving (PDF: https://dreamzero0.github.io/DreamZero.pdf)~~ ✅ Done: survey/2026-02-21-dreamzero.md
     - ~~**GitHub open source robotic arm projects**~~ ✅ Done: survey/2026-02-21-github-robotic-arms.md
     - ~~**Contingency Planning in Autonomous Driving** — "Why stuck at last 1%"~~ ✅ Done: survey/2026-02-21-contingency-planning.md
+    - ~~Updated 2026-03-01: Added iterative planner comparison table~~ ✅
+    - ~~Updated 2026-03-01: Added production implementation plan~~ ✅
+    - Survey: `docs/surveys/2026-02-27-contingency-planning-arxiv.md`
+  - ~~**VLAW: VLA × World Model Co-Evolution**~~ ✅ Done: survey/2026-02-28-vlaw-world-model.md
 
 ### Generative modeling: Flow Matching
 - ~~**Flow Matching / Rectified Flow / Consistency-style training**~~ ✅ Done: survey/2026-02-21-flow-matching.md
@@ -89,3 +93,71 @@ These are tasks that can be completed in 1-2 days and provide immediate value.
 3. Export AR Decoder to ONNX (deployment prep)
 4. Create nuScenes benchmark (data prep)
 5. Scenario coverage tracking (evaluation polish)
+
+---
+
+## Production Planner Implementation (2026-03-01)
+
+Based on the updated survey, here's the implementation priority:
+
+### Completed
+- [x] Contingency planning survey (arXiv 2601.14880)
+- [x] Tree-based planner (Control-Tree Optimization)
+- [x] Model-based planner (neural contingency)
+- [x] Simulation benchmark (CARLA + toy)
+- [x] Visualizations (GIFs for all scenarios)
+- [x] Extended belief tracker (EKF + TTC)
+- [x] Fast QP optimizer (OSQP warm-start)
+- [x] Real-time async planner
+
+### Phase 1: Foundation (This Month)
+- [ ] **Corridor Manager** - Multi-hypothesis corridor generation
+  - Input: Map + perception boundaries
+  - Output: N corridors (4 default) with SDF handles
+  
+- [ ] **Lattice DP Baseline** - Traditional reliable approach
+  - Graph search in Frenet frame
+  - Continuous smoother downstream
+  
+- [ ] **SDF Collision Checking** - GPU-friendly
+  - Rasterized boundary representation
+  - Time-indexed occupancy
+
+### Phase 2: Interactive Planning (This Quarter)
+- [ ] **Behavior Tree + Rollout** - Urban negotiation
+  - High-level maneuver selection
+  - Per-maneuver trajectory optimization
+  
+- [ ] **MCTS for Multi-Agent** - Handle uncertainty
+  - Learned value functions
+  - Interactive cut-ins, merges
+  
+- [ ] **Beam Search Top-K** - Production-friendly
+  - Enumerate mode sequences
+  - Pick best
+
+### Phase 3: Safety Critical (This Quarter)
+- [ ] **CVaR Risk Aggregation** - Robust to outliers
+  - α=0.2 CVaR over scenarios
+  - Switch to worst-case for low-confidence corridors
+  
+- [ ] **MRM/Fallback System** - Safety-critical
+  - Precomputed minimal risk maneuvers
+  - Brake-to-stop in corridor
+  
+- [ ] **Safety Supervisor** - Independent verification
+  - Parallel with planner
+  - Can override final output
+
+### Configuration (Ready to Use)
+```yaml
+planner:
+  rate_hz: 20
+  N_corridors: 4
+  K_candidates: 128
+  T_coarse: 60
+  dt_coarse: 0.1
+  K_fine: 12
+  M_scenarios: 16
+  risk_metric: "CVaR(alpha=0.2)"
+```
