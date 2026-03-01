@@ -16,7 +16,6 @@ It is intentionally not exhaustive.
     - ~~**DreamZero** — end-to-end driving (PDF: https://dreamzero0.github.io/DreamZero.pdf)~~ ✅ Done: survey/2026-02-21-dreamzero.md
     - ~~**GitHub open source robotic arm projects**~~ ✅ Done: survey/2026-02-21-github-robotic-arms.md
     - ~~**Contingency Planning in Autonomous Driving** — "Why stuck at last 1%"~~ ✅ Done: survey/2026-02-21-contingency-planning.md
-    - ~~**VLAW: VLA × World Model Co-Evolution**~~ ✅ Done: survey/2026-02-28-vlaw-world-model.md
 
 ### Generative modeling: Flow Matching
 - ~~**Flow Matching / Rectified Flow / Consistency-style training**~~ ✅ Done: survey/2026-02-21-flow-matching.md
