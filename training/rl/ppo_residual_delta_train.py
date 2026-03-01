@@ -27,6 +27,7 @@ from torch.distributions import Normal
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from waypoint_rl_env import WaypointRLEnv
+from lora_utils import LoRAConfig, LoRADeltaHead
 
 
 class SFTWaypointModel(nn.Module):
@@ -189,15 +190,24 @@ class PPOResidualDeltaAgent(nn.Module):
         action_std: float = 0.5,
         lr: float = 3e-4,
         sft_model: Optional[SFTWaypointModel] = None,
+        use_lora: bool = False,
+        lora_rank: int = 8,
+        lora_alpha: int = 16,
+        lora_dropout: float = 0.1,
     ):
         """
         Args:
             sft_model: Optional pre-loaded SFT model. If None, creates new one.
+            use_lora: If True, use LoRA for efficient delta head training
+            lora_rank: LoRA rank (r) for low-rank adaptation
+            lora_alpha: LoRA scaling factor
+            lora_dropout: LoRA dropout probability
         """
         super().__init__()
         self.horizon = horizon
         self.state_dim = state_dim
         self.action_dim = horizon * 2
+        self.use_lora = use_lora
         
         # SFT model (frozen) - use provided or create new
         if sft_model is not None:
@@ -211,8 +221,24 @@ class PPOResidualDeltaAgent(nn.Module):
             for param in self.sft_model.parameters():
                 param.requires_grad = False
             
-        # Delta head (trainable)
-        self.delta_head = DeltaWaypointHead(state_dim, horizon, hidden_dim)
+        # Delta head (trainable) - use LoRA or standard
+        if use_lora:
+            # Create LoRA delta head with low-rank adaptation
+            self.delta_head = LoRADeltaHead(
+                state_dim=state_dim,
+                waypoint_dim=2,  # x, y coordinates
+                n_waypoints=horizon,
+                hidden_dim=hidden_dim,
+                rank=lora_rank,
+                alpha=lora_alpha,
+                dropout=lora_dropout
+            )
+            # Count LoRA parameters
+            lora_params = sum(p.numel() for p in self.delta_head.parameters() if p.requires_grad)
+            total_params = sum(p.numel() for p in self.parameters())
+            print(f"  LoRA Delta Head: {lora_params:,} trainable / {total_params:,} total ({100*lora_params/total_params:.1f}%)")
+        else:
+            self.delta_head = DeltaWaypointHead(state_dim, horizon, hidden_dim)
         
         # Value function
         self.value_fn = ValueFunction(state_dim, hidden_dim)
@@ -785,6 +811,17 @@ def main():
                         help='Number of episodes for LR warmup (0=disabled)')
     parser.add_argument('--warmup-ratio', type=float, default=0.1,
                         help='Starting LR = warmup_ratio * target LR')
+    
+    # LoRA arguments for efficient delta head training
+    parser.add_argument('--use-lora', action='store_true',
+                        help='Use LoRA for efficient delta head training')
+    parser.add_argument('--lora-rank', type=int, default=8,
+                        help='LoRA rank (r) - higher = more parameters, more capacity')
+    parser.add_argument('--lora-alpha', type=int, default=16,
+                        help='LoRA scaling factor (alpha) - typically 2x rank')
+    parser.add_argument('--lora-dropout', type=float, default=0.1,
+                        help='LoRA dropout probability')
+    
     args = parser.parse_args()
     
     # Set seeds
@@ -818,13 +855,21 @@ def main():
             hidden_dim=args.hidden_dim
         )
     
-    # Create agent with optional loaded SFT model
+    # Create agent with optional loaded SFT model and LoRA support
+    print(f"  Use LoRA: {args.use_lora}")
+    if args.use_lora:
+        print(f"  LoRA Rank: {args.lora_rank}, Alpha: {args.lora_alpha}, Dropout: {args.lora_dropout}")
+    
     agent = PPOResidualDeltaAgent(
         state_dim=6,
         horizon=args.horizon,
         hidden_dim=args.hidden_dim,
         lr=args.lr,
         sft_model=sft_model,
+        use_lora=args.use_lora,
+        lora_rank=args.lora_rank,
+        lora_alpha=args.lora_alpha,
+        lora_dropout=args.lora_dropout,
     )
     
     # Train
