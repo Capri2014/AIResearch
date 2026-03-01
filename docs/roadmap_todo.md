@@ -17,6 +17,11 @@ It is intentionally not exhaustive.
     - ~~**GitHub open source robotic arm projects**~~ ✅ Done: survey/2026-02-21-github-robotic-arms.md
     - ~~**Contingency Planning in Autonomous Driving** — "Why stuck at last 1%"~~ ✅ Done: survey/2026-02-21-contingency-planning.md
     - ~~**VLAW: VLA × World Model Co-Evolution**~~ ✅ Done: survey/2026-02-28-vlaw-world-model.md
+    - ~~**Hyper Diffusion Planner (HDP)**~~ ✅ Done: survey/2026-03-01-hyper-diffusion-planner.md
+    - **NanoClaw** — AI-native personal assistant (https://github.com/qwibitai/nanoclaw)
+      - Survey: lightweight AI assistant with container isolation
+      - Key: Skills-based architecture, agent swarms, small codebase
+      - Compare with OpenClaw for potential adoption/inspiration
 
 ### Generative modeling: Flow Matching
 - ~~**Flow Matching / Rectified Flow / Consistency-style training**~~ ✅ Done: survey/2026-02-21-flow-matching.md
