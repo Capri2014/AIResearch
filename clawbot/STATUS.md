@@ -1,9 +1,10 @@
 # CLAWBOT Status
 
-**Last Updated:** 2026-03-01 08:30 AM
+**Last Updated:** 2026-03-01 10:30 AM
 
 ## Daily Cadence
 
+- ⏳ Pipeline PR #2 (2026-03-01): LoRA Support for PPO Residual Delta Training → Pushed (commit ff7ba74)
 - ⏳ Pipeline PR #1 (2026-03-01): LoRA Utilities for Efficient RL Delta Head Training → Pushed (commit 5804b2f) - PR creation failed (manual PR needed)
 - ⏳ Pipeline PR #4 (2026-02-28): Waypoint BC Training with Integrated Evaluation Metrics → Pushed (commit d61cafd) - PR creation failed (manual PR needed)
 - ⏳ Pipeline PR #3 (2026-02-28): Waypoint BC Model + SFT vs RL Evaluation → Pushed (commit 97d26f9)
@@ -30,6 +31,19 @@
 - ⏳ Awaiting PR review/merge
 
 ## Recent Work
+
+### Pipeline PR #2: LoRA Support for PPO Residual Delta Training (2026-03-01)
+- `training/rl/ppo_residual_delta_train.py`: Added LoRA support (48 lines)
+  - **Import**: Added `from lora_utils import LoRAConfig, LoRADeltaHead`
+  - **CLI args**: `--use-lora`, `--lora-rank`, `--lora-alpha`, `--lora-dropout`
+  - **PPOResidualDeltaAgent**: Modified to accept LoRA parameters
+  - **LoRA ratio**: ~34% trainable parameters (5,024 / 14,792)
+- Smoke tests pass: with and without LoRA enabled
+- Benefits: Efficient PPO fine-tuning, extends LoRA from unified delta to PPO
+- Architecture: final_waypoints = sft_waypoints + lora_delta_head(state)
+- Branch: `feature/daily-2026-03-01-b`
+- Commit: `ff7ba74`
+- PR: https://github.com/Capri2014/AIResearch/pull/new/feature/daily-2026-03-01-b
 
 ### Pipeline PR #1: LoRA Utilities for Efficient RL Delta Head Training (2026-03-01)
 - `training/rl/lora_utils.py`: NEW LoRA implementation (460+ lines)
@@ -311,7 +325,7 @@
 
 ## Next (top 3)
 1. Run full training comparison: LoRA vs standard delta head
-2. Add LoRA to other training scripts (PPO, GRPO)
+2. Add LoRA to GRPO training script (PPO done)
 3. Explore LoRA rank scaling experiments
 
 ## Blockers / questions for owner
