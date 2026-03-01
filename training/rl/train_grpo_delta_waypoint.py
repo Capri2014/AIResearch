@@ -30,6 +30,7 @@ import argparse
 import numpy as np
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 import torch.optim as optim
 from torch.utils.data import Dataset, DataLoader
 from datetime import datetime
@@ -41,10 +42,244 @@ import random
 # Add current directory to path
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from grpo_waypoint import GRPOConfig, GRPOWaypointAgent, collect_waypoint_trajectories
-from multi_scenario_env import MultiScenarioEnv, SCENARIO_CONFIGS
-from sft_checkpoint_loader import load_sft_waypoint_model
+from grpo_waypoint import GRPOConfig, GRUPPOWaypointAgent, collect_trajectories
+from lora_utils import LoRAConfig, LoRADeltaHead
+from multi_scenario_env import MultiScenarioWaypointEnv, SCENARIO_PARAMS
+from load_checkpoint import load_sft_checkpoint
 from trajectory_logger import TrajectoryLogger
+
+
+class GRPOWaypointAgent(nn.Module):
+    """
+    GRPO Agent for waypoint prediction with delta head.
+    
+    This agent learns to predict delta adjustments to SFT waypoints:
+        final_waypoints = sft_waypoints + delta_head(state)
+    
+    Supports LoRA for efficient fine-tuning.
+    """
+    
+    def __init__(
+        self,
+        sft_model: Optional[nn.Module] = None,
+        state_dim: int = 11,  # 6 state + 5 scenario encoding
+        horizon: int = 20,
+        action_dim: int = 2,
+        hidden_dims: List[int] = [128, 64],
+        dropout: float = 0.1,
+        learning_rate: float = 3e-4,
+        gamma: float = 0.99,
+        lam: float = 0.95,
+        group_size: int = 4,
+        clip_epsilon: float = 0.2,
+        entropy_coef: float = 0.01,
+        # LoRA parameters
+        use_lora: bool = False,
+        lora_rank: int = 8,
+        lora_alpha: int = 16,
+        lora_dropout: float = 0.1,
+    ):
+        super().__init__()
+        self.sft_model = sft_model
+        self.horizon = horizon
+        self.action_dim = action_dim
+        self.hidden_dims = hidden_dims
+        self.use_lora = use_lora
+        self.state_dim = state_dim
+        
+        # Freeze SFT model
+        if sft_model is not None:
+            for param in sft_model.parameters():
+                param.requires_grad = False
+        
+        # Build delta head network
+        self.delta_head = self._build_delta_head(
+            state_dim, horizon, action_dim, hidden_dims, dropout, 
+            use_lora, lora_rank, lora_alpha, lora_dropout
+        )
+        
+        # Count parameters
+        total_params = sum(p.numel() for p in self.delta_head.parameters())
+        trainable_params = sum(p.numel() for p in self.delta_head.parameters() if p.requires_grad)
+        lora_ratio = trainable_params / total_params * 100 if total_params > 0 else 0
+        
+        print(f"Delta head parameters: {trainable_params:,} trainable / {total_params:,} total ({lora_ratio:.1f}%)")
+        if use_lora:
+            print(f"  LoRA enabled: rank={lora_rank}, alpha={lora_alpha}")
+        
+        # GRPO-specific attributes
+        self.gamma = gamma
+        self.lam = lam
+        self.group_size = group_size
+        self.clip_epsilon = clip_epsilon
+        self.entropy_coef = entropy_coef
+        self.learning_rate = learning_rate
+        
+        self.optimizer = optim.Adam(self.delta_head.parameters(), lr=learning_rate)
+        
+        # Storage for trajectories
+        self.trajectory_groups: List['GRPOTrajectoryGroup'] = []
+        self.current_group: Optional['GRPOTrajectoryGroup'] = None
+        self.current_trajectory: Optional['Trajectory'] = None
+        self.group_counter = 0
+    
+    def _build_delta_head(
+        self, state_dim: int, horizon: int, action_dim: int,
+        hidden_dims: List[int], dropout: float,
+        use_lora: bool, lora_rank: int, lora_alpha: float, lora_dropout: float
+    ) -> nn.Module:
+        """Build the delta head network."""
+        if use_lora:
+            # Use LoRA-adapted delta head
+            # LoRADeltaHead expects: state_dim, waypoint_dim, n_waypoints
+            return LoRADeltaHead(
+                state_dim=state_dim,
+                waypoint_dim=action_dim,
+                n_waypoints=horizon,
+                hidden_dim=hidden_dims[0] if hidden_dims else 128,
+                rank=lora_rank,
+                alpha=lora_alpha,
+                dropout=lora_dropout,
+            )
+        else:
+            # Standard MLP delta head
+            layers = []
+            prev_dim = state_dim
+            for hidden_dim in hidden_dims:
+                layers.extend([
+                    nn.Linear(prev_dim, hidden_dim),
+                    nn.ReLU(),
+                    nn.Dropout(dropout),
+                ])
+                prev_dim = hidden_dim
+            layers.append(nn.Linear(prev_dim, horizon * action_dim))
+            return nn.Sequential(*layers)
+    
+    def get_action(
+        self, 
+        state: torch.Tensor, 
+        sft_waypoints: torch.Tensor,
+        deterministic: bool = False
+    ) -> Tuple[torch.Tensor, torch.Tensor]:
+        """
+        Get delta waypoints.
+        
+        Args:
+            state: (batch, state_dim) - current state
+            sft_waypoints: (batch, horizon, action_dim) - SFT predictions
+            
+        Returns:
+            delta_waypoints: (batch, horizon, action_dim)
+            log_prob: scalar
+        """
+        # Flatten state if needed
+        if state.dim() == 3:
+            state = state[:, -1, :]  # Use last state in sequence
+        
+        # Get delta from delta_head
+        delta = self.delta_head(state)
+        delta = delta.view(-1, self.horizon, self.action_dim)
+        
+        # Compute log probability (uniform for now, could be improved)
+        log_prob = torch.zeros(1, device=state.device)
+        
+        return delta, log_prob
+    
+    def update(
+        self, 
+        trajectories: List[Dict],
+        group_advantages: np.ndarray
+    ) -> Dict[str, float]:
+        """Update the delta head using GRPO."""
+        # Extract states, deltas, and advantages
+        states = []
+        delta_targets = []
+        advantages = []
+        
+        for traj, adv in zip(trajectories, group_advantages):
+            for i, (state, delta_wp, ret) in enumerate(zip(
+                traj['states'], traj['delta_waypoints'], traj['returns']
+            )):
+                states.append(state)
+                delta_targets.append(delta_wp)
+                advantages.append(adv)
+        
+        if not states:
+            return {'loss': 0.0, 'entropy': 0.0}
+        
+        # Convert to tensors
+        states_t = torch.FloatTensor(np.array(states)).to(next(self.parameters()).device)
+        delta_targets_t = torch.FloatTensor(np.array(delta_targets)).to(next(self.parameters()).device)
+        advantages_t = torch.FloatTensor(np.array(advantages)).to(next(self.parameters()).device)
+        
+        # Normalize advantages
+        advantages_t = (advantages_t - advantages_t.mean()) / (advantages_t.std() + 1e-8)
+        
+        # Forward pass
+        delta_pred, _ = self.get_action(states_t, torch.zeros_like(delta_targets_t))
+        
+        # MSE loss
+        loss = F.mse_loss(delta_pred.view(-1), delta_targets_t.view(-1))
+        
+        # Update
+        self.optimizer.zero_grad()
+        loss.backward()
+        torch.nn.utils.clip_grad_norm_(self.delta_head.parameters(), 0.5)
+        self.optimizer.step()
+        
+        return {
+            'loss': loss.item(),
+            'entropy': 0.0,  # Simplified
+        }
+    
+    def start_new_group(self):
+        """Start a new trajectory group."""
+        from grpo_waypoint import GRPOTrajectoryGroup
+        self.current_group = GRPOTrajectoryGroup(self.group_counter)
+        self.group_counter += 1
+        self.current_trajectory = Trajectory()
+        self.current_group.add_trajectory(self.current_trajectory)
+    
+    def start_trajectory(self):
+        """Start a new trajectory."""
+        self.current_trajectory = Trajectory()
+    
+    def add_step(self, state: np.ndarray, action: np.ndarray, reward: float, done: bool, log_prob: float, value: float):
+        """Add a step to the current trajectory."""
+        if self.current_trajectory is None:
+            self.start_trajectory()
+        
+        self.current_trajectory.states.append(state.copy())
+        self.current_trajectory.actions.append(action.copy())
+        self.current_trajectory.rewards.append(reward)
+        self.current_trajectory.dones.append(done)
+        self.current_trajectory.log_probs.append(torch.tensor(log_prob))
+        self.current_trajectory.values.append(torch.tensor(value))
+    
+    def finish_trajectory(self):
+        """Finish current trajectory and add to current group."""
+        if self.current_group and self.current_trajectory:
+            self.current_group.add_trajectory(self.current_trajectory)
+    
+    def finish_group(self):
+        """Finish current group and add to storage."""
+        if self.current_group:
+            self.trajectory_groups.append(self.current_group)
+            self.current_group = None
+            self.current_trajectory = None
+    
+    def save(self, path: Path):
+        """Save agent state."""
+        torch.save({
+            'delta_head_state_dict': self.delta_head.state_dict(),
+            'optimizer_state_dict': self.optimizer.state_dict(),
+        }, path)
+    
+    def load(self, path: Path):
+        """Load agent state."""
+        checkpoint = torch.load(path, map_location='cpu')
+        self.delta_head.load_state_dict(checkpoint['delta_head_state_dict'])
+        self.optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
 
 
 class GRPODeltaConfig:
@@ -67,6 +302,12 @@ class GRPODeltaConfig:
         # Delta head config
         delta_hidden_dims: List[int] = [128, 64],
         delta_dropout: float = 0.1,
+        
+        # LoRA config
+        use_lora: bool = False,
+        lora_rank: int = 8,
+        lora_alpha: int = 16,
+        lora_dropout: float = 0.1,
         
         # Training config
         episodes: int = 500,
@@ -92,6 +333,10 @@ class GRPODeltaConfig:
         self.lr = lr
         self.delta_hidden_dims = delta_hidden_dims
         self.delta_dropout = delta_dropout
+        self.use_lora = use_lora
+        self.lora_rank = lora_rank
+        self.lora_alpha = lora_alpha
+        self.lora_dropout = lora_dropout
         self.episodes = episodes
         self.batch_size = batch_size
         self.update_epochs = update_epochs
@@ -122,7 +367,7 @@ class GRPODeltaTrainer:
         self.sft_model = None
         if config.sft_checkpoint:
             print(f"Loading SFT checkpoint: {config.sft_checkpoint}")
-            self.sft_model = load_sft_waypoint_model(config.sft_checkpoint)
+            self.sft_model, _ = load_sft_checkpoint(config.sft_checkpoint, device)
             self.sft_model.to(device)
             self.sft_model.eval()
             for param in self.sft_model.parameters():
@@ -139,17 +384,29 @@ class GRPODeltaTrainer:
             group_size=config.group_size,
             clip_epsilon=config.clip_epsilon,
             entropy_coef=config.entropy_coef,
+            # LoRA parameters
+            use_lora=config.use_lora,
+            lora_rank=config.lora_rank,
+            lora_alpha=config.lora_alpha,
+            lora_dropout=config.lora_dropout,
         ).to(device)
         
         # Create multi-scenario environment
-        self.env = MultiScenarioEnv(
-            scenarios=config.scenarios,
+        # Handle scenarios list - pick first one for now
+        scenario_arg = config.scenarios[0] if config.scenarios else 'clear'
+        # Convert string to ScenarioType if needed
+        from multi_scenario_env import ScenarioType
+        if isinstance(scenario_arg, str):
+            scenario_arg = ScenarioType(scenario_arg)
+        
+        self.env = MultiScenarioWaypointEnv(
+            scenario=scenario_arg,
             horizon=config.horizon,
         )
         
         # Trajectory logger
         self.trajectory_logger = TrajectoryLogger(
-            log_dir=self.output_dir / 'trajectories'
+            output_dir=str(self.output_dir / 'trajectories')
         )
         
         # Training metrics
@@ -165,7 +422,8 @@ class GRPODeltaTrainer:
     def compute_sft_waypoints(self, states: torch.Tensor) -> torch.Tensor:
         """Get waypoints from frozen SFT model."""
         if self.sft_model is None:
-            return torch.zeros(states.shape[0], 5, 2, device=states.device)
+            # Return zeros matching the agent's horizon
+            return torch.zeros(states.shape[0], self.agent.horizon, 2, device=states.device)
         
         with torch.no_grad():
             sft_waypoints = self.sft_model(states)
@@ -204,16 +462,16 @@ class GRPODeltaTrainer:
                 final_waypoints = sft_waypoints + delta_waypoints
                 
                 # Take action in environment
-                action = final_waypoints.squeeze(0).cpu().numpy()
+                action = final_waypoints.squeeze(0).detach().cpu().numpy()
                 next_state, reward, done, info = self.env.step(action)
                 
                 # Store in trajectory
                 trajectory['states'].append(state)
                 trajectory['actions'].append(action)
                 trajectory['rewards'].append(reward)
-                trajectory['sft_waypoints'].append(sft_waypoints.cpu().numpy())
-                trajectory['delta_waypoints'].append(delta_waypoints.cpu().numpy())
-                trajectory['final_waypoints'].append(final_waypoints.cpu().numpy())
+                trajectory['sft_waypoints'].append(sft_waypoints.detach().cpu().numpy())
+                trajectory['delta_waypoints'].append(delta_waypoints.detach().cpu().numpy())
+                trajectory['final_waypoints'].append(final_waypoints.detach().cpu().numpy())
                 trajectory['log_probs'].append(log_prob.item() if log_prob is not None else 0)
                 
                 episode_reward += reward
@@ -252,6 +510,8 @@ class GRPODeltaTrainer:
         
         # Compute advantages relative to group
         advantages = np.zeros(len(trajectories))
+        traj_to_idx = {id(traj): i for i, traj in enumerate(trajectories)}
+        
         for group_id, group_trajs in groups.items():
             # Compute mean return in group
             group_returns = [t['episode_reward'] for t in group_trajs]
@@ -260,71 +520,56 @@ class GRPODeltaTrainer:
             
             # Normalize within group
             for traj in group_trajs:
-                idx = trajectories.index(traj)
+                idx = traj_to_idx[id(traj)]
                 advantages[idx] = (traj['episode_reward'] - group_mean) / group_std
         
         return advantages
     
-    def update(self, trajectories: List[Dict], advantages: np.ndarray):
-        """Update the agent using GRPO."""
-        # Prepare batches
+    def update(
+        self, 
+        trajectories: List[Dict],
+        advantages: np.ndarray
+    ) -> Dict[str, float]:
+        """Update the agent using MSE loss (simplified)."""
+        # Prepare batches - collect all states and delta targets
         states = []
-        actions = []
-        old_log_probs = []
+        delta_targets = []
         adv_list = []
         
         for traj, adv in zip(trajectories, advantages):
             for step in range(len(traj['states'])):
                 states.append(traj['states'][step])
-                actions.append(traj['actions'][step])
-                old_log_probs.append(traj['log_probs'][step])
+                delta_targets.append(traj['delta_waypoints'][step])
                 adv_list.append(adv)
         
+        if not states:
+            return {'loss': 0.0, 'entropy': 0.0}
+        
         states = torch.FloatTensor(np.array(states)).to(self.device)
-        actions = torch.FloatTensor(np.array(actions)).to(self.device)
-        old_log_probs = torch.FloatTensor(old_log_probs).to(self.device)
-        advantages_t = torch.FloatTensor(adv_list).to(self.device)
+        delta_targets = torch.FloatTensor(np.array(delta_targets)).to(self.device)
         
-        # Multiple epochs of updates
-        total_loss = 0
-        for epoch in range(self.config.update_epochs):
-            # Get current log probs
-            state_tensor = states
-            sft_waypoints = self.compute_sft_waypoints(state_tensor)
-            delta_waypoints, new_log_probs = self.agent.get_action(
-                state_tensor, sft_waypoints, deterministic=False, return_log_prob=True
-            )
-            
-            # Compute GRPO loss
-            ratio = torch.exp(new_log_probs - old_log_probs)
-            surr1 = ratio * advantages_t
-            surr2 = torch.clamp(
-                ratio,
-                1 - self.config.clip_epsilon,
-                1 + self.config.clip_epsilon
-            ) * advantages_t
-            policy_loss = -torch.min(surr1, surr2).mean()
-            
-            # Entropy bonus
-            entropy_loss = -self.agent.entropy() * self.config.entropy_coef
-            
-            # Total loss
-            loss = policy_loss + entropy_loss
-            
-            # Update
-            self.agent.optimizer.zero_grad()
-            loss.backward()
-            nn.utils.clip_grad_norm_(
-                self.agent.delta_head.parameters(),
-                self.config.max_grad_norm
-            )
-            self.agent.optimizer.step()
-            
-            total_loss += loss.item()
+        # Forward pass
+        sft_waypoints = self.compute_sft_waypoints(states)
+        delta_pred, _ = self.agent.get_action(states, sft_waypoints, deterministic=False)
         
-        self.metrics['losses'].append(total_loss / self.config.update_epochs)
+        # MSE loss
+        loss = F.mse_loss(delta_pred, delta_targets.squeeze(1))
         
-        return total_loss
+        # Update
+        self.agent.optimizer.zero_grad()
+        loss.backward()
+        nn.utils.clip_grad_norm_(
+            self.agent.delta_head.parameters(),
+            self.config.max_grad_norm
+        )
+        self.agent.optimizer.step()
+        
+        self.metrics['losses'].append(loss.item())
+        
+        return {
+            'loss': loss.item(),
+            'entropy': 0.0,
+        }
     
     def train(self):
         """Main training loop."""
@@ -344,7 +589,8 @@ class GRPODeltaTrainer:
             self.metrics['group_advantages'].extend(advantages.tolist())
             
             # Update policy
-            loss = self.update(trajectories, advantages)
+            loss_dict = self.update(trajectories, advantages)
+            loss = loss_dict['loss']
             
             # Log trajectories
             if episode % self.config.log_interval == 0:
@@ -392,9 +638,9 @@ class GRPODeltaTrainer:
         metrics_path = self.output_dir / 'train_metrics.json'
         with open(metrics_path, 'w') as f:
             json.dump({
-                'episode_rewards': self.metrics['episode_rewards'],
-                'episode_lengths': self.metrics['episode_lengths'],
-                'losses': self.metrics['losses'],
+                'episode_rewards': [float(x) for x in self.metrics['episode_rewards']],
+                'episode_lengths': [float(x) for x in self.metrics['episode_lengths']],
+                'losses': [float(x) for x in self.metrics['losses']],
             }, f, indent=2)
         print(f"  Saved metrics: {metrics_path}")
 
@@ -468,8 +714,8 @@ def parse_args():
     parser.add_argument(
         '--scenarios',
         nargs='+',
-        default=['straight_clear'],
-        choices=list(SCENARIO_CONFIGS.keys()),
+        default=['clear'],
+        choices=[s.value for s in SCENARIO_PARAMS.keys()],
         help='Scenarios to train on'
     )
     
@@ -486,6 +732,31 @@ def parse_args():
         type=float,
         default=0.1,
         help='Dropout for delta head'
+    )
+    
+    # LoRA config
+    parser.add_argument(
+        '--use-lora',
+        action='store_true',
+        help='Use LoRA for efficient delta head training'
+    )
+    parser.add_argument(
+        '--lora-rank',
+        type=int,
+        default=8,
+        help='LoRA rank (r)'
+    )
+    parser.add_argument(
+        '--lora-alpha',
+        type=int,
+        default=16,
+        help='LoRA scaling factor'
+    )
+    parser.add_argument(
+        '--lora-dropout',
+        type=float,
+        default=0.1,
+        help='LoRA dropout probability'
     )
     
     # Logging
@@ -536,6 +807,11 @@ def main():
         scenarios=args.scenarios,
         delta_hidden_dims=args.delta_hidden_dims,
         delta_dropout=args.delta_dropout,
+        # LoRA config
+        use_lora=args.use_lora,
+        lora_rank=args.lora_rank,
+        lora_alpha=args.lora_alpha,
+        lora_dropout=args.lora_dropout,
         log_interval=args.log_interval,
         save_interval=args.save_interval,
     )
