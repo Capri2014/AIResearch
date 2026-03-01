@@ -148,6 +148,44 @@ Previous work: "Diffusion models collapse to single mode for driving"
 
 ---
 
+## 6b. RL + Diffusion: Weighted Regression
+
+### The challenge
+- How to efficiently apply RL to diffusion models?
+- Standard RL requires sampling many trajectories
+
+### HDP's elegant solution: Weighted Regression
+```
+Loss = Σ w_i * L_IL(θ)
+where w_i = f(safety_reward_i)
+```
+
+### How it works
+1. **Compute safety reward**: Distance to obstacles
+2. **Weight trajectories**: Higher reward → higher weight in loss
+3. **Fine-tune**: Multiply IL loss by reward-based weight
+4. **Result**: Model learns to prefer safer trajectories
+
+### Key properties
+- **Low compute overhead**: No additional RL sampling needed
+- **Compatible with hybrid loss**: Naturally combines with τ₀-loss
+- **Effective**: +improvement in real-world tests
+
+### Why it works
+- Diffusion model already generates diverse trajectories
+- RL post-training selects among existing samples
+- Weighted regression = implicit preference learning
+
+### Comparison with standard RL
+
+| Approach | Compute | Stability | Our Status |
+|----------|---------|----------|------------|
+| Standard PPO | High | Medium | We use this |
+| HDP Weighted | Low | High | Consider adopting |
+| Re-parameterization | Medium | Medium | Alternative |
+
+---
+
 ## 7. Comparison with Our Pipeline
 
 ### Our pipeline
@@ -238,11 +276,12 @@ Perception BEV → Diffusion Decoder → Trajectory
 3. **Expand data**: Use more scenarios for multimodal behavior
 
 ### Medium-Term (This Quarter)
-4. **RL post-training**: Add safety reward on top of BC
-   - Use PPO/GRPO
-   - Reward = distance to obstacles
+4. **Weighted RL post-training**: Use HDP's weighted regression approach
+   - Instead of full PPO, use: `Loss = Σ w_i * L_IL` where `w_i = f(reward)`
+   - Lower compute, more stable than standard RL
+   - Naturally compatible with τ₀-loss
 
-5. **Diffusion decoder**: Consider replacing MLP with diffusion transformer
+5. **Diffusion decoder**: Consider replacing MLP with transformer diffusion
 
 ---
 
