@@ -90,3 +90,37 @@ These are tasks that can be completed in 1-2 days and provide immediate value.
 3. Export AR Decoder to ONNX (deployment prep)
 4. Create nuScenes benchmark (data prep)
 5. Scenario coverage tracking (evaluation polish)
+
+---
+
+## Production Planner Implementation (2026-03-01)
+
+Based on the updated survey, here's the implementation priority:
+
+### Phase 1: Foundation (This Month)
+- [ ] **Corridor Manager** - Multi-hypothesis corridor generation
+- [ ] **Lattice DP Baseline** - Traditional reliable approach
+- [ ] **SDF Collision Checking** - GPU-friendly
+
+### Phase 2: Interactive Planning (This Quarter)
+- [ ] **Behavior Tree + Rollout** - Urban negotiation
+- [ ] **MCTS for Multi-Agent** - Handle uncertainty
+- [ ] **Beam Search Top-K** - Production-friendly
+
+### Phase 3: Safety Critical (This Quarter)
+- [ ] **CVaR Risk Aggregation** - Robust to outliers
+- [ ] **MRM/Fallback System** - Safety-critical
+- [ ] **Safety Supervisor** - Independent verification
+
+### Configuration (Ready to Use)
+```yaml
+planner:
+  rate_hz: 20
+  N_corridors: 4
+  K_candidates: 128
+  T_coarse: 60
+  dt_coarse: 0.1
+  K_fine: 12
+  M_scenarios: 16
+  risk_metric: "CVaR(alpha=0.2)"
+```

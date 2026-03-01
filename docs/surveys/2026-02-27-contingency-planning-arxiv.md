@@ -343,3 +343,144 @@ This survey establishes contingency planning as a formal discipline with:
 4. **Identified gaps** (semantic/OOD verification, hybrid architectures)
 
 The field is moving toward **hybrid architectures** that combine reactive safety filters with proactive planning — exactly what our implementation should evolve toward.
+
+---
+
+## 13. Iterative Planner Comparison (2026-03-01 Update)
+
+### Comprehensive Comparison Table
+
+| Approach | What the "Tree" Expands | Strengths | Weaknesses / Failure Modes | Best Fit Scenarios | Typical Stack Pattern |
+|----------|-------------------------|-----------|---------------------------|-------------------|----------------------|
+| **Lattice DP / Graph Search** | Discrete trajectory samples in s-l-t (or x-y-t) | Very reliable, deterministic, easy to debug; great pruning; strong for comfort if sampling is good | Can miss solutions if lattice is too coarse; struggles with interactive negotiation unless you add modes | Highway, structured roads, lane changes, merges with clear rules | Lattice for proposal → continuous smoother/QP |
+| **Semantic / Behavior Tree + Rollout** | High-level maneuvers (keep, change left, yield, creep, commit…) then rollout | Human-interpretable decisions; stable; low branching; easy to add "abort/creep" | Needs careful design to avoid deadlocks/hesitation; limited optimality | Urban negotiation (unprotected turns, merges), policy-heavy domains | Maneuver tree → trajectory optimizer per maneuver |
+| **MCTS (UCT / PUCT)** | Actions over time (often maneuver + control) | Anytime; can handle interaction/multi-agent uncertainty well; naturally explores alternatives | Hard to make deterministic; compute heavy; needs good priors + value estimate; can be noisy | Dense interactive scenes, merges, cut-ins, nudging, ambiguous right-of-way | MCTS over maneuvers + short-horizon controls; learned value/priors help a lot |
+| **Beam Search over Modes** | Mode sequences (lane/gap/speed profile) | Simple, fast, very "production-friendly"; good tradeoff of exploration vs stability | Can get stuck if K small or scoring biased; needs good pruning & diversity | L2++ highway + ramp merges; cases where you want "top-K" options fast | Enumerate mode sequences → optimize each → pick best |
+| **Scenario Tree / Multi-Hypothesis** | Branches on prediction hypotheses (agent intentions) | Robust to prediction uncertainty; explicit risk handling | Explosion in branches; requires strong pruning / risk aggregation | VRU-heavy urban, uncertain oncoming vehicles | Candidate trajs × prediction modes → risk aggregation |
+| **RRT / Kinodynamic Sampling** | Continuous state samples (randomized) | Great for complex geometry/off-road; finds feasible paths in clutter | Usually too random/noisy for on-road comfort; hard to guarantee smoothness | Low-speed parking, pull-over, tight maneuvers | RRT* / kinodynamic → smoothing |
+| **MPPI / CEM Sampling** | Many sampled control sequences (iterative, not a classic tree) | Works with nonlinear dynamics; good anytime; easy GPU scaling | Can be jittery; needs good cost shaping; safety constraints tricky | High-speed control-ish problems, aggressive avoidance, race-like | Sample controls → weighted average → safety filter |
+
+### Key Insights
+
+1. **Production Reality**: Lattice DP + Behavior Tree combinations dominate actual deployments
+2. **Interactive Scenes**: MCTS or Scenario Tree approaches are needed for multi-agent uncertainty
+3. **Comfort vs Capability**: RRT/MPPI are great for capability but need smoothing for comfort
+4. **Hybrid is Common**: Most production systems combine approaches (e.g., lattice for proposal → QP smooth)
+
+---
+
+## 14. Production Planner Implementation Plan (2026-03-01)
+
+### Core Loop Targets
+- **Planner rate**: 20 Hz
+- **Budget**: ≤ 50 ms wall time
+- **Output**: 1 committed trajectory + MRM/fallback + top-K debug
+
+### Suggested Parameters (Starter Configuration)
+
+#### Corridor Hypotheses
+- **N = 4** (min 2, max 6)
+  - 1 map-aligned nominal
+  - 1-2 perception-shifted (cones/barrels)
+  - 1 conservative "tight boundary + lower speed"
+- **Corridor horizon**: 120-200 m (or 8-10 s, whichever smaller)
+
+#### Candidate Count
+- **K = 128** total candidates per cycle
+- **Per corridor**: Kc = 32
+- **Modes per corridor**:
+  - lane keep / follow lead (10)
+  - lane change/merge left/right variants (10)
+  - merge-early/merge-late around taper (8)
+  - yield / abort variants (4)
+
+#### Rollout Discretization
+- **Horizon**: 6.0 s
+- **Coarse eval**: T = 60 steps (Δt = 0.1 s) for all K candidates
+- **Fine check**: top Kf = 12 candidates at Δt = 0.05 s (T = 120)
+
+#### Prediction Hypotheses
+- **Option A (Actor-wise)**: A = 16 relevant actors, Mi = 3 modes each
+- **Option B (Joint samples, recommended)**: M = 16 joint scenarios per cycle
+- **Total evaluations**: K × M × T = 128 × 16 × 60 = 122,880 state-steps
+
+#### Compute Budget Split (50 ms)
+| Stage | Time | Notes |
+|-------|------|-------|
+| CPU (corridors + candidates) | 5-10 ms | Corridor manager + candidate generator |
+| GPU coarse eval | 15-25 ms | All K candidates |
+| GPU fine check | 5-10 ms | Top Kf candidates |
+| CPU selection + arbitration | 5-10 ms | Final selection + smoothing |
+
+### Module Breakdown
+
+1. **Corridor Manager** (CPU, deterministic)
+2. **Candidate Generator** (CPU)
+3. **Trajectory Synthesizer** (GPU)
+4. **Evaluator** (GPU, workhorse)
+5. **Selector + Arbitration** (CPU)
+6. **Finalizer / Smoother** (CPU/GPU)
+7. **Safety Supervisor** (separate, production-critical)
+
+### Minimal Prototype Timeline
+| Week | Tasks |
+|------|-------|
+| 1-2 | Corridor manager, K=64, CPU eval |
+| 3-4 | SDF boundaries + top-K logging |
+| 5-8 | GPU port, N=4, K=128, CVaR risk |
+
+### Concrete Configuration Defaults
+```yaml
+planner:
+  rate_hz: 20
+  N_corridors: 4
+  K_candidates: 128
+  T_coarse: 60
+  dt_coarse: 0.1
+  K_fine: 12
+  M_scenarios: 16
+  risk_metric: "CVaR(alpha=0.2)"
+```
+
+---
+
+## 15. What We've Implemented vs What's Needed
+
+### Already Implemented
+| Component | Location |
+|-----------|----------|
+| Contingency survey | `docs/surveys/2026-02-27-contingency-planning-arxiv.md` |
+| Tree-based planner | `contingency_planning/planning/tree/` |
+| Model-based planner | `contingency_planning/planning/models/` |
+| Simulation benchmark | `contingency_planning/simulation/` |
+| Visualizations | `out/contingency_animation/` |
+
+### Not Yet Implemented (Future Work)
+| Component | Priority |
+|-----------|----------|
+| Lattice DP baseline | Medium |
+| Behavior tree + rollout | High |
+| MCTS for multi-agent | High |
+| SDF collision (GPU) | High |
+| CVaR risk aggregation | High |
+| Corridor manager | High |
+| MRM/fallback system | Critical |
+| Safety Supervisor | Critical |
+
+---
+
+## 16. Updated Action Items
+
+### Short-Term
+- [ ] Implement Lattice DP baseline
+- [ ] Add Behavior Tree + Rollout approach
+- [ ] Implement corridor manager module
+- [ ] Add SDF collision checking
+
+### Medium-Term
+- [ ] Implement MCTS for interactive scenarios
+- [ ] Add beam search top-K
+- [ ] GPU-accelerated evaluation
+- [ ] CVaR risk aggregation
+- [ ] Full MRM/fallback system
+- [ ] Safety Supervisor module
