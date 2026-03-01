@@ -1,20 +1,38 @@
 # Status (ClawBot)
 
-_Last updated: 2026-02-18 (Pipeline PR #1)_
+_Last updated: 2026-02-28 (Pipeline PR #6)_
 
 ## Current focus
 Driving-first pipeline: **Waymo episodes → PyTorch SSL pretrain → waypoint BC → RL refinement → CARLA ScenarioRunner eval**.
 
 ## Daily Cadence
 
-- ✅ **Pipeline PR #1** (2026-02-18): RL Checkpoint Selection with Policy Entropy
+- ✅ **Pipeline PR #6** (2026-02-28): RL Refinement Evaluation + Metrics Hardening
+- ⏳ **Pipeline PR #1** (2026-02-18): RL Checkpoint Selection with Policy Entropy - awaiting review
 - ⏳ **Pipeline PR #9** (2026-02-17): Evaluation + Metrics Hardening for RL Refinement - awaiting review
 - ⏳ **Pipeline PR #8** (2026-02-17): CARLA Closed-Loop Waypoint BC Evaluation - awaiting review
 - ⏳ **Pipeline PR #5** (2026-02-16): RL Refinement Stub for Residual Delta-Waypoint Learning - awaiting review
 
 ## Recent changes
 
-### Pipeline PR #1: RL Checkpoint Selection with Policy Entropy (Today, 5:30am PT)
+### Pipeline PR #6: RL Refinement Evaluation + Metrics Hardening (Today, 6:30pm PT)
+- **Updated: `training/rl/compare_sft_vs_rl.py`**
+  - Added git metadata capture (repo, commit, branch) for reproducibility
+  - Now outputs proper git info in metrics.json
+  
+- **Created: `training/rl/validate_metrics.py`**
+  - Validates metrics.json against `data/schema/metrics.json`
+  - Checks required fields, domain enum, scenario structure
+  - Supports --compare flag to compare SFT vs RL metrics files
+  - Prints 3-line summary report when comparing
+
+**Key additions:**
+- `_git_info()`: Captures repo, commit, branch for reproducibility
+- `validate_metrics()`: Schema validation without jsonschema dependency
+- `compare_metrics()`: Computes improvement metrics between policies
+- CLI: `--compare` flag for loading and comparing saved metrics
+
+### Pipeline PR #1: RL Checkpoint Selection with Policy Entropy (2026-02-18)
 - **Updated: `training/rl/train_rl_delta_waypoint.py`**
   - Added `policy_entropy` field to evaluation metrics
   - Best checkpoint selection: saves `best_entropy.pt` when entropy improves
@@ -40,9 +58,9 @@ Driving-first pipeline: **Waymo episodes → PyTorch SSL pretrain → waypoint B
 - WaypointBCModelWrapper for checkpoint loading
 
 ## Next (top 3)
-1. Run training with new entropy tracking
-2. Compare entropy curves across different seeds
-3. Integrate entropy-based checkpointing with CARLA evaluation
+1. Run RL training with entropy-based checkpoint selection
+2. Validate metrics from full CARLA evaluation runs
+3. Compare entropy curves across different seeds
 
 ## Blockers / questions for owner
 - PR reviews pending for #9, #8, #5
@@ -65,5 +83,5 @@ final_waypoints = sft_waypoints + delta_head(z)
 - Metrics: ADE/FDE, route_completion, collisions
 
 ## Links
-- Daily notes: `clawbot/daily/2026-02-18.md`
-- Branch: `feature/daily-2026-02-18-a`
+- Daily notes: `clawbot/daily/2026-02-28.md`
+- Branch: `feature/contingency-planning-v3`
