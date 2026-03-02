@@ -1,9 +1,10 @@
 # CLAWBOT Status
 
-**Last Updated:** 2026-03-02 10:30 AM
+**Last Updated:** 2026-03-02 10:30 AM (PR #3 added 1:30 PM)
 
 ## Daily Cadence
 
+- ⏳ Pipeline PR #3 (2026-03-02): Waypoint BC SFT Training → Pushed (commit 6832036) - PR creation failed (manual PR needed)
 - ⏳ Pipeline PR #2 (2026-03-02): GRPO Multi-Scenario Training with Domain Randomization → Pushed (commit b97025c) - PR creation failed (manual PR needed)
 - ⏳ Pipeline PR #1 (2026-03-02): GRPO Residual Delta + Hyperparameter Search → Pushed (commit 5bc8fb6) - PR creation failed (manual PR needed)
 - ⏳ Pipeline PR #6 (2026-03-01): RL Evaluation - Multi-Checkpoint Format Support → Pushed (commit 9f75d33) - PR creation failed (manual PR needed)
@@ -73,6 +74,26 @@
 - Branch: `feature/daily-2026-03-02-b`
 - Commit: `b97025c`
 - PR: https://github.com/Capri2014/AIResearch/pull/new/feature/daily-2026-03-02-b
+- Note: PR creation failed (token permissions)
+
+### Pipeline PR #3: Waypoint BC SFT Training Script (2026-03-02)
+- `training/sft/waypoint_bc_train.py`: NEW SFT training script (533 lines)
+  - **WaypointSFTrainer**: Train/eval loop with ADE/FDE metrics
+  - **Synthetic data generation**: For development without real Waymo data
+  - **Checkpoint saving**: Best-loss + final checkpoints
+  - **CLI interface**: --smoke, --epochs, --batch-size, --lr, --horizon, --device
+- `training/sft/__init__.py`: Package init with exports
+- Smoke test: 5 epochs, val_loss=212.26, val_ADE=16.78, val_FDE=31.40
+- Model: 133,250 parameters
+- Architecture: final_waypoints = sft_waypoints + delta_head(state)
+- Usage:
+  ```bash
+  python -m training.sft.waypoint_bc_train --output-dir out/waypoint_bc_sft
+  ```
+- Benefits: Completes SFT -> RL pipeline for driving-first approach
+- Branch: `feature/daily-2026-03-02-c`
+- Commit: `6832036`
+- PR: https://github.com/Capri2014/AIResearch/pull/new/feature/daily-2026-03-02-c
 - Note: PR creation failed (token permissions)
 
 ### Pipeline PR #4: Training Visualization Utilities for Driving Pipeline (2026-03-01)
@@ -394,7 +415,11 @@
 
 **Driving-First Pipeline:**
 ```
-Waymo episodes → SSL pretrain → waypoint BC → RL refinement → CARLA eval
+Waymo episodes → SSL pretrain → waypoint BC (SFT) → RL refinement → CARLA eval
+                  ↓                  ↓                    ↓                ↓
+            ssl_pretrain.py   waypoint_bc_train.py  grpo_waypoint.py  carla_sft_rl_eval.py
+                              training/sft/        ppo_residual_delta_train.py
+                                                train_grpo_delta_waypoint.py
 ```
 
 **Residual Delta Learning:**
@@ -402,11 +427,15 @@ Waymo episodes → SSL pretrain → waypoint BC → RL refinement → CARLA eval
 final_waypoints = sft_waypoints + delta_head(z)
 ```
 
+**SFT Checkpoint Loading for RL:**
+- Load with: `checkpoint = torch.load('out/waypoint_bc_sft/final_checkpoint.pt')`
+- Use in RL: `model.load_state_dict(checkpoint['model_state_dict'])`
+
 **Checkpoint Selection:**
 - Reward-based: best_reward.pt
-- Entropy-based: best_entropy.pt (NEW)
+- Entropy-based: best_entropy.pt
 - Metrics: ADE/FDE, route_completion, collisions
 
 ## Links
-- Daily notes: `clawbot/daily/2026-03-01.md`
-- Branch: `feature/daily-2026-03-01-a`
+- Daily notes: `clawbot/daily/2026-03-02.md`
+- Branch: `feature/daily-2026-03-02-c`
