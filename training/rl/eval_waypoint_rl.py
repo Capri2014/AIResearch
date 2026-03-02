@@ -185,14 +185,32 @@ def create_rl_agent(env: WaypointEnv, checkpoint_path: str = None):
     
     # Optionally load checkpoint
     if checkpoint_path and os.path.exists(checkpoint_path):
-        checkpoint = torch.load(checkpoint_path, map_location='cpu')
-        # Handle different checkpoint formats and key naming
-        if 'delta_head' in checkpoint:
-            state_dict = checkpoint['delta_head']
-        elif 'delta_head_state' in checkpoint:
-            state_dict = checkpoint['delta_head_state']
+        checkpoint = torch.load(checkpoint_path, map_location='cpu', weights_only=False)
+        
+        # Handle different checkpoint formats:
+        # 1. Dict with 'delta_head' key
+        # 2. Dict with 'delta_head_state' key
+        # 3. Dict with 'delta_head_state_dict' key (GRPO format)
+        # 4. Direct state dict (from torch.save(model.state_dict()))
+        
+        if isinstance(checkpoint, dict):
+            if 'delta_head' in checkpoint:
+                state_dict = checkpoint['delta_head']
+            elif 'delta_head_state' in checkpoint:
+                state_dict = checkpoint['delta_head_state']
+            elif 'delta_head_state_dict' in checkpoint:
+                # GRPO checkpoint format
+                state_dict = checkpoint['delta_head_state_dict']
+            elif 'delta_head.weight' in checkpoint:
+                # Direct state dict format
+                state_dict = {k: v for k, v in checkpoint.items() 
+                             if k.startswith('delta_head.') or k.startswith('delta_')}
+            else:
+                state_dict = {}
         else:
-            state_dict = {}
+            # checkpoint is already a state dict
+            state_dict = {k: v for k, v in checkpoint.items() 
+                         if k.startswith('delta_head.') or k.startswith('delta_')}
         
         # Handle key name differences (net vs network)
         fixed_state_dict = {}
@@ -202,8 +220,14 @@ def create_rl_agent(env: WaypointEnv, checkpoint_path: str = None):
         
         agent.delta_head.load_state_dict(fixed_state_dict, strict=False)
         
-        if 'value_head_state' in checkpoint:
-            agent.value_fn.load_state_dict(checkpoint['value_head_state'])
+        # Try to load value head if present
+        if isinstance(checkpoint, dict):
+            if 'value_head_state' in checkpoint:
+                agent.value_fn.load_state_dict(checkpoint['value_head_state'])
+            elif 'value_head.weight' in checkpoint:
+                value_dict = {k: v for k, v in checkpoint.items() if k.startswith('value_head.')}
+                agent.value_fn.load_state_dict(value_dict, strict=False)
+        
         print(f"Loaded checkpoint from {checkpoint_path}")
     
     agent.delta_head.eval()
