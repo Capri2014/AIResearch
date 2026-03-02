@@ -289,6 +289,169 @@ class GRUPPOWaypointAgent(nn.Module):
         return waypoints, 0.0, value
 
 
+class GRPOActorCriticResidual(nn.Module):
+    """
+    GRPO Actor-Critic with Residual Delta Head.
+    
+    Architecture: final_waypoints = sft_waypoints + delta_head(state)
+    
+    This combines:
+    - Frozen SFT model for base waypoints
+    - Trainable delta head for corrections
+    - Value function for advantage estimation
+    """
+    
+    def __init__(
+        self,
+        state_dim: int = 6,
+        horizon: int = 20,
+        action_dim: int = 2,
+        hidden_dim: int = 128,
+        use_lora: bool = False,
+        lora_rank: int = 8,
+        lora_alpha: int = 16,
+    ):
+        super().__init__()
+        self.horizon = horizon
+        self.action_dim = action_dim
+        self.use_lora = use_lora
+        
+        # Shared encoder for state -> latent
+        self.encoder = nn.Sequential(
+            nn.Linear(state_dim, hidden_dim),
+            nn.ReLU(),
+            nn.Linear(hidden_dim, hidden_dim),
+            nn.ReLU(),
+            nn.Linear(hidden_dim, 64)
+        )
+        
+        # Delta head for residual learning
+        if use_lora:
+            # Use LoRA for efficient fine-tuning
+            # LoRA delta head handles its own encoding
+            from lora_utils import LoRADeltaHead
+            self.delta_head = LoRADeltaHead(
+                state_dim=state_dim,  # Pass raw state for LoRA
+                waypoint_dim=action_dim,
+                n_waypoints=horizon,
+                hidden_dim=hidden_dim,
+                rank=lora_rank,
+                alpha=lora_alpha,
+                dropout=0.1,
+            )
+            # Freeze encoder since LoRA head has its own
+            for param in self.encoder.parameters():
+                param.requires_grad = False
+        else:
+            # Standard delta head
+            self.delta_head = nn.Sequential(
+                nn.Linear(64, hidden_dim // 2),
+                nn.ReLU(),
+                nn.Linear(hidden_dim // 2, horizon * action_dim),
+                nn.Tanh()  # Bound delta to [-1, 1]
+            )
+            self.delta_scale = 2.0
+        
+        # Critic (value) head
+        self.critic = nn.Sequential(
+            nn.Linear(64, hidden_dim // 2),
+            nn.ReLU(),
+            nn.Linear(hidden_dim // 2, 1)
+        )
+        
+        # Log standard deviation for exploration
+        self.log_std = nn.Parameter(torch.zeros(horizon * action_dim))
+    
+    def forward(
+        self, 
+        state: torch.Tensor, 
+        sft_waypoints: Optional[torch.Tensor] = None
+    ) -> Tuple[torch.Tensor, torch.Tensor]:
+        """
+        Forward pass with residual learning.
+        
+        Args:
+            state: (batch_size, state_dim)
+            sft_waypoints: (batch_size, horizon, action_dim) - optional SFT predictions
+            
+        Returns:
+            final_waypoints: (batch_size, horizon, action_dim)
+            values: (batch_size, 1)
+        """
+        # Get encoding for critic
+        encoding = self.encoder(state)
+        
+        # Predict delta
+        if self.use_lora:
+            delta = self.delta_head(state)  # Pass raw state to LoRA
+        else:
+            delta = self.delta_head(encoding) * self.delta_scale
+        
+        delta = delta.view(-1, self.horizon, self.action_dim)
+        
+        # Combine with SFT waypoints if provided
+        if sft_waypoints is not None:
+            final_waypoints = sft_waypoints + delta
+        else:
+            final_waypoints = delta
+        
+        # Compute value
+        values = self.critic(encoding)
+        
+        return final_waypoints, values
+    
+    def get_delta(self, state: torch.Tensor) -> torch.Tensor:
+        """Get delta predictions only."""
+        if self.use_lora:
+            delta = self.delta_head(state)
+        else:
+            delta = self.delta_head(self.encoder(state)) * self.delta_scale
+        return delta
+    
+    def get_action(
+        self, 
+        state: np.ndarray, 
+        sft_waypoints: Optional[np.ndarray] = None,
+        deterministic: bool = False
+    ) -> Tuple[np.ndarray, float, float]:
+        """
+        Get action from state.
+        
+        Args:
+            state: (state_dim,)
+            sft_waypoints: (horizon, action_dim) - optional
+            
+        Returns:
+            waypoints: (horizon, action_dim)
+            log_prob: float
+            value: float
+        """
+        device = next(self.parameters()).device
+        state_t = torch.from_numpy(state).float().unsqueeze(0).to(device)
+        
+        if sft_waypoints is not None:
+            sft_t = torch.from_numpy(sft_waypoints).float().unsqueeze(0).to(device)
+        else:
+            sft_t = None
+        
+        with torch.no_grad():
+            waypoints, value = self.forward(state_t, sft_t)
+        
+        waypoints = waypoints.squeeze(0).cpu().numpy()
+        value = value.item()
+        
+        # Add noise for exploration if not deterministic
+        if not deterministic:
+            std = torch.exp(self.log_std).detach().cpu().numpy()
+            std = std.reshape(self.horizon, self.action_dim)
+            noise = np.random.normal(0, std, waypoints.shape)
+            waypoints = waypoints + noise * 0.1
+        
+        log_prob = 0.0  # Simplified
+        
+        return waypoints, log_prob, value
+
+
 class GRPOAgent:
     """
     GRPO Agent for waypoint prediction.
