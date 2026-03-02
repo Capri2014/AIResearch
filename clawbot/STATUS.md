@@ -1,9 +1,13 @@
 # CLAWBOT Status
 
-**Last Updated:** 2026-03-01 4:30 PM
+**Last Updated:** 2026-03-02 10:30 AM
 
 ## Daily Cadence
 
+- ⏳ Pipeline PR #2 (2026-03-02): GRPO Multi-Scenario Training with Domain Randomization → Pushed (commit b97025c) - PR creation failed (manual PR needed)
+- ⏳ Pipeline PR #1 (2026-03-02): GRPO Residual Delta + Hyperparameter Search → Pushed (commit 5bc8fb6) - PR creation failed (manual PR needed)
+- ⏳ Pipeline PR #6 (2026-03-01): RL Evaluation - Multi-Checkpoint Format Support → Pushed (commit 9f75d33) - PR creation failed (manual PR needed)
+- ⏳ Pipeline PR #5 (2026-03-01): RL-After-SFT Complete Training Pipeline → Pushed (commit b314489) - PR creation failed (manual PR needed)
 - ⏳ Pipeline PR #4 (2026-03-01): Training Visualization Utilities for Driving Pipeline → Pushed (commit a9898c1)
 - ⏳ Pipeline PR #3 (2026-03-01): LoRA Support for GRPO Delta Waypoint Training → Pushed (commit 4a73226)
 - ⏳ Pipeline PR #2 (2026-03-01): LoRA Support for PPO Residual Delta Training → Pushed (commit ff7ba74)
@@ -33,6 +37,43 @@
 - ⏳ Awaiting PR review/merge
 
 ## Recent Work
+
+### Pipeline PR #1: GRPO Residual Delta + Hyperparameter Search (2026-03-02)
+- `training/rl/grpo_waypoint.py`: Added GRPOActorCriticResidual class
+  - **Architecture**: final_waypoints = sft_waypoints + delta_head(state)
+  - **LoRA Support**: ~43% trainable params vs 100% standard
+  - **Value Function**: Includes critic head for advantage estimation
+  - **Methods**: get_delta(), get_action(), forward() for flexible use
+- `training/rl/hparam_search.py`: NEW hyperparameter search utility
+  - **Search Methods**: Grid search, random search, successive halving
+  - **Parameters**: lr, horizon, gamma, lam, clip_epsilon, entropy_coef, lora_rank, lora_alpha
+  - **Features**: Parallel trials, timeout handling, markdown reports
+  - **CLI**: --method grid|random|successive-halving --param lr:1e-4,3e-4
+- Testing: Standard 100% trainable, LoRA 42.8% trainable
+- Branch: `feature/daily-2026-03-02-a`
+- Commit: `5bc8fb6`
+- PR: https://github.com/Capri2014/AIResearch/pull/new/feature/daily-2026-03-02-a
+- Note: PR creation failed (token permissions)
+
+### Pipeline PR #2: GRPO Multi-Scenario Training with Domain Randomization (2026-03-02)
+- `training/rl/grpo_multiscenario_train.py`: NEW multi-scenario GRPO training
+  - **MultiScenarioWrapper**: Integrates MultiScenarioWaypointEnv with GRPO
+  - **Curriculum Learning**: Easy → hard scenarios as training progresses
+  - **Scenario Types**: clear, cloudy, night, rain, fog
+  - **State Dimension**: 6 + 5 scenario types = 11
+  - **Evaluation-scenario and**: Per overall metrics
+- Usage:
+  ```bash
+  python -m training.rl.grpo_multiscenario_train \
+      --output-dir out/grpo_multiscenario \
+      --num-updates 100 \
+      --use-curriculum
+  ```
+- Testing: Smoke test with 5 updates passed
+- Branch: `feature/daily-2026-03-02-b`
+- Commit: `b97025c`
+- PR: https://github.com/Capri2014/AIResearch/pull/new/feature/daily-2026-03-02-b
+- Note: PR creation failed (token permissions)
 
 ### Pipeline PR #4: Training Visualization Utilities for Driving Pipeline (2026-03-01)
 - `training/rl/training_visualization.py`: NEW visualization library (546 lines)
