@@ -22,6 +22,9 @@ It is intentionally not exhaustive.
       - Survey: lightweight AI assistant with container isolation
       - Key: Skills-based architecture, agent swarms, small codebase
       - Compare with OpenClaw for potential adoption/inspiration
+    - **GLM-5** — From Vibe Coding to Agentic Engineering (arXiv 2602.15763)
+      - Survey: docs/surveys/2026-03-02-glm5-agentic-engineering.md
+      - Key: DSA, Async RL infrastructure, SOTA on coding benchmarks
 
 ### Generative modeling: Flow Matching
 - ~~**Flow Matching / Rectified Flow / Consistency-style training**~~ ✅ Done: survey/2026-02-21-flow-matching.md
