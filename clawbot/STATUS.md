@@ -1,9 +1,10 @@
 # CLAWBOT Status
 
-**Last Updated:** 2026-03-03 1:30 PM (PR #3 added)
+**Last Updated:** 2026-03-03 4:30 PM (PR #4 added)
 
 ## Daily Cadence
 
+- ⏳ Pipeline PR #4 (2026-03-03): Training Diagnostics Module → Pushed (commit e996309)
 - ⏳ Pipeline PR #3 (2026-03-03): Advanced Checkpoint Selection with ADE/FDE Metrics → Pushed (commit ccb9d98)
 - ⏳ Pipeline PR #2 (2026-03-03): Enhanced Metrics Validation + Quick Eval Runner → Pushed (commit 21a5f50)
 - ⏳ Pipeline PR #1 (2026-03-03): Enhanced RL Training with Dense Rewards → Pushed (commit 9901679)
@@ -44,6 +45,44 @@
 - ⏳ Awaiting PR review/merge
 
 ## Recent Work
+
+### Pipeline PR #4: Training Diagnostics Module (2026-03-03)
+- `training/rl/training_diagnostics.py`: NEW module (620+ lines)
+  - **TrainingDiagnosticsAnalyzer**: Analyzes training runs to identify failure modes
+  - **Failure Mode Detection**:
+    - Gradient explosion (grad_norm > 100)
+    - Reward collapse (all recent rewards ≤ 0)
+    - Entropy collapse (policy became deterministic too early)
+    - Training plateau (no improvement over 50 episodes)
+    - Value function divergence (vloss > 100)
+    - Oscillating rewards (high variance in rolling mean)
+  - **Learning Dynamics Analysis**:
+    - Reward trend detection (increasing, decreasing, stable, oscillating)
+    - Entropy trend analysis (exploration behavior)
+    - Value alignment (correlation between predicted and actual returns)
+  - **Actionable Recommendations**: Generated based on detected issues
+- CLI Interface:
+  - `--list`: Show all available training runs
+  - `--latest`: Analyze most recent run
+  - `--run-id <id>`: Analyze specific run
+  - `--report`: Generate markdown report
+  - `--failure-modes`: Show failure mode analysis
+- Example output:
+  ```
+  Training Diagnostics: run_20260303_095159
+  Episodes: 20 | Final Reward: 11.29 | Best: 30.59
+  Reward Trend: oscillating
+  ⚠️ Failure Modes: value_function_divergence (max_vloss=369.0)
+  ```
+- Usage:
+  ```bash
+  python -m training.rl.training_diagnostics --list
+  python -m training.rl.training_diagnostics --latest
+  python -m training.rl.training_diagnostics --run-id <run_id> --report
+  ```
+- Branch: `feature/daily-2026-03-03-d`
+- Commit: `e996309`
+- PR: https://github.com/Capri2014/AIResearch/pull/new/feature/daily-2026-03-03-d
 
 ### Pipeline PR #3: Advanced Checkpoint Selection with ADE/FDE Metrics (2026-03-03)
 - `training/rl/checkpoint_selector_advanced.py`: NEW module for driving-specific checkpoint selection
