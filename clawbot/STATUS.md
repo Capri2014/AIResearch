@@ -1,12 +1,14 @@
 # CLAWBOT Status
 
-**Last Updated:** 2026-03-02 10:30 AM (PR #3 added 1:30 PM)
+**Last Updated:** 2026-03-02 7:30 PM (PR #5 added)
 
 ## Daily Cadence
 
-- ⏳ Pipeline PR #3 (2026-03-02): Waypoint BC SFT Training → Pushed (commit 6832036) - PR creation failed (manual PR needed)
-- ⏳ Pipeline PR #2 (2026-03-02): GRPO Multi-Scenario Training with Domain Randomization → Pushed (commit b97025c) - PR creation failed (manual PR needed)
-- ⏳ Pipeline PR #1 (2026-03-02): GRPO Residual Delta + Hyperparameter Search → Pushed (commit 5bc8fb6) - PR creation failed (manual PR needed)
+- ⏳ Pipeline PR #5 (2026-03-02): Unified SFT → RL Training Pipeline → Pushed (commit 245d392) - PR creation failed (manual PR needed)
+- ⏳ Pipeline PR #4 (2026-03-02): Waypoint BC SFT Training → Pushed (commit 6832036) - PR creation failed (manual PR needed)
+- ⏳ Pipeline PR #3 (2026-03-02): GRPO Multi-Scenario Training with Domain Randomization → Pushed (commit b97025c) - PR creation failed (manual PR needed)
+- ⏳ Pipeline PR #2 (2026-03-02): GRPO Residual Delta + Hyperparameter Search → Pushed (commit 5bc8fb6) - PR creation failed (manual PR needed)
+- ⏳ Pipeline PR #1 (2026-03-02): Waypoint BC SFT Training → Pushed (commit 6832036) - PR creation failed (manual PR needed)
 - ⏳ Pipeline PR #6 (2026-03-01): RL Evaluation - Multi-Checkpoint Format Support → Pushed (commit 9f75d33) - PR creation failed (manual PR needed)
 - ⏳ Pipeline PR #5 (2026-03-01): RL-After-SFT Complete Training Pipeline → Pushed (commit b314489) - PR creation failed (manual PR needed)
 - ⏳ Pipeline PR #4 (2026-03-01): Training Visualization Utilities for Driving Pipeline → Pushed (commit a9898c1)
@@ -94,6 +96,31 @@
 - Branch: `feature/daily-2026-03-02-c`
 - Commit: `6832036`
 - PR: https://github.com/Capri2014/AIResearch/pull/new/feature/daily-2026-03-02-c
+- Note: PR creation failed (token permissions)
+
+### Pipeline PR #5: Unified SFT → RL Training Pipeline (2026-03-02)
+- `training/rl/sft_rl_unified_train.py`: NEW unified training script (665 lines)
+  - **Phase 1**: Train SFT waypoint model via behavior cloning
+  - **Phase 2**: Load frozen SFT, train residual delta head with PPO
+  - **Architecture**: final_waypoints = sft_waypoints + delta_head(state)
+  - **Outputs**: sft_checkpoint.pt, rl_checkpoint.pt, metrics.json, train_metrics.json
+- Smoke test: 5 SFT epochs + 20 RL episodes
+  - Final SFT val_loss: 0.71, val_ADE: 4.87
+  - Final RL avg_reward: 5.92, goal_rate: 5%
+- Usage:
+  ```bash
+  python -m training.rl.sft_rl_unified_train --smoke
+  python -m training.rl.sft_rl_unified_train \
+      --sft-epochs 50 --rl-episodes 200 --output-dir out/sft_rl_unified
+  ```
+- Benefits:
+  - Complete SFT → RL pipeline demonstration
+  - Checkpoint loading for frozen SFT + trainable delta
+  - Proper metrics output for evaluation
+  - Integration point for CARLA ScenarioRunner eval
+- Branch: `feature/daily-2026-03-02-e`
+- Commit: `245d392`
+- PR: https://github.com/Capri2014/AIResearch/pull/new/feature/daily-2026-03-02-e
 - Note: PR creation failed (token permissions)
 
 ### Pipeline PR #4: Training Visualization Utilities for Driving Pipeline (2026-03-01)
