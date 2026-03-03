@@ -91,7 +91,7 @@ def load_sft_checkpoint(
     sft_model = SFTWaypointModel(state_dim, horizon, hidden_dim)
     
     if os.path.exists(checkpoint_path):
-        checkpoint = torch.load(checkpoint_path, map_location='cpu')
+        checkpoint = torch.load(checkpoint_path, map_location='cpu', weights_only=False)
         if 'model_state' in checkpoint:
             sft_model.load_state_dict(checkpoint['model_state'])
         elif 'state_dict' in checkpoint:
