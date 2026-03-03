@@ -8,6 +8,12 @@ from .ppo_residual_waypoint import (
     PPOResidualWaypointAgent,
     train_ppo_residual
 )
+from .checkpoint_selector_advanced import (
+    AdvancedCheckpointSelector,
+    EvaluationReporter,
+    DrivingMetrics,
+    EvalCheckpoint
+)
 
 __all__ = [
     'WaypointEnv',
@@ -15,5 +21,9 @@ __all__ = [
     'DeltaWaypointHead',
     'SFTWaypointModel',
     'PPOResidualWaypointAgent',
-    'train_ppo_residual'
+    'train_ppo_residual',
+    'AdvancedCheckpointSelector',
+    'EvaluationReporter',
+    'DrivingMetrics',
+    'EvalCheckpoint'
 ]
