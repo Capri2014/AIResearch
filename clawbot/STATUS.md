@@ -1,9 +1,11 @@
 # CLAWBOT Status
 
-**Last Updated:** 2026-03-02 7:30 PM (PR #5 added)
+**Last Updated:** 2026-03-03 9:50 AM (PR #1 added)
 
 ## Daily Cadence
 
+- ⏳ Pipeline PR #1 (2026-03-03): Enhanced RL Training with Dense Rewards → Pushed (commit  - PR creation failed9901679) (manual PR needed)
+- ⏳ Pipeline PR #6 (2026-03-02): Enhanced Metrics Validator + Quick Eval Runner → Pushed (commit d28e1da) - PR creation failed (manual PR needed)
 - ⏳ Pipeline PR #5 (2026-03-02): Unified SFT → RL Training Pipeline → Pushed (commit 245d392) - PR creation failed (manual PR needed)
 - ⏳ Pipeline PR #4 (2026-03-02): Waypoint BC SFT Training → Pushed (commit 6832036) - PR creation failed (manual PR needed)
 - ⏳ Pipeline PR #3 (2026-03-02): GRPO Multi-Scenario Training with Domain Randomization → Pushed (commit b97025c) - PR creation failed (manual PR needed)
@@ -40,6 +42,32 @@
 - ⏳ Awaiting PR review/merge
 
 ## Recent Work
+
+### Pipeline PR #1: Enhanced RL Training with Dense Rewards (2026-03-03)
+- `training/rl/enhanced_rl_dense_train.py`: NEW training script (666 lines)
+  - **DenseRewardWaypointEnv**: Dense reward signals for faster learning
+    - Progress rewards (step-by-step distance reduction)
+    - Waypoint tracking rewards
+    - Smooth control rewards
+    - Speed efficiency rewards
+  - **ImprovedDeltaHead**: Better delta architecture
+    - Layer normalization for stability
+    - Multiple MLP layers (3 hidden)
+    - Orthogonal weight initialization
+  - **EnhancedPPOAgent**: Full PPO training with GAE
+- Smoke test results (20 episodes):
+  - Success Rate: **60%** (vs 0% in previous short RL runs)
+  - Avg Return: 20.66 ± 5.79
+- This addresses the core issue where RL underperformed SFT after short runs
+- Usage:
+  ```bash
+  python -m training.rl.enhanced_rl_dense_train --smoke
+  python -m training.rl.enhanced_rl_dense_train --episodes 200 --output-dir out/enhanced_rl
+  ```
+- Branch: `feature/daily-2026-03-03-a`
+- Commit: `9901679`
+- PR: https://github.com/Capri2014/AIResearch/pull/new/feature/daily-2026-03-03-a
+- Note: PR creation failed (token permissions)
 
 ### Pipeline PR #1: GRPO Residual Delta + Hyperparameter Search (2026-03-02)
 - `training/rl/grpo_waypoint.py`: Added GRPOActorCriticResidual class
@@ -121,6 +149,28 @@
 - Branch: `feature/daily-2026-03-02-e`
 - Commit: `245d392`
 - PR: https://github.com/Capri2014/AIResearch/pull/new/feature/daily-2026-03-02-e
+- Note: PR creation failed (token permissions)
+
+### Pipeline PR #6: Enhanced Metrics Validator + Quick Eval Runner (2026-03-02)
+- `training/rl/validate_metrics.py`: Enhanced strict schema validation
+  - **Clear error messages** with suggestions for fixing issues
+  - **Auto-detect latest checkpoints** (RL and SFT) from workspace out/ directory
+  - Support for `--strict` mode with warnings for recommended fields
+  - Added `--find-checkpoint` and `--auto` flags
+- `training/rl/eval_quick.py`: NEW quick evaluation runner
+  - Auto-detects latest RL/SFT checkpoints
+  - Runs deterministic evaluation comparing SFT vs RL policies
+  - Smoke test mode (5 episodes) or full (10+ episodes)
+  - Outputs 3-line report + schema-valid metrics.json
+- Usage:
+  ```bash
+  python -m training.rl.validate_metrics --find-checkpoint
+  python -m training.rl.validate_metrics out/eval/.../metrics.json
+  python -m training.rl.eval_quick --smoke
+  ```
+- Results: SFT ADE=3.629m vs RL ADE=68.528m (RL needs more training)
+- Branch: `feature/survey-glm5-2026-03-02`
+- Commit: `d28e1da`
 - Note: PR creation failed (token permissions)
 
 ### Pipeline PR #4: Training Visualization Utilities for Driving Pipeline (2026-03-01)
