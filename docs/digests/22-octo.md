@@ -1,9 +1,9 @@
 # Octo: Open-Source Generalist Robot Policy (PUBLIC ANCHOR DIGEST)
 
 **Survey:** Octo: An Open-Source Generalist Robot Policy (Ghosh et al., 2024)  
-**Date:** 2026-03-02  
+**Date:** 2026-03-03  
 **Status:** PUBLIC ANCHOR DIGEST - Robotics Foundation Model Baseline  
-**Updated:** 2026-03-02 (Survey PR #3 - Public Anchor Digest - Robotics Foundation Model Baseline)  
+**Updated:** 2026-03-03 (Survey PR #3 - Public Anchor Digest - Robotics Foundation Model Baseline)  
 **Author:** Auto-generated digest  
 
 ---
@@ -303,5 +303,5 @@ gsutil -m cp -r gs://gdm-robotics-open-x-embodiment/octo_dataset/ ~/data/
 
 ---
 
-*PR: Survey PR #3 (March 2, 2026): Public Anchor Digest - Octo Robotics Foundation Model Baseline*  
+*PR: Survey PR #3 (March 3, 2026): Public Anchor Digest - Octo Robotics Foundation Model Baseline*  
 *Summary: Octo (Apache 2.0, best open-code reproducibility) as anchor baseline: (1) 800K+ trajectories from Open X-Embodiment, 27M/93M param models, (2) Supports both diffusion (DDPM/DDIM) and behavior cloning objectives, <50ms inference, (3) Zero-shot 0.70/0.80 on WidowX vs RT-1-X 0.35/0.60, fine-tuned avg 0.72 vs baselines 0.20, (4) Tesla/Ashok mapping: proven cross-embodiment transfer, modular action head pattern directly applicable to vehicle control, goal image → future frame prediction for driving, (5) Gaps: no throttle/steering, no safety constraints, needs 20-50Hz for driving, no fleet learning.*
