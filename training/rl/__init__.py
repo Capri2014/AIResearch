@@ -14,6 +14,10 @@ from .checkpoint_selector_advanced import (
     DrivingMetrics,
     EvalCheckpoint
 )
+from .training_diagnostics import (
+    TrainingDiagnostics,
+    TrainingDiagnosticsAnalyzer,
+)
 
 __all__ = [
     'WaypointEnv',
@@ -25,5 +29,7 @@ __all__ = [
     'AdvancedCheckpointSelector',
     'EvaluationReporter',
     'DrivingMetrics',
-    'EvalCheckpoint'
+    'EvalCheckpoint',
+    'TrainingDiagnostics',
+    'TrainingDiagnosticsAnalyzer',
 ]
