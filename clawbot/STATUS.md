@@ -1,9 +1,10 @@
 # CLAWBOT Status
 
-**Last Updated:** 2026-03-03 10:30 AM (PR #2 added)
+**Last Updated:** 2026-03-03 1:30 PM (PR #3 added)
 
 ## Daily Cadence
 
+- ⏳ Pipeline PR #3 (2026-03-03): Advanced Checkpoint Selection with ADE/FDE Metrics → Pushed (commit ccb9d98)
 - ⏳ Pipeline PR #2 (2026-03-03): Enhanced Metrics Validation + Quick Eval Runner → Pushed (commit 21a5f50)
 - ⏳ Pipeline PR #1 (2026-03-03): Enhanced RL Training with Dense Rewards → Pushed (commit 9901679)
 - ⏳ Pipeline PR #6 (2026-03-02): Enhanced Metrics Validator + Quick Eval Runner → Pushed (commit d28e1da) - PR creation failed (manual PR needed)
@@ -44,7 +45,25 @@
 
 ## Recent Work
 
-### Pipeline PR #1: Enhanced RL Training with Dense Rewards (2026-03-03)
+### Pipeline PR #3: Advanced Checkpoint Selection with ADE/FDE Metrics (2026-03-03)
+- `training/rl/checkpoint_selector_advanced.py`: NEW module for driving-specific checkpoint selection
+  - DrivingMetrics: ADE, FDE, success rate, route completion, collisions
+  - AdvancedCheckpointSelector: select by ADE, FDE, success, or composite score
+  - Composite scoring with configurable weights (default: 40% ADE, 30% FDE, 30% success)
+  - EvaluationReporter: Generate markdown reports
+  - CLI: --best-ade, --best-fde, --best-success, --best-composite, --report
+- `training/rl/eval_quick.py`: Enhanced with smart checkpoint selection
+  - --show-checkpoints: Display available checkpoints with metrics
+  - --best-ade/--best-fde/--best-success/--best-composite: Smart selection
+- Best checkpoints:
+  - Best by ADE: waypoint_rl_eval_2026-02-23_21-34-12 (3.568m)
+  - Best by FDE: waypoint_rl_eval_2026-02-22_21-31-36 (2.681m)
+  - Best by Success: waypoint_rl_eval_2026-02-22_21-31-36 (40.0%)
+- Branch: `feature/daily-2026-03-03-c`
+- Commit: `ccb9d98`
+- PR: https://github.com/Capri2014/AIResearch/pull/new/feature/daily-2026-03-03-c
+
+### Pipeline PR #2: Enhanced Metrics Validation + Quick Eval Runner (2026-03-03)
 - `training/rl/enhanced_rl_dense_train.py`: NEW training script (666 lines)
   - **DenseRewardWaypointEnv**: Dense reward signals for faster learning
     - Progress rewards (step-by-step distance reduction)
@@ -68,6 +87,34 @@
 - Branch: `feature/daily-2026-03-03-a`
 - Commit: `9901679`
 - PR: https://github.com/Capri2014/AIResearch/pull/new/feature/daily-2026-03-03-a
+- Note: PR creation failed (token permissions)
+
+### Pipeline PR #3: Advanced Checkpoint Selection with ADE/FDE Metrics (2026-03-03)
+- `training/rl/checkpoint_selector_advanced.py`: NEW module (450+ lines)
+  - **DrivingMetrics**: ADE, FDE, success rate, route completion, collisions
+  - **AdvancedCheckpointSelector**: Select by ADE/FDE/success/composite score
+  - Composite scoring with configurable weights (40% ADE, 30% FDE, 30% success)
+  - **EvaluationReporter**: Generate markdown reports
+- `training/rl/eval_quick.py`: Enhanced with smart checkpoint selection
+  - --show-checkpoints: Display available checkpoints with metrics
+  - --best-ade/--best-fde/--best-success/--best-composite: Select best by metric
+- Benefits:
+  - ADE/FDE-based checkpoint selection (critical for driving precision)
+  - Smart checkpoint selection using evaluation metrics
+  - Comprehensive evaluation reporting for driving pipeline
+- Usage:
+  ```bash
+  python -m training.rl.checkpoint_selector_advanced --best-ade
+  python -m training.rl.checkpoint_selector_advanced --report
+  python -m training.rl.eval_quick --show-checkpoints
+  ```
+- Best checkpoints found:
+  - Best by ADE: waypoint_rl_eval_2026-02-23_21-34-12 (3.568m)
+  - Best by FDE: waypoint_rl_eval_2026-02-22_21-31-36 (2.681m)
+  - Best by Success: waypoint_rl_eval_2026-02-22_21-31-36 (40.0%)
+- Branch: `feature/daily-2026-03-03-c`
+- Commit: `ccb9d98`
+- PR: https://github.com/Capri2014/AIResearch/pull/new/feature/daily-2026-03-03-c
 - Note: PR creation failed (token permissions)
 
 ### Pipeline PR #1: GRPO Residual Delta + Hyperparameter Search (2026-03-02)
