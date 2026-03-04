@@ -18,24 +18,24 @@ _Last updated: 2026-02-28 (Pipeline PR #6)_
 
 **Survey:** `docs/digests/scene-transformer.md`
 
-**Research lineage:**
-1. Scene Transformer (Google 2021) - Query-based unified scene representation
-2. VectorNet (2020) - GNN for polylines
-3. BEVFormer (2022) - BEV as intermediate
-4. UniAD (2023/2025) - Planning-oriented, all tasks → planning
-5. VAD (2022) - Vectorized + safety constraints
+**Full Prediction Roadmap (in survey order):**
 
-**Recommended path:**
-1. Phase 1: Scene Transformer encoder (agent queries + map queries + temporal attention)
-2. Phase 2: UniAD-style planning token (all tasks optimize toward planning)
-3. Phase 3: VAD-style safety constraints (boundary constraints)
+| Phase | Paper | Core Idea |
+|-------|-------|-----------|
+| 1 | Scene Transformer | Agent queries + map queries + temporal attention |
+| 2 | Wayformer | Simple unified attention |
+| 3 | MultiPath++ | Anchor-based prediction |
+| 4 | MTR | Learned motion modes |
+| 5 | Motion Query | Query-based motion forecasting |
+| 6 | QCNet | Query-centric multi-agent |
+| 7 | SceneDiffuser | Diffusion for trajectories |
+| 8 | UniAD | E2E prediction + planning |
+| 9 | VAD | Vector tokens + safety constraints |
 
-**Integration:**
-```
-Waymo → SSL → Scene Transformer Encoder → Waypoint Head → Delta Refinement → CARLA
-                            ↓                   ↓
-                     (add planning token)  (current RL)
-```
+**Recommended implementation path:**
+1. Scene encoder (Scene Transformer / Wayformer)
+2. Prediction head (Anchor / Query / Diffusion)
+3. E2E integration (UniAD-style planning token)
 - ⏳ **Pipeline PR #1** (2026-02-18): RL Checkpoint Selection with Policy Entropy - awaiting review
 - ⏳ **Pipeline PR #9** (2026-02-17): Evaluation + Metrics Hardening for RL Refinement - awaiting review
 - ⏳ **Pipeline PR #8** (2026-02-17): CARLA Closed-Loop Waypoint BC Evaluation - awaiting review
