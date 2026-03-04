@@ -211,7 +211,7 @@ class AgentHistoryEncoder(nn.Module):
         # Temporal self-attention
         # Create key padding mask (True = invalid/masked)
         key_padding_mask = ~masks.bool()
-        x_attn, _ = self.temporal_attn(x, x, x, keypadding_mask=key_padding_mask)
+        x_attn, _ = self.temporal_attn(x, x, x, key_padding_mask=key_padding_mask)
         x = self.temporal_norm(x + x_attn)
         
         # Global average pooling over time
@@ -275,7 +275,7 @@ class CrossAttentionLayer(nn.Module):
         # Cross attention
         attn_out, _ = self.cross_attn(
             query, key_value, key_value,
-            keypadding_mask=kv_mask if kv_mask is not None else None
+            key_padding_mask=kv_mask if kv_mask is not None else None
         )
         x = self.norm1(query + attn_out)
         
@@ -398,7 +398,7 @@ class SceneTransformerEncoder(nn.Module):
         
         agent_emb_attn, _ = self.agent_attn(
             agent_emb, agent_emb, agent_emb,
-            keypadding_mask=~agent_valid
+            key_padding_mask=~agent_valid
         )
         agent_emb = self.agent_norm(agent_emb + agent_emb_attn)
         

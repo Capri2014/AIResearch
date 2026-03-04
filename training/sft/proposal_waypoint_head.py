@@ -94,8 +94,10 @@ class ProposalWaypointHead(nn.Module):
         
         # Scorer network (optional)
         if use_scoring:
+            # Input: trunk output (hidden_dim) + proposal features (horizon_steps * 2)
+            scorer_input_dim = hidden_dim + horizon_steps * 2
             self.scorer = nn.Sequential(
-                nn.Linear(hidden_dim * 2, hidden_dim),
+                nn.Linear(scorer_input_dim, hidden_dim),
                 nn.ReLU(),
                 nn.Linear(hidden_dim, hidden_dim),
                 nn.ReLU(),
