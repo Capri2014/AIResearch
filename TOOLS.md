@@ -19,6 +19,11 @@ Things like:
 - Device nicknames
 - Anything environment-specific
 
+## GitHub
+
+- Default repo for PRs: `Capri2014/AIResearch` (not qi3/AIResearch-repo)
+- Always use `--repo Capri2014/AIResearch` flag with `gh pr create`
+
 ## Examples
 
 ```markdown
