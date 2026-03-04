@@ -1,18 +1,21 @@
 # Status (ClawBot)
 
-_Last updated: 2026-02-28 (Pipeline PR #6)_
+_Last updated: 2026-03-04 (Pipeline PR #1)_
 
 ## Current focus
-**Scene Transformer Survey + Implementation** (March 3, 2026)
+**Scene Transformer Implementation** (March 4, 2026)
 
-- Survey complete: Scene Transformer (Google 2021) → VectorNet → BEVFormer → UniAD → VAD
-- Next: Create implementation for scene transformer encoder → waypoint head → delta refinement
+- Implementation started: `training/sft/scene_encoder.py`
+- SceneTransformerEncoder with temporal attention + cross-attention
+- Integrated with proposal waypoint head (K modes)
+- Next: Integration with dataloader + training loop
 
 ---
 
 ## Daily Cadence
 
-- ⏳ **Survey PR #1** (2026-03-03): Scene Transformer Survey - Implementation planned
+- ✅ **Pipeline PR #1** (2026-03-04): Scene Transformer Encoder Implementation
+- ⏳ **Survey PR #1** (2026-03-03): Scene Transformer Survey - Implementation started
 
 ### Scene Transformer Implementation Plan
 

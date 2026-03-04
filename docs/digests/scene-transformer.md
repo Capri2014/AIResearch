@@ -1,7 +1,7 @@
 # Scene-Centric Prediction Roadmap
 
 **Date:** 2026-03-03  
-**Status:** Survey In Progress
+**Status:** Implementation Started (2026-03-04)
 
 ---
 
@@ -43,6 +43,35 @@
 |-------|-----------|--------|
 | **UniAD** | Unified perception → prediction → planning | ✅ |
 | **VAD** | Vectorized autonomous driving with vector tokens | ⏳ |
+
+---
+
+## Implementation Status
+
+### Code Created (2026-03-04)
+- `training/sft/scene_encoder.py` - Scene Transformer encoder implementation
+
+**Features:**
+- AgentHistoryEncoder: Temporal attention over agent trajectories
+- MapPolylineEncoder: Point-level to polyline-level encoding
+- CrossAttentionLayer: Agent-to-map cross attention
+- SceneTransformerEncoder: Full encoder with agent-agent and agent-map attention
+- SceneTransformerWithWaypointHead: End-to-end model with waypoint prediction
+
+**Usage:**
+```python
+from training.sft.scene_encoder import SceneTransformerEncoder, SceneEncoderConfig
+
+config = SceneEncoderConfig(
+    num_agents=32,
+    num_map_points=256,
+    num_history=20,
+    hidden_dim=256,
+)
+encoder = SceneTransformerEncoder(config)
+outputs = encoder(agent_history, map_polylines, agent_masks, polyline_masks)
+# outputs['agent_embeddings'], outputs['scene_embedding']
+```
 
 ---
 
