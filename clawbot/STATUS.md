@@ -1,21 +1,24 @@
 # Status (ClawBot)
 
-_Last updated: 2026-03-04 (Pipeline PR #2)_
+_Last updated: 2026-03-04 (Pipeline PR #3)_
 
 ## Current focus
-**Scene Transformer Tests + Bug Fixes** (March 4, 2026)
+**Scene Transformer Training Integration** (March 4, 2026)
 
-- Fixed key_padding_mask bug in scene_encoder.py (3 occurrences)
-- Fixed scorer dimension bug in proposal_waypoint_head.py
-- Created comprehensive test suite (5/5 tests passing)
-- Next: Integrate with dataloader + training loop
+- Created train_scene_transformer.py (624 lines)
+- Integrates SceneTransformerWithWaypointHead with waypoint BC pipeline
+- Supports K-proposal prediction (K=5 modes) with scoring
+- Uses ProposalLoss for minimum-over-proposals training
+- Tracks ADE/FDE metrics during training
+- Next: Run with real Waymo episode data
 
 ---
 
 ## Daily Cadence
 
+- ✅ **Pipeline PR #3** (2026-03-04): Scene Transformer Training Script
 - ✅ **Pipeline PR #2** (2026-03-04): Scene Transformer Tests + Bug Fixes
-- ✅ **Pipeline PR #1** (2026-03-04): Scene Transformer Encoder Implementation - Merged
+- ✅ **Pipeline PR #1** (2026-03-04): Scene Transformer Encoder Implementation
 
 ### Scene Transformer Implementation Plan
 
@@ -42,7 +45,17 @@ _Last updated: 2026-03-04 (Pipeline PR #2)_
 
 ## Recent changes
 
-### Pipeline PR #2: Scene Transformer Tests + Bug Fixes (Today, 10:30am PT)
+### Pipeline PR #3: Scene Transformer Training Script (Today, 10:30am PT)
+- **Created: `training/sft/train_scene_transformer.py`**
+  - End-to-end training script (624 lines)
+  - Integrates SceneTransformerWithWaypointHead with waypoint BC pipeline
+  - Supports K-proposal prediction (K=5 modes) with scoring
+  - Uses ProposalLoss for minimum-over-proposals training
+  - Tracks ADE/FDE metrics during training
+  - Works with EpisodesWaypointBCDataset or dummy data
+  - 4.67M parameters
+
+### Pipeline PR #2: Scene Transformer Tests + Bug Fixes (Earlier today)
 - **Created: `training/sft/test_scene_encoder.py`**
   - Test suite with 5 tests: config defaults, encoder forward, full model, gradient flow, regression mode
   - All 5 tests passing
@@ -63,10 +76,11 @@ _Last updated: 2026-03-04 (Pipeline PR #2)_
   - AgentHistoryEncoder for trajectory encoding
 
 ## Next (top 3)
-1. Test encoder with dummy data (DONE)
-2. Integrate with existing waypoint BC dataloader
-3. Add loss function for waypoint prediction
-4. Run training loop with Waymo episodes
+1. Test encoder with dummy data (DONE - PR #2)
+2. Integrate with existing waypoint BC dataloader (DONE - PR #3)
+3. Add loss function for waypoint prediction (DONE - PR #3)
+4. Run training loop with real Waymo episodes
+5. Add image encoder path for full e2e pipeline
 
 ## Blockers / questions for owner
 - PR reviews pending for older PRs (#9, #8, #5)
@@ -90,4 +104,4 @@ final_waypoints = sft_waypoints + delta_head(z)
 
 ## Links
 - Daily notes: `clawbot/daily/2026-03-04.md`
-- Branch: `feature/daily-2026-03-04-b`
+- Branch: `feature/daily-2026-03-04-c`
