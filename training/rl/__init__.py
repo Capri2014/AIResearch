@@ -18,6 +18,10 @@ from .training_diagnostics import (
     TrainingDiagnostics,
     TrainingDiagnosticsAnalyzer,
 )
+from .train_ppo_residual import (
+    PPODeltaWaypoint,
+    PPOResidualTrainer,
+)
 
 __all__ = [
     'WaypointEnv',
@@ -32,4 +36,6 @@ __all__ = [
     'EvalCheckpoint',
     'TrainingDiagnostics',
     'TrainingDiagnosticsAnalyzer',
+    'PPODeltaWaypoint',
+    'PPOResidualTrainer',
 ]
