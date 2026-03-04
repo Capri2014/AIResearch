@@ -573,6 +573,15 @@
 2. Add LoRA to GRPO training script (PPO done)
 3. Explore LoRA rank scaling experiments
 
+## Upcoming Surveys & Implementations
+
+### Scene Transformer (Survey + Implementation)
+- **Survey**: Google Research 2021 - Transformer for structured scene representation
+- **Key insight**: Unified modeling of agents + map using attention
+- **Implementation**: Add scene transformer encoder to waypoint prediction pipeline
+- **Integration**: Use as scene representation → waypoint head → delta refinement
+- **Priority**: High (foundation for multi-agent modeling)
+
 ## Blockers / questions for owner
 - PR creation may fail (token permissions) - manual PR may be needed
 
