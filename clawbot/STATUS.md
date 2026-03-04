@@ -3,11 +3,39 @@
 _Last updated: 2026-02-28 (Pipeline PR #6)_
 
 ## Current focus
-Driving-first pipeline: **Waymo episodes → PyTorch SSL pretrain → waypoint BC → RL refinement → CARLA ScenarioRunner eval**.
+**Scene Transformer Survey + Implementation** (March 3, 2026)
+
+- Survey complete: Scene Transformer (Google 2021) → VectorNet → BEVFormer → UniAD → VAD
+- Next: Create implementation for scene transformer encoder → waypoint head → delta refinement
+
+---
 
 ## Daily Cadence
 
-- ✅ **Pipeline PR #6** (2026-02-28): RL Refinement Evaluation + Metrics Hardening
+- ⏳ **Survey PR #1** (2026-03-03): Scene Transformer Survey - Implementation planned
+
+### Scene Transformer Implementation Plan
+
+**Survey:** `docs/digests/scene-transformer.md`
+
+**Research lineage:**
+1. Scene Transformer (Google 2021) - Query-based unified scene representation
+2. VectorNet (2020) - GNN for polylines
+3. BEVFormer (2022) - BEV as intermediate
+4. UniAD (2023/2025) - Planning-oriented, all tasks → planning
+5. VAD (2022) - Vectorized + safety constraints
+
+**Recommended path:**
+1. Phase 1: Scene Transformer encoder (agent queries + map queries + temporal attention)
+2. Phase 2: UniAD-style planning token (all tasks optimize toward planning)
+3. Phase 3: VAD-style safety constraints (boundary constraints)
+
+**Integration:**
+```
+Waymo → SSL → Scene Transformer Encoder → Waypoint Head → Delta Refinement → CARLA
+                            ↓                   ↓
+                     (add planning token)  (current RL)
+```
 - ⏳ **Pipeline PR #1** (2026-02-18): RL Checkpoint Selection with Policy Entropy - awaiting review
 - ⏳ **Pipeline PR #9** (2026-02-17): Evaluation + Metrics Hardening for RL Refinement - awaiting review
 - ⏳ **Pipeline PR #8** (2026-02-17): CARLA Closed-Loop Waypoint BC Evaluation - awaiting review
