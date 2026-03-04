@@ -1,9 +1,10 @@
 # CLAWBOT Status
 
-**Last Updated:** 2026-03-03 4:30 PM (PR #4 added)
+**Last Updated:** 2026-03-03 7:30 PM (PR #5 added)
 
 ## Daily Cadence
 
+- ⏳ Pipeline PR #5 (2026-03-03): Full PPO for Residual Waypoint Learning → Pushed (commit 91e0628)
 - ⏳ Pipeline PR #4 (2026-03-03): Training Diagnostics Module → Pushed (commit e996309)
 - ⏳ Pipeline PR #3 (2026-03-03): Advanced Checkpoint Selection with ADE/FDE Metrics → Pushed (commit ccb9d98)
 - ⏳ Pipeline PR #2 (2026-03-03): Enhanced Metrics Validation + Quick Eval Runner → Pushed (commit 21a5f50)
