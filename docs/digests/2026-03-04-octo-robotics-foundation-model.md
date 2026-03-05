@@ -102,3 +102,4 @@ Can we build an open-source, generalist robot policy that (1) works across many 
 ---
 
 *Digest created: 2026-03-04*
+*Updated for Survey PR #3: 2026-03-05*
