@@ -1,27 +1,23 @@
 # Status (ClawBot)
 
-_Last updated: 2026-03-05 (Pipeline PR #3)_
+_Last updated: 2026-03-05 (Pipeline PR #4)_
 
 ## Current focus
-**SSL to Waypoint BC Fine-tuning** (March 5, 2026)
+**Unified CARLA Evaluation Runner** (March 5, 2026)
 
-- Created `training/sft/finetune_ssl_waypoint_bc.py` - Fine-tuning script
-- SSLToWaypointBCModel: loads SSL-pretrained encoder + waypoint prediction head
-- Supports freeze_encoder/unfreeze_encoder for transfer learning
-- Minimum-over-proposals loss with scoring network
-- 7.04M parameters
-- Next: Connect to real SSL checkpoint, run fine-tuning
-
-- Created `training/rl/eval_compare_sft_rl.py` - loader for SFT vs RL comparison
-- Deterministic eval run: `out/eval/toy_waypoint_eval_2026-03-04_21-33-13/metrics.json`
-- Metrics follow `data/schema/metrics.json` schema
-- Prints 3-line comparison report
-- Next: Connect to real SFT checkpoint, CARLA integration
+- Created `sim/driving/eval_unified_carla.py` - Unified evaluation interface
+- Supports all model types: SFT, SSL fine-tuned, RL delta, stub
+- Proper metrics aggregation following `data/schema/metrics.json`
+- waypoints_to_control(): Converts waypoints to vehicle commands
+- Suite support: smoke, basic, interactor, all
+- Dry-run tested: `out/eval/unified_eval_stub_*/metrics.json`
+- Next: Connect to real checkpoints, implement actual CARLA execution
 
 ---
 
 ## Daily Cadence
 
+- ✅ **Pipeline PR #4** (2026-03-05): Unified CARLA Evaluation Runner
 - ✅ **Pipeline PR #3** (2026-03-05): SSL to Waypoint BC Fine-tuning
 - ✅ **Pipeline PR #2** (2026-03-05): Waymo Episode Loader + SSL Pretrain
 - ✅ **Pipeline PR #1** (2026-03-05): Scene Transformer CARLA Wrapper
@@ -56,6 +52,16 @@ _Last updated: 2026-03-05 (Pipeline PR #3)_
 3. E2E integration (UniAD-style planning token)
 
 ## Recent changes
+
+### Pipeline PR #4: Unified CARLA Evaluation Runner (Today, 4:30pm PT)
+- **Created: `sim/driving/eval_unified_carla.py`**
+  - Unified evaluation interface for all model types (SFT, SSL_finetune, rl_delta, stub)
+  - Supports loading checkpoints for each model type
+  - waypoints_to_control(): Converts waypoints to vehicle throttle/steer/brake
+  - compute_summary(): Aggregates metrics (success_rate, ade/fde, collisions, etc.)
+  - Suite support: smoke, basic, interactor, all
+  - Output follows `data/schema/metrics.json` exactly
+  - Dry-run tested successfully
 
 ### Pipeline PR #3: SSL to Waypoint BC Fine-tuning (Today, 1:30pm PT)
 - **Created: `training/sft/finetune_ssl_waypoint_bc.py`**
