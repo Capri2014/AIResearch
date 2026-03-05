@@ -1,14 +1,16 @@
 # Status (ClawBot)
 
-_Last updated: 2026-03-04 (Pipeline PR #6)_
+_Last updated: 2026-03-05 (Pipeline PR #3)_
 
 ## Current focus
-**Waymo Episode Loading + SSL Pretraining** (March 5, 2026)
+**SSL to Waypoint BC Fine-tuning** (March 5, 2026)
 
-- Created `training/sft/dataloader_waymo.py` - Waymo Motion Dataset loader
-- Created `training/sft/train_waymo_ssl.py` - SSL pretraining script
-- Provides foundation for "Waymo episodes → SSL pretrain" pipeline step
-- Next: Connect to real TFRecords, use pretrained encoder for waypoint BC
+- Created `training/sft/finetune_ssl_waypoint_bc.py` - Fine-tuning script
+- SSLToWaypointBCModel: loads SSL-pretrained encoder + waypoint prediction head
+- Supports freeze_encoder/unfreeze_encoder for transfer learning
+- Minimum-over-proposals loss with scoring network
+- 7.04M parameters
+- Next: Connect to real SSL checkpoint, run fine-tuning
 
 - Created `training/rl/eval_compare_sft_rl.py` - loader for SFT vs RL comparison
 - Deterministic eval run: `out/eval/toy_waypoint_eval_2026-03-04_21-33-13/metrics.json`
@@ -20,6 +22,7 @@ _Last updated: 2026-03-04 (Pipeline PR #6)_
 
 ## Daily Cadence
 
+- ✅ **Pipeline PR #3** (2026-03-05): SSL to Waypoint BC Fine-tuning
 - ✅ **Pipeline PR #2** (2026-03-05): Waymo Episode Loader + SSL Pretrain
 - ✅ **Pipeline PR #1** (2026-03-05): Scene Transformer CARLA Wrapper
 - ✅ **Pipeline PR #6** (2026-03-04): RL Eval Loader + Metrics Comparison
@@ -54,7 +57,17 @@ _Last updated: 2026-03-04 (Pipeline PR #6)_
 
 ## Recent changes
 
-### Pipeline PR #3: Scene Transformer Training Script (Today, 10:30am PT)
+### Pipeline PR #3: SSL to Waypoint BC Fine-tuning (Today, 1:30pm PT)
+- **Created: `training/sft/finetune_ssl_waypoint_bc.py`**
+  - SSLToWaypointBCModel: loads SSL-pretrained encoder + waypoint prediction head
+  - load_ssl_checkpoint(): handles various checkpoint formats
+  - Supports freeze_encoder / unfreeze_encoder for transfer learning
+  - Minimum-over-proposals loss with scoring network
+  - ADE/FDE metrics, checkpoint saving (latest + best ADE)
+  - 7.04M parameters
+  - Forward/backward pass OK, loss computation OK
+
+### Pipeline PR #3: Scene Transformer Training Script (Earlier today)
 - **Created: `training/sft/train_scene_transformer.py`**
   - End-to-end training script (624 lines)
   - Integrates SceneTransformerWithWaypointHead with waypoint BC pipeline
@@ -109,14 +122,11 @@ _Last updated: 2026-03-04 (Pipeline PR #6)_
   - Design: `final_waypoints = sft_waypoints + delta_head(z)`
 
 ## Next (top 3)
-1. Test encoder with dummy data (DONE - PR #2)
-2. Integrate with existing waypoint BC dataloader (DONE - PR #3)
-3. Add loss function for waypoint prediction (DONE - PR #3)
-4. Run training loop with real Waymo episodes (in progress)
-5. Integrate image encoder with scene_encoder.py (DONE - PR #4)
-6. Add image dataloader for Waymo/BEV image loading
-7. Connect RL delta head to real SFT checkpoint (in progress - PR #5)
-8. Integrate with CARLA for real driving evaluation (PR #5 next)
+1. Load real SSL checkpoint and fine-tune on waypoint BC (in progress - PR #3)
+2. Test fine-tuned model on CARLA scenarios (next)
+3. Connect RL delta head to real SFT checkpoint (in progress - PR #5)
+4. Integrate with CARLA for real driving evaluation (next)
+5. Run full pipeline end-to-end
 
 ## Blockers / questions for owner
 - PR reviews pending for older PRs (#9, #8, #5)
@@ -139,5 +149,5 @@ final_waypoints = sft_waypoints + delta_head(z)
 - Metrics: ADE/FDE, route_completion, collisions
 
 ## Links
-- Daily notes: `clawbot/daily/2026-03-04.md`
-- Branch: `feature/daily-2026-03-04-e`
+- Daily notes: `clawbot/daily/2026-03-05.md`
+- Branch: `feature/daily-2026-03-05-b`
