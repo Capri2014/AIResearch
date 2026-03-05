@@ -1,20 +1,22 @@
 # Status (ClawBot)
 
-_Last updated: 2026-03-04 (Pipeline PR #4)_
+_Last updated: 2026-03-04 (Pipeline PR #5)_
 
 ## Current focus
-**Image Encoder for Scene Transformer** (March 4, 2026)
+**RL Refinement After SFT** (March 4, 2026)
 
-- Created image_encoder.py (799 lines)
-- Supports ViT-based, CNN-based, and hybrid image encoding
-- Enables full e2e pipeline from camera/BEV images to waypoints
-- ImageSceneFusion module for combining with vector scene features
-- Next: Integration with existing scene_encoder + real image data
+- Created `training/rl/ppo_residual_delta.py` (640+ lines)
+- PPO stub for residual delta-waypoint learning (Option B)
+- ToyWaypointEnv: 2D kinematic car environment
+- DeltaWaypointHead + PPOActor + PPOCritic
+- Output artifacts: out/rl_residual_delta/run_*/
+- Next: Connect to real SFT checkpoint, CARLA integration
 
 ---
 
 ## Daily Cadence
 
+- ✅ **Pipeline PR #5** (2026-03-04): RL Refinement After SFT (Option B)
 - ✅ **Pipeline PR #4** (2026-03-04): Image Encoder for Scene Transformer
 - ✅ **Pipeline PR #3** (2026-03-04): Scene Transformer Training Script
 - ✅ **Pipeline PR #2** (2026-03-04): Scene Transformer Tests + Bug Fixes
@@ -77,6 +79,16 @@ _Last updated: 2026-03-04 (Pipeline PR #4)_
   - Supports multiple fusion strategies: cross_attention, concatenation, add
   - Enables full e2e pipeline from camera/BEV images to waypoint prediction
 
+### Pipeline PR #5: RL Refinement After SFT (Option B) (Today, 7:30pm PT)
+- **Created: `training/rl/ppo_residual_delta.py`**
+  - PPO stub for residual delta-waypoint learning (640+ lines)
+  - ToyWaypointEnv: 2D kinematic car environment consuming predicted waypoints
+  - DeltaWaypointHead: Small network predicting bounded waypoint corrections
+  - PPOActor/PPOCritic: Policy and value networks with GAE
+  - Supports SFT checkpoint loading (--sft-checkpoint flag)
+  - Output artifacts: out/rl_residual_delta/run_*/
+  - Design: `final_waypoints = sft_waypoints + delta_head(z)`
+
 ## Next (top 3)
 1. Test encoder with dummy data (DONE - PR #2)
 2. Integrate with existing waypoint BC dataloader (DONE - PR #3)
@@ -84,6 +96,8 @@ _Last updated: 2026-03-04 (Pipeline PR #4)_
 4. Run training loop with real Waymo episodes (in progress)
 5. Integrate image encoder with scene_encoder.py (DONE - PR #4)
 6. Add image dataloader for Waymo/BEV image loading
+7. Connect RL delta head to real SFT checkpoint (in progress - PR #5)
+8. Integrate with CARLA for real driving evaluation (PR #5 next)
 
 ## Blockers / questions for owner
 - PR reviews pending for older PRs (#9, #8, #5)
@@ -107,4 +121,4 @@ final_waypoints = sft_waypoints + delta_head(z)
 
 ## Links
 - Daily notes: `clawbot/daily/2026-03-04.md`
-- Branch: `feature/daily-2026-03-04-c`
+- Branch: `feature/daily-2026-03-04-e`
