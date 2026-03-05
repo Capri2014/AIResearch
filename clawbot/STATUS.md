@@ -1,21 +1,28 @@
 # Status (ClawBot)
 
-_Last updated: 2026-03-04 (Pipeline PR #5)_
+_Last updated: 2026-03-04 (Pipeline PR #6)_
 
 ## Current focus
-**RL Refinement After SFT** (March 4, 2026)
+**Waymo Episode Loading + SSL Pretraining** (March 5, 2026)
 
-- Created `training/rl/ppo_residual_delta.py` (640+ lines)
-- PPO stub for residual delta-waypoint learning (Option B)
-- ToyWaypointEnv: 2D kinematic car environment
-- DeltaWaypointHead + PPOActor + PPOCritic
-- Output artifacts: out/rl_residual_delta/run_*/
+- Created `training/sft/dataloader_waymo.py` - Waymo Motion Dataset loader
+- Created `training/sft/train_waymo_ssl.py` - SSL pretraining script
+- Provides foundation for "Waymo episodes → SSL pretrain" pipeline step
+- Next: Connect to real TFRecords, use pretrained encoder for waypoint BC
+
+- Created `training/rl/eval_compare_sft_rl.py` - loader for SFT vs RL comparison
+- Deterministic eval run: `out/eval/toy_waypoint_eval_2026-03-04_21-33-13/metrics.json`
+- Metrics follow `data/schema/metrics.json` schema
+- Prints 3-line comparison report
 - Next: Connect to real SFT checkpoint, CARLA integration
 
 ---
 
 ## Daily Cadence
 
+- ✅ **Pipeline PR #2** (2026-03-05): Waymo Episode Loader + SSL Pretrain
+- ✅ **Pipeline PR #1** (2026-03-05): Scene Transformer CARLA Wrapper
+- ✅ **Pipeline PR #6** (2026-03-04): RL Eval Loader + Metrics Comparison
 - ✅ **Pipeline PR #5** (2026-03-04): RL Refinement After SFT (Option B)
 - ✅ **Pipeline PR #4** (2026-03-04): Image Encoder for Scene Transformer
 - ✅ **Pipeline PR #3** (2026-03-04): Scene Transformer Training Script
@@ -78,6 +85,18 @@ _Last updated: 2026-03-04 (Pipeline PR #5)_
   - ImageSceneFusion: Fuse image features with vector-based scene encoder
   - Supports multiple fusion strategies: cross_attention, concatenation, add
   - Enables full e2e pipeline from camera/BEV images to waypoint prediction
+
+### Pipeline PR #6: RL Eval Loader + Metrics Comparison (Today, 6:30pm PT)
+- **Created: `training/rl/eval_compare_sft_rl.py`**
+  - Loader script to compare SFT vs RL evaluation results
+  - Prints 3-line summary report (SFT, RL, Delta)
+  - Supports latest run or specific run directory
+  - Works with existing eval_toy_waypoint_rl.py output
+  
+- **Eval run created:**
+  - `out/eval/toy_waypoint_eval_2026-03-04_21-33-13/metrics.json`
+  - 10 episodes SFT vs 10 episodes RL (seeds 42-51)
+  - Metrics follow `data/schema/metrics.json`
 
 ### Pipeline PR #5: RL Refinement After SFT (Option B) (Today, 7:30pm PT)
 - **Created: `training/rl/ppo_residual_delta.py`**
