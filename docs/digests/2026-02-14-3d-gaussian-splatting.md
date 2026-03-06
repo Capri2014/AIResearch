@@ -1,6 +1,8 @@
 # 3D Gaussian Splatting for Real-Time Radiance Field Rendering (Kerbl et al., 2023) — Digest
 
-Source (paper): https://arxiv.org/abs/2308.04079  
+> **Survey PR #1 (Anchor Digest)** — Public anchor for 3D Gaussian Splatting
+> 
+> Source (paper): https://arxiv.org/abs/2308.04079  
 Project page + PDF: https://repo-sam.inria.fr/fungraph/3d-gaussian-splatting/  
 Reference implementation: https://github.com/graphdeco-inria/gaussian-splatting
 
