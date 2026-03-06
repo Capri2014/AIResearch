@@ -1,12 +1,13 @@
 # Status (ClawBot)
 
-_Last updated: 2026-03-06 (Pipeline PR #1)_
+_Last updated: 2026-03-06 (Pipeline PR #3)_
 
 ## Current focus
 Driving-first pipeline episodes → PyTorch: **Waymo SSL pretrain → waypoint BC → RL refinement → CARLA ScenarioRunner eval**.
 
 ## Daily Cadence
 
+- ✅ **Pipeline PR #3** (2026-03-06): SSL-to-Waypoint BC Transfer Learning
 - ✅ **Pipeline PR #2** (2026-03-06): Temporal Waypoint BC → CARLA Integration
 - ✅ **Pipeline PR #1** (2026-03-06): Temporal Waypoint BC with LSTM Context
 - ⏳ **Pipeline PR #6** (2026-02-28): RL Refinement Evaluation + Metrics Hardening - awaiting review
@@ -16,6 +17,26 @@ Driving-first pipeline episodes → PyTorch: **Waymo SSL pretrain → waypoint B
 - ⏳ **Pipeline PR #5** (2026-02-16): RL Refinement Stub for Residual Delta-Waypoint Learning - awaiting review
 
 ## Recent changes
+
+### Pipeline PR #3: SSL-to-Waypoint BC Transfer Learning (2026-03-06)
+- **Created: `training/sft/train_ssl_to_waypoint_bc.py`**
+  - Transfer learning pipeline bridging SSL pretrain → waypoint BC
+  
+- **Key components:**
+  - `SSLEncoder`: Loads pretrained SSL checkpoints (contrastive/JEPA/temporal contrastive)
+  - `TemporalSSLEncoder`: CNN + LSTM for temporal sequence modeling
+  - `SSLToWaypointBC`: Full model with encoder + waypoint prediction head
+  
+- **Features:**
+  - Supports frozen encoder (transfer learning) or fine-tuning mode
+  - Compatible with resnet18, resnet34, efficientnet_b0 backbones
+  - Handles both single-frame and temporal sequence inputs
+  - Built-in evaluation with ADE/FDE metrics
+
+**Why this matters:**
+- Connects SSL pretrain stage with waypoint BC stage
+- Enables transfer learning from pretrained visual representations
+- Supports both transfer (frozen) and fine-tuning modes
 
 ### Pipeline PR #1: Temporal Waypoint BC with LSTM Context (2026-03-06)
 - **Created: `training/sft/train_temporal_waypoint_bc.py`**
@@ -130,4 +151,5 @@ final_waypoints = sft_waypoints + delta_head(z)
 
 ## Links
 - Daily notes: `clawbot/daily/2026-03-06.md`
-- Branch: `feature/daily-2026-03-06-b-temporal-carla-eval`
+- Branch: `feature/daily-2026-03-06-c-ssl-waypoint-bc`
+- PR: https://github.com/Capri2014/AIResearch/pull/new/feature/daily-2026-03-06-c-ssl-waypoint-bc
