@@ -17,6 +17,7 @@ _Last updated: 2026-03-05 (Pipeline PR #4)_
 
 ## Daily Cadence
 
+- ✅ **Pipeline PR #5** (2026-03-05): RL Refinement After SFT (Waypoint Delta)
 - ✅ **Pipeline PR #4** (2026-03-05): Unified CARLA Evaluation Runner
 - ✅ **Pipeline PR #3** (2026-03-05): SSL to Waypoint BC Fine-tuning
 - ✅ **Pipeline PR #2** (2026-03-05): Waymo Episode Loader + SSL Pretrain
@@ -52,6 +53,21 @@ _Last updated: 2026-03-05 (Pipeline PR #4)_
 3. E2E integration (UniAD-style planning token)
 
 ## Recent changes
+
+### Pipeline PR #5: RL Refinement After SFT (Waypoint Delta) (Today, 7:30pm PT)
+- **Created: `training/rl/train_rl_after_sft.py`**
+  - RLAfterSFTConfig: Configuration dataclass for training
+  - WaypointKinematicEnv: Toy environment consuming predicted waypoints with kinematics
+  - SFTWaypointModel: SFT model wrapper (mock for testing, supports checkpoint loading)
+  - DeltaWaypointHead: Residual delta head predicting corrections
+  - PPOResidualAgent: PPO agent with KL regularization to stay close to SFT baseline
+  - train_rl_after_sft(): Complete training loop with GAE, metrics logging
+  - Outputs to out/rl_after_sft/run_<timestamp>/ with metrics.json and train_metrics.json
+  - Design: final_waypoints = sft_waypoints + delta_head(encoding)
+
+- **Training run created:**
+  - `out/rl_after_sft/run_2026-03-05_19-30-00/`
+  - 50 episodes, final_avg_reward=-182.91, final_goal_rate=0.2
 
 ### Pipeline PR #4: Unified CARLA Evaluation Runner (Today, 4:30pm PT)
 - **Created: `sim/driving/eval_unified_carla.py`**
