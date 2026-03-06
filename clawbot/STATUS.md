@@ -1,21 +1,42 @@
 # Status (ClawBot)
 
-_Last updated: 2026-02-28 (Pipeline PR #6)_
+_Last updated: 2026-03-06 (Pipeline PR #1)_
 
 ## Current focus
-Driving-first pipeline: **Waymo episodes → PyTorch SSL pretrain → waypoint BC → RL refinement → CARLA ScenarioRunner eval**.
+Driving-first pipeline episodes → PyTorch: **Waymo SSL pretrain → waypoint BC → RL refinement → CARLA ScenarioRunner eval**.
 
 ## Daily Cadence
 
-- ✅ **Pipeline PR #6** (2026-02-28): RL Refinement Evaluation + Metrics Hardening
-- ⏳ **Pipeline PR #1** (2026-02-18): RL Checkpoint Selection with Policy Entropy - awaiting review
+- ✅ **Pipeline PR #1** (2026-03-06): Temporal Waypoint BC with LSTM Context
+- ⏳ **Pipeline PR #6** (2026-02-28): RL Refinement Evaluation + Metrics Hardening - awaiting review
+- ⏳ **Pipeline PR #1 (old)** (2026-02-18): RL Checkpoint Selection with Policy Entropy - awaiting review
 - ⏳ **Pipeline PR #9** (2026-02-17): Evaluation + Metrics Hardening for RL Refinement - awaiting review
 - ⏳ **Pipeline PR #8** (2026-02-17): CARLA Closed-Loop Waypoint BC Evaluation - awaiting review
 - ⏳ **Pipeline PR #5** (2026-02-16): RL Refinement Stub for Residual Delta-Waypoint Learning - awaiting review
 
 ## Recent changes
 
-### Pipeline PR #6: RL Refinement Evaluation + Metrics Hardening (Today, 6:30pm PT)
+### Pipeline PR #1: Temporal Waypoint BC with LSTM Context (2026-03-06)
+- **Created: `training/sft/train_temporal_waypoint_bc.py`**
+  - Temporal waypoint behavior cloning using LSTM over frame embeddings
+  - Processes sequences of frames to leverage temporal context
+  
+- **Key components:**
+  - `TemporalEncoder`: LSTM aggregation of per-frame CNN embeddings
+  - `WaypointHead`: MLP mapping temporal embedding → waypoints (H, 2)
+  - `TemporalEpisodesDataset`: Samples consecutive frames from episodes
+  
+- **CLI arguments:**
+  - `--sequence-length`: Frames in temporal context (default: 4)
+  - `--hidden-dim`: LSTM hidden dimension (default: 256)
+  - `--num-rnn-layers`: Number of LSTM layers (default: 2)
+
+**Why this matters:**
+- Better waypoint predictions through temporal consistency
+- Captures motion cues from consecutive frames
+- Bridges SSL pretrain (temporal contrastive) with waypoint BC
+
+### Pipeline PR #6: RL Refinement Evaluation + Metrics Hardening (2026-02-28)
 - **Updated: `training/rl/compare_sft_vs_rl.py`**
   - Added git metadata capture (repo, commit, branch) for reproducibility
   - Now outputs proper git info in metrics.json
@@ -83,5 +104,5 @@ final_waypoints = sft_waypoints + delta_head(z)
 - Metrics: ADE/FDE, route_completion, collisions
 
 ## Links
-- Daily notes: `clawbot/daily/2026-02-28.md`
-- Branch: `feature/contingency-planning-v3`
+- Daily notes: `clawbot/daily/2026-03-06.md`
+- Branch: `feature/daily-2026-03-06-temporal-waypoint`
