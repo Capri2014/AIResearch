@@ -1,22 +1,22 @@
 # Status (ClawBot)
 
-_Last updated: 2026-03-05 (Pipeline PR #4)_
+_Last updated: 2026-03-05 (Pipeline PR #6)_
 
 ## Current focus
-**Unified CARLA Evaluation Runner** (March 5, 2026)
+**RL Evaluation + Metrics Hardening** (March 5, 2026)
 
-- Created `sim/driving/eval_unified_carla.py` - Unified evaluation interface
-- Supports all model types: SFT, SSL fine-tuned, RL delta, stub
-- Proper metrics aggregation following `data/schema/metrics.json`
-- waypoints_to_control(): Converts waypoints to vehicle commands
-- Suite support: smoke, basic, interactor, all
-- Dry-run tested: `out/eval/unified_eval_stub_*/metrics.json`
-- Next: Connect to real checkpoints, implement actual CARLA execution
+- Created `training/eval/validate_metrics.py` - Schema validator for RL metrics
+- Validates: required fields, domain enum, scenario structure, numeric fields
+- Ran deterministic evaluation: 10 episodes SFT vs RL comparison
+- Metrics output: `out/eval/toy_waypoint_eval_2026-03-05_21-34-32/metrics.json`
+- Validated against schema: ✓ PASSED
+- Next: Connect to real RL checkpoint for actual policy comparison
 
 ---
 
 ## Daily Cadence
 
+- ✅ **Pipeline PR #6** (2026-03-05): RL Evaluation + Metrics Hardening
 - ✅ **Pipeline PR #5** (2026-03-05): RL Refinement After SFT (Waypoint Delta)
 - ✅ **Pipeline PR #4** (2026-03-05): Unified CARLA Evaluation Runner
 - ✅ **Pipeline PR #3** (2026-03-05): SSL to Waypoint BC Fine-tuning
@@ -53,6 +53,26 @@ _Last updated: 2026-03-05 (Pipeline PR #4)_
 3. E2E integration (UniAD-style planning token)
 
 ## Recent changes
+
+### Pipeline PR #6: RL Evaluation + Metrics Hardening (Today, 6:30pm PT)
+- **Created: `training/eval/validate_metrics.py`**
+  - Validates RL/evaluation metrics JSON against the standard schema
+  - Checks required fields: run_id, domain, scenarios
+  - Validates domain enum: driving, robotics, rl
+  - Validates each scenario: scenario_id, success (boolean), numeric fields
+  - Validates summary section and comparison section
+  - Prints human-readable validation report
+
+- **Ran deterministic evaluation (10 episodes):**
+  - `out/eval/toy_waypoint_eval_2026-03-05_21-34-32/metrics.json`
+  - SFT: ADE=3.944m, FDE=3.288m, Success=40.0%
+  - RL (mock): ADE=3.933m, FDE=3.278m, Success=40.0%
+  - Delta: ADE +0.3%, FDE +0.3%
+  - Validated against schema: ✓ PASSED
+
+- **Metrics schema validation working:**
+  - Existing `data/schema/metrics.json` is well-designed
+  - Validator confirms metrics conform to schema
 
 ### Pipeline PR #5: RL Refinement After SFT (Waypoint Delta) (Today, 7:30pm PT)
 - **Created: `training/rl/train_rl_after_sft.py`**
