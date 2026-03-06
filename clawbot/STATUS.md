@@ -7,6 +7,7 @@ Driving-first pipeline episodes → PyTorch: **Waymo SSL pretrain → waypoint B
 
 ## Daily Cadence
 
+- ✅ **Pipeline PR #2** (2026-03-06): Temporal Waypoint BC → CARLA Integration
 - ✅ **Pipeline PR #1** (2026-03-06): Temporal Waypoint BC with LSTM Context
 - ⏳ **Pipeline PR #6** (2026-02-28): RL Refinement Evaluation + Metrics Hardening - awaiting review
 - ⏳ **Pipeline PR #1 (old)** (2026-02-18): RL Checkpoint Selection with Policy Entropy - awaiting review
@@ -35,6 +36,30 @@ Driving-first pipeline episodes → PyTorch: **Waymo SSL pretrain → waypoint B
 - Better waypoint predictions through temporal consistency
 - Captures motion cues from consecutive frames
 - Bridges SSL pretrain (temporal contrastive) with waypoint BC
+
+### Pipeline PR #2: Temporal Waypoint BC → CARLA Integration (2026-03-06)
+- **Created: `sim/driving/carla_srunner/temporal_policy_wrapper.py`**
+  - `TemporalEncoder`: Full CNN+LSTM encoder for temporal waypoint prediction
+  - `TemporalWaypointPolicyWrapper`: CARLA ScenarioRunner integration
+  - Supports CNN backbones: resnet18, resnet34, efficientnet_b0
+  - Checkpoint loading with flexible state_dict handling
+  
+- **Created: `training/eval/run_temporal_carla_eval.py`**
+  - CARLA closed-loop evaluation for temporal waypoint BC
+  - `TemporalWaypointAgent`: Maintains frame buffer for temporal context
+  - Metrics: ADE, FDE, route_completion, temporal_consistency
+  - 5 scenarios: straight_clear, straight_cloudy, straight_night, straight_rain, turn_clear
+
+**Key additions:**
+- `TemporalEvalMetrics`: Comprehensive metrics including temporal_consistency
+- `predict_temporal()`: Predicts waypoints from frame sequences
+- `predict_and_control()`: Convenience method for real-time inference
+- Frame buffer management for maintaining temporal context
+
+**Why this matters:**
+- Connects temporal waypoint BC training with CARLA evaluation
+- Enables closed-loop evaluation in diverse weather conditions
+- Supports real-time inference with temporal context
 
 ### Pipeline PR #6: RL Refinement Evaluation + Metrics Hardening (2026-02-28)
 - **Updated: `training/rl/compare_sft_vs_rl.py`**
@@ -105,4 +130,4 @@ final_waypoints = sft_waypoints + delta_head(z)
 
 ## Links
 - Daily notes: `clawbot/daily/2026-03-06.md`
-- Branch: `feature/daily-2026-03-06-temporal-waypoint`
+- Branch: `feature/daily-2026-03-06-b-temporal-carla-eval`
