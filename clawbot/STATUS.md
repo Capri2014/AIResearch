@@ -1,12 +1,13 @@
 # Status (ClawBot)
 
-_Last updated: 2026-03-06 (Pipeline PR #3)_
+_Last updated: 2026-03-06 (Pipeline PR #4)_
 
 ## Current focus
 Driving-first pipeline episodes → PyTorch: **Waymo SSL pretrain → waypoint BC → RL refinement → CARLA ScenarioRunner eval**.
 
 ## Daily Cadence
 
+- ✅ **Pipeline PR #4** (2026-03-06): Waymo Episode Dataset + Waypoint BC Training
 - ✅ **Pipeline PR #3** (2026-03-06): SSL-to-Waypoint BC Transfer Learning
 - ✅ **Pipeline PR #2** (2026-03-06): Temporal Waypoint BC → CARLA Integration
 - ✅ **Pipeline PR #1** (2026-03-06): Temporal Waypoint BC with LSTM Context
@@ -17,6 +18,31 @@ Driving-first pipeline episodes → PyTorch: **Waymo SSL pretrain → waypoint B
 - ⏳ **Pipeline PR #5** (2026-02-16): RL Refinement Stub for Residual Delta-Waypoint Learning - awaiting review
 
 ## Recent changes
+
+### Pipeline PR #4: Waymo Episode Dataset + Waypoint BC Training (2026-03-06)
+- **Created: `training/data/waymo_episode_dataset.py`**
+  - WaymoEpisode: Single episode container with frame/waypoint access
+  - WaymoEpisodeDataset: PyTorch Dataset for temporal sequence sampling
+  - WaymoEpisodeCollator: Custom collator for batching sequences
+  - load_episode_paths(): Utility for glob-based episode loading
+  - create_waymo_dataloaders(): Factory for train/val dataloaders
+
+- **Created: `training/data/train_waymo_waypoint_bc.py`**
+  - End-to-end training pipeline from Waymo episodes → waypoint predictions
+  - WaymoWaypointBC: Vision backbone + LSTM temporal aggregation + waypoint head
+  - Supports pretrained SSL checkpoints (transfer learning mode with --freeze-encoder)
+  - ADE/FDE metrics, checkpointing, training history
+
+**Key features:**
+- Temporal sequence sampling from episodes
+- Flexible episode loading via glob patterns
+- Transfer learning from SSL checkpoints
+- ADE (Average Displacement Error), FDE (Final Displacement Error) metrics
+
+**Why this matters:**
+- Creates data pipeline connecting Waymo episodes → waypoint BC
+- Enables end-to-end training from raw episode data
+- Integrates with SSL pretrain for transfer learning
 
 ### Pipeline PR #3: SSL-to-Waypoint BC Transfer Learning (2026-03-06)
 - **Created: `training/sft/train_ssl_to_waypoint_bc.py`**
