@@ -7,6 +7,7 @@ Driving-first pipeline: Waymo episodes → SSL pretrain → waypoint BC → RL r
 
 ## Daily Cadence
 
+- ✅ **Pipeline PR #4** (2026-03-07): Waypoint BC Training Runner + RL Integration Pipeline
 - ✅ **Pipeline PR #3** (2026-03-07): CARLA Evaluation Integration - Real CARLA evaluation in rl_to_carla_pipeline
 - ✅ **Pipeline PR #2** (2026-03-07): RL to CARLA Pipeline - Bridge RL refinement with CARLA evaluation
 - ✅ **Pipeline PR #6** (2026-03-06): RL Refinement Evaluation Pipeline (eval + validate + compare)
@@ -22,6 +23,59 @@ Driving-first pipeline: Waymo episodes → SSL pretrain → waypoint BC → RL r
 - ⏳ **Pipeline PR #5** (2026-02-16): RL Refinement Stub for Residual Delta-Waypoint Learning - awaiting review
 
 ## Recent changes
+
+### Pipeline PR #4: Waypoint BC Training Runner + RL Integration Pipeline (2026-03-07)
+- **Created: `training/data/train_waypoint_bc_runner.py`**
+  - WaypointBCTrainer: Complete training lifecycle management
+  - Checkpoint management: best_loss.pt, best_ade.pt, periodic epoch checkpoints
+  - Training history logging (JSON)
+  - Early stopping with configurable patience
+  - ADE/FDE metrics computation
+  - Mixed precision (AMP) support
+  - Export for RL refinement
+
+- **Key features:**
+  - L1 + L2 + final-waypoint combined loss
+  - Best model tracking by both loss and ADE
+  - Cosine annealing LR schedule
+  - Gradient clipping for stability
+  - RL export metadata generation
+
+- **Created: `training/data/waypoint_bc_to_rl.py`**
+  - WaypointBCToRLExporter: Exports SFT checkpoints for RL delta-waypoint training
+  - SFTtoRLPipeline: Complete pipeline orchestrator
+  - Checkpoint comparison utilities (by ADE/FDE/loss)
+
+- **Key features:**
+  - Extracts model state for RL training
+  - Freeze encoder configuration for transfer learning
+  - Generates RL training shell commands
+  - Pipeline config persistence
+
+- **Usage:**
+  ```bash
+  # Train waypoint BC
+  python -m training.data.train_waypoint_bc_runner \
+      --data-dir data/waymo \
+      --output-dir out/waypoint_bc
+  
+  # Export for RL
+  python -m training.data.waypoint_bc_to_rl \
+      --mode export \
+      --checkpoint out/waypoint_bc/checkpoints/best_ade.pt \
+      --output out/sft_to_rl/best_model.pt
+  
+  # Full pipeline
+  python -m training.data.waypoint_bc_to_rl \
+      --mode full-pipeline \
+      --sft-checkpoint out/waypoint_bc/checkpoints/best_ade.pt
+  ```
+
+- **Why this matters:**
+  - Provides production-ready training loop for waypoint BC
+  - Bridges SFT waypoint training with RL delta refinement
+  - Enables full SFT → RL pipeline workflow
+  - Checkpoint comparison helps select best models
 
 ### Pipeline PR #3: CARLA Evaluation Integration (2026-03-07)
 - **Updated: `training/rl/rl_to_carla_pipeline.py`**
