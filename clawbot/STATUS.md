@@ -1,12 +1,14 @@
 # Status (ClawBot)
 
-_Last updated: 2026-03-06 (Pipeline PR #4)_
+_Last updated: 2026-03-06 (Pipeline PR #6)_
 
 ## Current focus
 Driving-first pipeline episodes → PyTorch: **Waymo SSL pretrain → waypoint BC → RL refinement → CARLA ScenarioRunner eval**.
 
 ## Daily Cadence
 
+- ✅ **Pipeline PR #6** (2026-03-06): RL Refinement Evaluation Pipeline (eval + validate + compare)
+- ✅ **Pipeline PR #5** (2026-03-06): Kinematic Waypoint Environment for RL Refinement (Option B)
 - ✅ **Pipeline PR #4** (2026-03-06): Waymo Episode Dataset + Waypoint BC Training
 - ✅ **Pipeline PR #3** (2026-03-06): SSL-to-Waypoint BC Transfer Learning
 - ✅ **Pipeline PR #2** (2026-03-06): Temporal Waypoint BC → CARLA Integration
@@ -108,6 +110,66 @@ Driving-first pipeline episodes → PyTorch: **Waymo SSL pretrain → waypoint B
 - Enables closed-loop evaluation in diverse weather conditions
 - Supports real-time inference with temporal context
 
+### Pipeline PR #5: Kinematic Waypoint Environment for RL Refinement (Option B) (2026-03-06)
+- **Created: `training/rl/kinematic_waypoint_env.py`**
+  - KinematicCar: Bicycle model for realistic car kinematics
+  - KinematicWaypointEnv: Environment that consumes predicted waypoints
+  - SFTWaypointLoader: Loads SFT waypoint model checkpoints
+  - DeltaWaypointPolicy: Delta head for residual learning (Option B)
+  - ValueFunction: Value function for PPO
+
+**Key features:**
+- Bicycle model kinematics: Forward velocity, steering angle affecting heading
+- Waypoint consumption: Environment follows predicted waypoints using kinematic control
+- Option B (Delta Waypoints): `final_waypoints = sft_waypoints + delta_head(z)`
+- SFT checkpoint loading: Can initialize from pretrained SFT waypoint model
+- Proper metrics output: Saves to `out/kinematic_rl/<run_id>/metrics.json` and `train_metrics.json`
+
+**Design Pattern (Option B):**
+```
+final_waypoints = sft_waypoints + delta_head(z)
+```
+- Sample efficiency: Only trains a small delta head (not full model)
+- Safety: Corrections are bounded, preserving SFT's reasonable behavior
+- Modularity: Delta head can be swapped/updated independently
+
+**Smoke test results:**
+- Mean reward: 6.54 ± 4.38
+- Mean length: 77.1 steps
+
+**Why this matters:**
+- Provides realistic toy environment for RL refinement testing
+- Connects SFT waypoint model with RL delta learning
+- Enables quick iteration on RL algorithms before CARLA evaluation
+
+### Pipeline PR #6: RL Refinement Evaluation Pipeline (2026-03-06)
+- **Created: `training/rl/run_evaluation_pipeline.py`**
+  - Convenience script combining eval + validate + compare in one command
+  - Runs SFT vs RL policy comparison on toy waypoint environment
+  - Validates generated metrics against `data/schema/metrics.json`
+  - Prints 3-line summary report (ADE, FDE, Success Rate)
+
+**Usage:**
+```bash
+python -m training.rl.run_evaluation_pipeline --episodes 20 --seed-base 42
+```
+
+**Output:**
+- `out/eval/<run_id>_sft/metrics.json` - SFT policy metrics
+- `out/eval/<run_id>_rl/metrics.json` - RL-refined policy metrics
+
+**Sample output:**
+```
+ADE: 13.05m (SFT) → 13.02m (RL) [+0%]
+FDE: 36.39m (SFT) → 35.99m (RL) [+1%]
+Success: 0% (SFT) → 0% (RL) [+0%]
+```
+
+**Why this matters:**
+- One-command entry point for RL refinement evaluation
+- Ensures metrics are schema-compliant before analysis
+- Easy comparison of SFT vs RL policies
+
 ### Pipeline PR #6: RL Refinement Evaluation + Metrics Hardening (2026-02-28)
 - **Updated: `training/rl/compare_sft_vs_rl.py`**
   - Added git metadata capture (repo, commit, branch) for reproducibility
@@ -177,5 +239,5 @@ final_waypoints = sft_waypoints + delta_head(z)
 
 ## Links
 - Daily notes: `clawbot/daily/2026-03-06.md`
-- Branch: `feature/daily-2026-03-06-c-ssl-waypoint-bc`
-- PR: https://github.com/Capri2014/AIResearch/pull/new/feature/daily-2026-03-06-c-ssl-waypoint-bc
+- Branch: `feature/daily-2026-03-06-e`
+- PR: https://github.com/Capri2014/AIResearch/pull/new/feature/daily-2026-03-06-e
