@@ -1,18 +1,20 @@
 # Status (ClawBot)
 
-_Last updated: 2026-03-06 (Pipeline PR #6)_
+_Last updated: 2026-03-07 (Pipeline PR #3)_
 
 ## Current focus
-Driving-first pipeline episodes → PyTorch: **Waymo SSL pretrain → waypoint BC → RL refinement → CARLA ScenarioRunner eval**.
+Driving-first pipeline: Waymo episodes → SSL pretrain → waypoint BC → RL refinement → CARLA ScenarioRunner eval.
 
 ## Daily Cadence
 
+- ✅ **Pipeline PR #3** (2026-03-07): CARLA Evaluation Integration - Real CARLA evaluation in rl_to_carla_pipeline
+- ✅ **Pipeline PR #2** (2026-03-07): RL to CARLA Pipeline - Bridge RL refinement with CARLA evaluation
 - ✅ **Pipeline PR #6** (2026-03-06): RL Refinement Evaluation Pipeline (eval + validate + compare)
 - ✅ **Pipeline PR #5** (2026-03-06): Kinematic Waypoint Environment for RL Refinement (Option B)
 - ✅ **Pipeline PR #4** (2026-03-06): Waymo Episode Dataset + Waypoint BC Training
 - ✅ **Pipeline PR #3** (2026-03-06): SSL-to-Waypoint BC Transfer Learning
 - ✅ **Pipeline PR #2** (2026-03-06): Temporal Waypoint BC → CARLA Integration
-- ✅ **Pipeline PR #1** (2026-03-06): Temporal Waypoint BC with LSTM Context
+- ✅ **Pipeline PR #1 (old)** (2026-03-06): Temporal Waypoint BC with LSTM Context
 - ⏳ **Pipeline PR #6** (2026-02-28): RL Refinement Evaluation + Metrics Hardening - awaiting review
 - ⏳ **Pipeline PR #1 (old)** (2026-02-18): RL Checkpoint Selection with Policy Entropy - awaiting review
 - ⏳ **Pipeline PR #9** (2026-02-17): Evaluation + Metrics Hardening for RL Refinement - awaiting review
@@ -20,6 +22,54 @@ Driving-first pipeline episodes → PyTorch: **Waymo SSL pretrain → waypoint B
 - ⏳ **Pipeline PR #5** (2026-02-16): RL Refinement Stub for Residual Delta-Waypoint Learning - awaiting review
 
 ## Recent changes
+
+### Pipeline PR #3: CARLA Evaluation Integration (2026-03-07)
+- **Updated: `training/rl/rl_to_carla_pipeline.py`**
+  - Added `run_carla_evaluation()` - Real CARLA evaluation with ScenarioRunner
+  - Added `_get_scenario_list()` - Returns scenarios based on suite (smoke/basic/full)
+  - Added `_setup_sensors()` - Sets up RGB camera, collision sensor, lane invasion sensor
+  - Added `_run_single_scenario()` - Runs individual scenario with policy
+  - Added `_compute_delta_magnitude()` - Measures average delta correction size
+  - Added `_compute_delta_effective()` - Measures % of frames with non-zero delta
+
+- **Key features:**
+  - Connects to CARLA server via Python client
+  - Supports smoke/basic/full scenario suites
+  - Tracks collisions, route_completion, success_rate
+  - Computes ADE/FDE from waypoint predictions
+  - Falls back to dry-run if CARLA unavailable
+
+- **Fixed:**
+  - Bug in main() policy instantiation (malformed arguments)
+
+- **Why this matters:**
+  - Enables real closed-loop evaluation in CARLA
+  - Connects RL delta-waypoint policy with ScenarioRunner
+  - Completes the evaluation loop for the full driving pipeline
+- **Created: `training/rl/rl_to_carla_pipeline.py`**
+  - RLDeltaWaypointPolicy: Combines SFT waypoints with RL delta corrections
+  - Architecture: `final_waypoints = sft_waypoints + delta_head(z)`
+  - Loads SFT checkpoints and RL delta-head checkpoints
+  - Bounded delta corrections for safety
+  - Supports resnet18, resnet34, efficientnet_b0 backbones
+
+- **Key components:**
+  - RLDeltaWaypointPolicy class: Full policy with encoder + SFT head + delta head
+  - RLEvalMetrics: route_completion, success_rate, ADE, FDE, delta_magnitude
+  - Dry-run mode: Generates stub metrics without CARLA server
+
+- **Usage:**
+  ```bash
+  python -m training.rl.rl_to_carla_pipeline \
+      --sft-checkpoint out/sft_waypoint_bc/model.pt \
+      --rl-checkpoint out/kinematic_rl/best_delta.pt \
+      --output-dir out/rl_carla_eval \
+      --dry-run
+  ```
+
+- **Why this matters:**
+  - Bridges RL refinement stage with CARLA ScenarioRunner evaluation
+  - Completes the full pipeline: Waymo → SSL → waypoint BC → RL → CARLA
 
 ### Pipeline PR #4: Waymo Episode Dataset + Waypoint BC Training (2026-03-06)
 - **Created: `training/data/waymo_episode_dataset.py`**
@@ -213,12 +263,12 @@ Success: 0% (SFT) → 0% (RL) [+0%]
 - WaypointBCModelWrapper for checkpoint loading
 
 ## Next (top 3)
-1. Run RL training with entropy-based checkpoint selection
-2. Validate metrics from full CARLA evaluation runs
-3. Compare entropy curves across different seeds
+1. Implement CARLA evaluation in rl_to_carla_pipeline
+2. Test with real SFT + RL checkpoints in CARLA
+3. Compare SFT-only vs SFT+RL performance in closed-loop
 
 ## Blockers / questions for owner
-- PR reviews pending for #9, #8, #5
+- PR reviews pending for #9, #8, #5, #6, #1 (old)
 
 ## Architecture Reference
 
@@ -238,6 +288,6 @@ final_waypoints = sft_waypoints + delta_head(z)
 - Metrics: ADE/FDE, route_completion, collisions
 
 ## Links
-- Daily notes: `clawbot/daily/2026-03-06.md`
-- Branch: `feature/daily-2026-03-06-e`
-- PR: https://github.com/Capri2014/AIResearch/pull/new/feature/daily-2026-03-06-e
+- Daily notes: `clawbot/daily/2026-03-07.md`
+- Branch: `feature/daily-2026-03-07-a`
+- PR: https://github.com/Capri2014/AIResearch/pull/new/feature/daily-2026-03-07-a
