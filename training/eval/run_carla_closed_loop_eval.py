@@ -29,6 +29,19 @@ from datetime import datetime
 _carla_imported = False
 _carla = None
 
+# Trajectory planning imports (optional - gracefully degrade if unavailable)
+try:
+    from training.planning.trajectory_planner import TrajectoryPlanner, TrajectoryPlannerConfig
+    from training.eval.trajectory_follower import TrajectoryFollower, TrajectoryFollowerConfig
+    TRAJECTORY_PLANNING_AVAILABLE = True
+except ImportError as e:
+    TRAJECTORY_PLANNING_AVAILABLE = False
+    TrajectoryPlanner = None
+    TrajectoryPlannerConfig = None
+    TrajectoryFollower = None
+    TrajectoryFollowerConfig = None
+    logger.warning(f"Trajectory planning not available: {e}")
+
 # Set up logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -400,15 +413,57 @@ class CARLAClosedLoopEvaluator:
         port: int = 2000,
         fps: int = 20,
         timeout: float = 10.0,
+        use_trajectory_planning: bool = True,
     ):
         self.host = host
         self.port = port
         self.fps = fps
         self.timeout = timeout
+        self.use_trajectory_planning = use_trajectory_planning and TRAJECTORY_PLANNING_AVAILABLE
         self.client: Optional[carla.Client] = None
         self.world: Optional[carla.World] = None
         self.ego_vehicle: Optional[carla.Vehicle] = None
         self.collision_sensor: Optional[carla.Actor] = None
+        
+        # Trajectory planning components
+        self.trajectory_planner: Optional[TrajectoryPlanner] = None
+        self.trajectory_follower: Optional[TrajectoryFollower] = None
+        self.current_trajectory: Optional[Any] = None
+        
+        if self.use_trajectory_planning:
+            self._init_trajectory_planning()
+    
+    def _init_trajectory_planning(self):
+        """Initialize trajectory planning components."""
+        if not TRAJECTORY_PLANNING_AVAILABLE:
+            logger.warning("Trajectory planning requested but not available")
+            self.use_trajectory_planning = False
+            return
+        
+        # Create planner config
+        planner_config = TrajectoryPlannerConfig(
+            num_waypoints=8,
+            waypoint_spacing=2.0,
+            temporal_horizon=4.0,
+            use_cubic_spline=True,
+            max_speed=15.0,
+            max_acceleration=3.0,
+            apply_kinematic_smoothing=True,
+        )
+        self.trajectory_planner = TrajectoryPlanner(planner_config)
+        
+        # Create follower config
+        follower_config = TrajectoryFollowerConfig(
+            lookahead_time=0.5,
+            target_speed=8.0,
+            speed_kp=1.0,
+            steer_kp=2.0,
+            max_steer=1.0,
+            dt=1.0 / self.fps,
+        )
+        self.trajectory_follower = TrajectoryFollower(follower_config)
+        
+        logger.info("Initialized trajectory planning components")
     
     def connect(self) -> bool:
         """Connect to CARLA server."""
@@ -446,6 +501,11 @@ class CARLAClosedLoopEvaluator:
         self.collision_sensor = self.world.spawn_actor(
             collision_bp, carla.Transform(), attach_to=self.ego_vehicle
         )
+        
+        # Initialize trajectory follower with vehicle
+        if self.trajectory_follower:
+            self.trajectory_follower.set_vehicle(self.ego_vehicle)
+            self.trajectory_follower.reset()
         
         logger.info("Vehicle spawned successfully")
         return True
@@ -560,10 +620,20 @@ class CARLAClosedLoopEvaluator:
         )
     
     def _apply_waypoint_control(self, target: carla.Location):
-        """Apply vehicle control to follow waypoint."""
+        """Apply vehicle control to follow waypoint.
+        
+        Uses trajectory planning if available and initialized, otherwise falls back
+        to simple waypoint following.
+        """
         if not self.ego_vehicle:
             return
         
+        # Use trajectory-based following if available
+        if self.use_trajectory_planning and self.trajectory_follower:
+            self._apply_trajectory_control(target)
+            return
+        
+        # Fallback to simple waypoint following
         transform = self.ego_vehicle.get_transform()
         vehicle_loc = transform.location
         forward = transform.get_forward_vector()
@@ -587,6 +657,73 @@ class CARLAClosedLoopEvaluator:
             brake=float(brake),
         )
         self.ego_vehicle.apply_control(control)
+    
+    def _apply_trajectory_control(self, target: carla.Location):
+        """Apply vehicle control using trajectory planning and following.
+        
+        This provides smooth, kinematically feasible trajectory tracking.
+        """
+        if not self.trajectory_planner or not self.trajectory_follower:
+            # Fallback
+            self._apply_waypoint_control.__func__(
+                self, target
+            )  # Call the simple version
+            return
+        
+        try:
+            # Get current vehicle position
+            transform = self.ego_vehicle.get_transform()
+            current_pos = np.array([transform.location.x, transform.location.y])
+            
+            # Build waypoints from current position to target
+            # Simple: create intermediate waypoints
+            direction = np.array([target.x, target.y]) - current_pos
+            dist = np.linalg.norm(direction)
+            
+            if dist < 1.0:
+                # Very close to target, use simple control
+                self.trajectory_follower.reset()
+                self._apply_waypoint_control(target)
+                return
+            
+            # Create waypoint array
+            num_wps = min(8, max(3, int(dist / 5.0)))
+            waypoints = np.zeros((num_wps, 2))
+            for i in range(num_wps):
+                t = (i + 1) / num_wps
+                waypoints[i] = current_pos + t * direction
+            
+            # Plan trajectory
+            trajectory = self.trajectory_planner.plan_trajectory(
+                waypoints,
+                initial_heading=np.radians(transform.rotation.yaw),
+            )
+            
+            if trajectory and len(trajectory.points) > 0:
+                # Extract trajectory points and headings
+                traj_points = np.array([[p.x, p.y] for p in trajectory.points])
+                traj_headings = np.array([p.heading for p in trajectory.points])
+                
+                # Update follower with trajectory
+                self.trajectory_follower.set_trajectory(traj_points, traj_headings)
+                
+                # Get control from follower
+                throttle, steer, brake = self.trajectory_follower.get_control()
+                
+                control = carla.VehicleControl(
+                    throttle=float(throttle),
+                    steer=float(steer),
+                    brake=float(brake),
+                )
+                self.ego_vehicle.apply_control(control)
+            else:
+                # Trajectory planning failed, fallback
+                logger.warning("Trajectory planning returned empty, using fallback")
+                self._apply_waypoint_control(target)
+                
+        except Exception as e:
+            logger.warning(f"Trajectory control failed: {e}, using fallback")
+            self._apply_waypoint_control(target)
     
     def _cleanup_actors(self):
         """Clean up actors after episode."""
