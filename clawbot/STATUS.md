@@ -1,13 +1,14 @@
 # Status (ClawBot)
 
-_Last updated: 2026-03-08 (Pipeline PR #3 - ScenarioSuite)_
+_Last updated: 2026-03-08 (Pipeline PR #4 - Evaluation Metrics)_
 
 ## Current focus
 Driving-first pipeline: **Waymo episodes → PyTorch SSL pretrain → waypoint BC → RL refinement → CARLA ScenarioRunner eval**.
 
 ## Daily Cadence
 
-- ✅ **Pipeline PR #3** (2026-03-08): ScenarioSuite Configuration System - **NEW**
+- ✅ **Pipeline PR #4** (2026-03-08): Trajectory Evaluation Metrics - **NEW**
+- ✅ **Pipeline PR #3** (2026-03-08): ScenarioSuite Configuration System
 - ✅ **Pipeline PR #2** (2026-03-08): Trajectory Follower for Smooth CARLA Eval
 - ✅ **Pipeline PR #1** (2026-03-08): Trajectory Planning Interface
 - ⏳ **Pipeline PR #6** (2026-02-28): RL Refinement Evaluation + Metrics Hardening - awaiting review
@@ -39,6 +40,38 @@ Driving-first pipeline: **Waymo episodes → PyTorch SSL pretrain → waypoint B
   - Initializes TrajectoryPlanner + TrajectoryFollower
   - `_apply_trajectory_control()` for smooth tracking
   - Graceful fallback when unavailable
+
+### Pipeline PR #4: Trajectory Evaluation Metrics (Today, 1:30pm PT)
+- **Created: `training/eval/metrics.py`** (550+ lines)
+  
+- **Key components:**
+  - `TrajectoryMetrics`: Per-trajectory metrics dataclass
+    - ADE/FDE (Average/Final Displacement Error)
+    - Route completion percentage
+    - Collision detection (vehicle/pedestrian/infrastructure/off_road)
+    - Speed metrics (avg, max, violations)
+    - Acceleration metrics (avg, max, deceleration)
+    - Jerk metrics (comfort measure)
+    - Curvature variance (path smoothness)
+    
+  - `SuiteMetrics`: Aggregated suite statistics
+    - Per-scenario + aggregate stats
+    - Collision rate, speed violation rate
+    - JSON serialization
+
+- **Helper functions:**
+  - `compute_ade_fde()` - Trajectory accuracy
+  - `compute_route_completion()` - Route progress
+  - `detect_collision()` - Obstacle collision checking
+  - `compute_speed_metrics()` - Speed profiling
+  - `compute_acceleration_metrics()` - Acceleration analysis
+  - `compute_jerk_metrics()` - Comfort metrics
+  - `compute_curvature_variance()` - Path smoothness
+  - `compute_all_metrics()` - Full metrics in one call
+
+- **Integration with ScenarioSuite (PR #3):**
+  - Used for standardized metrics reporting
+  - Exports via `training/eval/__init__.py`
 
 ### Pipeline PR #3: ScenarioSuite Configuration System (Today, 10:30am PT)
 - **Created: `training/eval/scenario_suite.py`** (450+ lines)
@@ -80,9 +113,9 @@ Driving-first pipeline: **Waymo episodes → PyTorch SSL pretrain → waypoint B
 
 **Purpose:** Bridges discrete waypoint predictions from BC to smooth, executable trajectories.
 
-## Complete Pipeline (PR #1 + #2 + #3)
+## Complete Pipeline (PR #1 + #2 + #3 + #4)
 ```
-Waypoint BC → TrajectoryPlanner → TrajectoryFollower → ScenarioSuite eval → CARLA
+Waypoint BC → TrajectoryPlanner → TrajectoryFollower → ScenarioSuite eval + Metrics → CARLA
 ```
 
 ## Next (top 3)
@@ -112,6 +145,7 @@ final_waypoints = sft_waypoints + delta_head(z)
 
 ## Links
 - Daily notes: `clawbot/daily/2026-03-08.md`
+- PR #4 branch: `feature/daily-2026-03-08-d`
 - PR #3 branch: `feature/daily-2026-03-08-c`
 - PR #2 branch: `feature/daily-2026-03-08-b`
 - PR #1 branch: `feature/daily-2026-03-08-a`
