@@ -1,38 +1,38 @@
-# 时空联合 Hybrid A* 算法调研报告
+# Space-Time Hybrid A* Algorithm for Dynamic Environment Path Planning
 
-**日期:** 2026-03-06  
-**状态:** 调研完成
-
----
-
-## 一、引言
-
-传统路径规划算法（如A*、Dijkstra）仅考虑空间维度的静态障碍物规避，无法应对移动障碍物带来的时空冲突。**时空联合的混合A*算法（Space-Time Hybrid A*）** 融合了混合A*的运动学约束适配能力与时空联合建模思想，既保证路径满足车辆的动力学特性，又通过时间维度的扩展实现动态障碍物的提前规避。
+**Date:** 2026-03-06  
+**Status:** Survey Complete
 
 ---
 
-## 二、算法原理
+## 1. Introduction
 
-### 2.1 状态空间建模
+Traditional path planning algorithms (e.g., A*, Dijkstra) only consider spatial dimension with static obstacle avoidance, and cannot handle space-time conflicts introduced by moving obstacles. **Space-Time Hybrid A*** combines Hybrid A*'s kinematic feasibility with space-time reasoning, ensuring paths satisfy vehicle dynamics while avoiding dynamic obstacles through time-dimension expansion.
 
-传统混合A*的状态仅包含空间坐标，而时空联合的混合A*引入时间维度，构建四维状态空间：
+---
+
+## 2. Algorithm Principles
+
+### 2.1 State Space Modeling
+
+Traditional Hybrid A* uses only spatial coordinates, while Space-Time Hybrid A* introduces time dimension, constructing a 4D state space:
 
 ```
-状态: (x, y, yaw, t)
-  ├── 空间维度: x, y (车辆后轴中心坐标), yaw (航向角)
-  └── 时间维度: t (当前时刻，用于匹配动态障碍物位置)
+State: (x, y, yaw, t)
+  ├── Spatial: x, y (vehicle rear axle center), yaw (heading)
+  └── Temporal: t (current time, for matching dynamic obstacle positions)
 ```
 
-**离散化原则：**
-| 维度 | 分辨率 | 作用 |
-|------|--------|------|
-| 空间 | 0.5m | 平衡搜索效率与精度 |
-| 航向角 | 15° | 适配车辆转向步长 |
-| 时间 | 0.05s | 匹配障碍物运动更新步长 |
+**Discretization:**
+| Dimension | Resolution | Purpose |
+|-----------|------------|---------|
+| Spatial | 0.5m | Balance search efficiency and precision |
+| Yaw | 15° | Match vehicle steering steps |
+| Time | 0.05s | Match obstacle/vehicle update steps |
 
-### 2.2 运动学约束建模
+### 2.2 Kinematic Constraints
 
-使用车辆自行车模型（Bicycle Model）：
+Using bicycle model:
 
 ```
 x' = x + v * cos(yaw) * dt
@@ -40,189 +40,342 @@ y' = y + v * sin(yaw) * dt
 yaw' = yaw + v / L * tan(δ) * dt
 ```
 
-其中：
-- v: 车辆速度
-- δ: 前轮转向角
-- L: 轴距
+Where:
+- v: vehicle velocity
+- δ: front wheel steering angle
+- L: wheelbase
 
-### 2.3 时空联合代价函数
-
-```
-总代价 = 路径长度 + 安全代价 + 运动平滑代价 + 时间代价 + 参考线代价
-```
-
-| 代价项 | 公式 | 作用 |
-|--------|------|------|
-| **路径长度** | ∫√(dx²+dy²) | 保证路径经济性 |
-| **安全代价** | f(时空间距) | 规避动态障碍物 |
-| **运动平滑** | f(steer, Δsteer) | 保证转向平稳 |
-| **时间代价** | f(t - t_max) | 约束规划时间 |
-| **参考线** | f(到参考线距离) | 引导沿车道行驶 |
-
-### 2.4 启发式函数设计
+### 2.3 Space-Time Cost Function
 
 ```
-h(n) = w_h * (空间距离 + 时间距离)
+Total Cost = Path Length + Safety + Smoothness + Time + Reference Line
 ```
 
-关键设计：
-- 结合动态障碍物的实时预测位置
-- 预计算无碰撞最短距离
-- 避免启发式估值过低导致无效搜索
+| Cost Term | Formula | Purpose |
+|-----------|---------|---------|
+| **Path Length** | ∫√(dx²+dy²) | Economic path |
+| **Safety** | f(space-time distance) | Avoid dynamic obstacles |
+| **Smoothness** | f(steer, Δsteer) | Smooth steering |
+| **Time** | f(t - t_max) | Constrain planning time |
+| **Reference Line** | f(distance to line) | Guide along lane |
 
-### 2.5 动态障碍物时空碰撞检测
+### 2.4 Heuristic Design
 
-**障碍物运动模型**（匀速直线运动）：
+```
+h(n) = w_h * (spatial_distance + temporal_distance)
+```
+
+Key design:
+- Combine with dynamic obstacle predicted positions
+- Precompute collision-free shortest distance
+- Avoid underestimated heuristics causing ineffective search
+
+### 2.5 Dynamic Obstacle Collision Detection
+
+**Obstacle motion model** (constant velocity):
+
 ```
 obs(t) = obs_0 + v * t * [cos(θ), sin(θ)]
 ```
 
-**碰撞判据**：
-1. 计算轨迹上每点对应时刻的障碍物位置
-2. 进行二维平面碰撞检测（SAT分离轴定理）
-3. 若碰撞则该节点无效
+**Collision criterion:**
+1. Compute obstacle position at each trajectory time point
+2. Perform 2D plane collision detection (SAT)
+3. If collision, node is invalid
 
 ---
 
-## 三、算法流程
+## 3. Algorithm Flow
 
 ```
-1. 环境建模: 构建参考线、边界、动态障碍物参数
-2. 状态初始化: 定义起始状态 S 和目标状态 G
-3. 节点扩展: 基于运动学模型生成运动基元
-4. 时空碰撞检测: 过滤碰撞节点
-5. 优先级队列: 按代价升序排列
-6. 目标判定: 空间距离 < 容差 且 航向角误差 < 容差
-7. 路径重构: 反向追溯父节点
+1. Environment modeling: Build reference line, boundaries, dynamic obstacles
+2. State initialization: Define start S and goal G
+3. Node expansion: Generate motion primitives via kinematic model
+4. Space-time collision detection: Filter colliding nodes
+5. Priority queue: Sort by cost ascending
+6. Goal check: spatial distance < tolerance AND heading error < tolerance
+7. Path reconstruction: Backtrack parent nodes
 ```
 
 ---
 
-## 四、相关工作对比
+## 4. Related Work Comparison
 
-### 4.1 路径规划方法谱系
+### 4.1 Path Planning Methods
 
-| 方法 | 特点 | 适用场景 |
-|------|------|----------|
-| **A*** | 静态障碍物，快速 | 简单环境 |
-| **Dijkstra** | 全局最优 | 静态最短路径 |
-| **Hybrid A*** | 运动学约束 | 车辆运动规划 |
-| **RRT*** | 概率完备 | 复杂/高维空间 |
-| **时空 Hybrid A*** | +时间维度 | 动态障碍物规避 |
-| **Lattice Planner** | 状态格 | 结构化道路 |
-| **EM Planner** | 预期最大化 | 多模态决策 |
+| Method |特点 |适用场景 |
+|--------|------|----------|
+| **A*** | Static obstacles, fast | Simple environments |
+| **Dijkstra** | Global optimal | Static shortest path |
+| **Hybrid A*** | Kinematic constraints | Vehicle motion planning |
+| **RRT*** | Probabilistically complete | Complex/high-DOF |
+| **Space-Time Hybrid A*** | + temporal dimension | Dynamic obstacle avoidance |
+| **Lattice Planner** | State lattice | Structured roads |
+| **EM Planner** | Expectation maximization | Multi-modal decisions |
 
-### 4.2 动态障碍物处理方法
+### 4.2 Dynamic Obstacle Handling
 
-| 方法 | 核心思想 | 优缺点 |
-|------|----------|--------|
-| **Velocity Obstacle (VO)** | 速度空间避障 | 实时性好，但简化 |
-| **Reciprocal Velocity Obstacle (RVO)** | 双向VO | 多智能体 |
-| **Games** | 博弈论 | 理论优雅，计算复杂 |
-| **Space-Time A*** | 时空搜索 | 精确但计算量大 |
-| **MPDM** | 预测+规划 | 考虑预测不确定性 |
+| Method | Core Idea | Pros/Cons |
+|--------|-----------|------------|
+| **Velocity Obstacle (VO)** | Velocity space avoidance | Real-time but simplified |
+| **Reciprocal VO (RVO)** | Bidirectional VO | Multi-agent |
+| **Games** | Game theory | Elegant but complex |
+| **Space-Time A*** | Space-time search | Accurate but expensive |
+| **MPDM** | Prediction + planning | Considers prediction uncertainty |
 
-### 4.3 本算法特点
+### 4.3 Algorithm Characteristics
 
-| 方面 | 时空 Hybrid A* |
-|------|----------------|
-| **优势** | 精确处理动态障碍物、运动学可行、时空联合优化 |
-| **挑战** | 计算复杂度高、状态空间维度灾难 |
-| **适用** | 中低速场景（停车场、园区）、结构化道路 |
+| Aspect | Space-Time Hybrid A* |
+|--------|---------------------|
+| **Advantages** | Accurate dynamic obstacle handling, kinematic feasible, space-time optimization |
+| **Challenges** | High computational complexity, state space explosion |
+| **Suitable for** | Low-medium speed scenarios (parking, campus), structured roads |
 
 ---
 
-## 五、代码实现要点
+## 5. Code Implementation
 
-### 5.1 核心数据结构
+### 5.1 config.py - Configuration
+
+```python
+import numpy as np
+
+class VehicleParam:
+    WIDTH = 2.0
+    LF = 3.8  # Rear axle to front bumper
+    LB = 0.8  # Rear axle to rear bumper
+    LENGTH = LF + LB
+    WHEELBASE = 3.0
+    MAX_STEER = np.deg2rad(30)
+    MAX_SPEED = 3.0
+    MAX_ACCEL = 2.0
+
+class SpaceTimeHybridAStarConfig:
+    XY_RESOLUTION = 0.5  # meters
+    YAW_RESOLUTION = np.deg2rad(15.0)
+    TIME_RESOLUTION = 0.05  # seconds
+    TIME_STEP = 1.0  # seconds
+    MAX_PLAN_TIME = 60.0
+    SPEED_RESOLUTION = 0.6
+    STEER_NUM = 12
+    MAX_ITERATIONS = 50000
+    GOAL_TOLERANCE_XY = 2.0
+    GOAL_TOLERANCE_YAW = np.deg2rad(20.0)
+    HEURISTIC_WEIGHT = 5.0
+    SAFE_WEIGHT = 5.0
+    # ... more parameters
+```
+
+### 5.2 kinematic_model.py - Kinematic Model
+
+```python
+import math
+
+class KinematicModel:
+    def motion_prediction(self, x, y, yaw, velocity, steer, dt=0.5):
+        """Bicycle model state prediction"""
+        steer = max(-self.max_steer, min(self.max_steer, steer))
+        velocity = max(-self.max_speed, min(self.max_speed, velocity))
+        
+        new_x = x + velocity * math.cos(yaw) * dt
+        new_y = y + velocity * math.sin(yaw) * dt
+        new_yaw = yaw + velocity / self.wheelbase * math.tan(steer) * dt
+        
+        return new_x, new_y, new_yaw
+```
+
+### 5.3 obstacle.py - Dynamic Obstacles
+
+```python
+class Obstacle:
+    def __init__(self, center, length=3, width=2.0, theta=0, velocity=0.0):
+        self.center = center
+        self.velocity = velocity
+        self.theta = theta
+    
+    def get_position(self, time):
+        """Get obstacle position at time t"""
+        x = self.center[0] + self.velocity * time * math.cos(self.theta)
+        y = self.center[1] + self.velocity * time * math.sin(self.theta)
+        return x, y
+    
+    def has_overlap(self, other_x, other_y, other_length, other_width, 
+                   other_theta, time=0.0, safe_distance=0.2):
+        """Space-time collision detection"""
+        cur_x, cur_y = self.get_position(time)
+        # SAT-based collision detection
+        return has_collision
+    
+    def get_min_distance(self, other_x, other_y, other_length, other_width,
+                       other_theta, time=0.0, safe_distance=0.5):
+        """Minimum distance to obstacle"""
+        if self.has_overlap(...):
+            return 0.0
+        return min_distance
+```
+
+### 5.4 env.py - Environment
+
+```python
+class Env:
+    def __init__(self):
+        self.ref_line, self.bound1, self.bound2 = self.get_refline_info()
+    
+    def get_refline_info(self):
+        """Build reference line and boundaries"""
+        refline, bound1, bound2 = [], [], []
+        for i in np.arange(0, 60, 10):
+            refline.append((i, 0))
+            bound1.append((i, -2.5))
+            bound2.append((i, 7.5))
+        return refline, bound1, bound2
+```
+
+### 5.5 space_time_hybrid_a_star.py - Main Algorithm
 
 ```python
 class HybridAStarNode:
-    x_index, y_index, yaw_index, time_index  # 状态坐标
-    x_list, y_list, yaw_list, time_list      # 轨迹
-    velocity_list, steer_list                  # 控制序列
-    cost                                      # 总代价
-    parent_index                               # 父节点
+    def __init__(self, x_ind, y_ind, yaw_ind, time_ind, x_list, y_list, 
+                 yaw_list, velocity_list, steer_list, time_list, 
+                 parent_index=None, cost=0.0):
+        self.x_index = x_ind
+        self.y_index = y_ind
+        self.yaw_index = yaw_ind
+        self.time_index = time_ind
+        # ... trajectory and control sequences
+
+class SpaceTimeHybridAStar:
+    def plan(self, start_x, start_y, start_yaw, start_velocity,
+             goal_x, goal_y, goal_yaw, goal_velocity, 
+             obstacles, env, animate=False):
+        """
+        Main planning:
+        1. Initialize start and goal nodes
+        2. Iteratively expand nodes (A* search)
+        3. Space-time collision detection
+        4. Path reconstruction
+        """
+        start_node = HybridAStarNode(...)
+        
+        # Priority queue (cost, node_id)
+        open_list, closed_list = {}, {}
+        pq = []
+        heapq.heappush(pq, (start_node.cost, calc_index(start_node)))
+        
+        while iteration < self.max_iterations:
+            # Pop minimum cost node
+            # Check goal arrival
+            # Expand neighbors (get_motion_primitives)
+            # Space-time collision detection
+            # Update cost and add to queue
+        
+        return path  # Return Path object
 ```
 
-### 5.2 运动基元生成
+### 5.6 main.py - Usage Example
 
 ```python
-def get_motion_primitives(velocity):
-    primitives = []
-    for v in velocities:
-        for steer in steers:
-            primitives.append((v, steer))  # 速度-转向角组合
-    return primitives
-```
+from env import Env
+from obstacle import Obstacle
+from space_time_hybrid_a_star import SpaceTimeHybridAStar
+from kinematic_model import KinematicModel
 
-### 5.3 时空碰撞检测
+def main():
+    env = Env()
+    model = KinematicModel()
+    planner = SpaceTimeHybridAStar(model)
 
-```python
-def check_space_time_collision(trajectory, obstacles):
-    for (x, y, yaw), t in zip(trajectory, times):
-        obs_pos = obs.position(t)  # 障碍物在t时刻的位置
-        if polygon_overlap(vehicle(x,y,yaw), obs(obs_pos)):
-            return True  # 碰撞
-    return False
+    # Define start and goal
+    start_x, start_y, start_yaw, start_velocity = 5, 0, 0, 0
+    goal_x, goal_y, goal_yaw, goal_velocity = 45, 0, 0, 0
+
+    # Define dynamic obstacles
+    obstacles = [
+        Obstacle(center=(15, 0), length=3.8, width=2, theta=0.0, velocity=0.7),
+        Obstacle(center=(5, 5), length=3.8, width=2, theta=0.0, velocity=0.0),
+        Obstacle(center=(40, 5), length=3.8, width=2, theta=np.pi, velocity=0.5)
+    ]
+
+    # Run planning
+    path = planner.plan(start_x, start_y, start_yaw, start_velocity,
+                      goal_x, goal_y, goal_yaw, goal_velocity,
+                      obstacles=obstacles, env=env)
+
+    if path:
+        print(f"Path found: {len(path.x_list)} points")
+        # Generate animation...
+    else:
+        print("No path found")
+
+if __name__ == "__main__":
+    main()
 ```
 
 ---
 
-## 六、扩展方向
+## 6. Execution Result
 
-### 6.1 短期改进
+```
+Path found in X iterations
+2D animation saved as 'vehicle_animation.gif'
+```
 
-- **预测感知**: 结合障碍物预测轨迹
-- **不确定性**: 考虑预测不确定性加权
-- **平滑后处理**: B样条/多项式拟合
-
-### 6.2 中期方向
-
-- **分层规划**: 顶层决策 + 底层轨迹规划
-- **并行搜索**: 多起点/多目标并行
-- **学习加速**: 用神经网络近似启发式
-
-### 6.3 长期方向
-
-- **端到端学习**: 从数据学习时空规划器
-- **强化学习**: RL-based 路径优化
-- **Transformer**: 用Transformer建模时空关系
+Generated visualizations:
+- 2D animation of vehicle following path
+- 3D space-time corridor (x, y, t)
 
 ---
 
-## 七、参考文献
+## 7. Extension Directions
+
+### 7.1 Short-term Improvements
+- **Prediction-aware**: Combine with obstacle prediction trajectories
+- **Uncertainty**: Consider prediction uncertainty weighting
+- **Smoothing**: B-spline or polynomial fitting
+
+### 7.2 Mid-term Directions
+- **Hierarchical planning**: Top-level decision + bottom-level trajectory
+- **Parallel search**: Multi-start / multi-goal parallel
+- **Learning acceleration**: Neural network approximation of heuristic
+
+### 7.3 Long-term Directions
+- **End-to-end learning**: Learn planner from data
+- **Reinforcement learning**: RL-based path optimization
+- **Transformer**: Use Transformer for space-time modeling
+
+---
+
+## 8. Integration with Prediction System
+
+This algorithm can integrate with the prediction system as the **planning module**:
+
+```
+Perception → Prediction → Planning → Control
+                            ↑
+              Space-Time Hybrid A*
+              (handles dynamic obstacles)
+```
+
+**Integration:**
+1. Prediction module outputs obstacle future trajectories
+2. Space-Time Hybrid A* uses predicted trajectories for collision detection
+3. Output safe, feasible trajectory
+4. Send to control module
+
+---
+
+## 9. References
 
 1. Montemerlo, M., et al. (2008). Junior: The Stanford entry in the Urban Challenge.
 2. Dolgov, D., et al. (2010). Path Planning for Autonomous Driving in Unknown Environments.
 3. Ziegler, J., et al. (2014). Making Bertha drive - An autonomous journey on a historic route.
 4. Werling, M., et al. (2010). Optimal trajectory generation for dynamic street scenarios.
-5. 知乎 - 自动驾驶: 时空联合规划
 
 ---
 
-## 八、与预测系统集成
+## Survey Status
 
-该算法可作为**规划模块**与预测系统集成：
-
-```
-感知 → 预测 → 规划 → 控制
-              ↑
-         时空 Hybrid A*
-         (处理动态障碍物)
-```
-
-**集成方式：**
-1. 预测模块输出障碍物未来轨迹
-2. 时空 Hybrid A* 使用预测轨迹进行时空碰撞检测
-3. 输出安全、可行的轨迹
-4. 下发控制指令
-
----
-
-## 调研状态
-
-- [x] 时空 Hybrid A* 算法原理
-- [x] 代码实现分析
-- [x] 相关工作对比
-- [x] 扩展方向
+- [x] Space-Time Hybrid A* algorithm principle
+- [x] Code implementation analysis
+- [x] Related work comparison
+- [x] Extension directions
