@@ -1,12 +1,13 @@
 # Status (ClawBot)
 
-_Last updated: 2026-03-07 (Pipeline PR #3)_
+_Last updated: 2026-03-07 (Pipeline PR #5)_
 
 ## Current focus
 Driving-first pipeline: Waymo episodes → SSL pretrain → waypoint BC → RL refinement → CARLA ScenarioRunner eval.
 
 ## Daily Cadence
 
+- ✅ **Pipeline PR #5** (2026-03-07): Kinematic Waypoint Environment for RL Refinement (Option B)
 - ✅ **Pipeline PR #4** (2026-03-07): Waypoint BC Training Runner + RL Integration Pipeline
 - ✅ **Pipeline PR #3** (2026-03-07): CARLA Evaluation Integration - Real CARLA evaluation in rl_to_carla_pipeline
 - ✅ **Pipeline PR #2** (2026-03-07): RL to CARLA Pipeline - Bridge RL refinement with CARLA evaluation
@@ -23,6 +24,52 @@ Driving-first pipeline: Waymo episodes → SSL pretrain → waypoint BC → RL r
 - ⏳ **Pipeline PR #5** (2026-02-16): RL Refinement Stub for Residual Delta-Waypoint Learning - awaiting review
 
 ## Recent changes
+
+### Pipeline PR #5: Kinematic Waypoint Environment for RL Refinement (Option B) (2026-03-07)
+- **Created: `training/rl/kinematic_waypoint_env.py`**
+  - KinematicCar: Bicycle model for realistic car kinematics
+  - KinematicWaypointEnv: Environment that consumes predicted waypoints
+  - DeltaWaypointActor: PPO actor predicting waypoint deltas (H, 2)
+  - ValueFunction: Value estimation for PPO
+  - PPOTrainer: Complete PPO training with GAE advantages
+
+- **Option B Design Pattern:**
+  ```
+  final_waypoints = sft_waypoints + delta_head(z)
+  ```
+  - Only trains a small delta head (not full model)
+  - Corrections are bounded for safety
+  - Delta head can be swapped/updated independently
+
+- **Key features:**
+  - Bicycle model kinematics: Forward velocity, steering affecting heading
+  - Waypoint consumption: Follows predicted waypoints using kinematic control
+  - SFT checkpoint loading support (--sft-checkpoint flag)
+  - Proper metrics output: `out/<run_id>/metrics.json` and `train_metrics.json`
+
+- **Smoke test results:**
+  - Mean reward: 128.63 ± 30.72 (5 episodes)
+  - Success rate: 20%
+
+- **Usage:**
+  ```bash
+  # Run training
+  python -m training.rl.kinematic_waypoint_env \
+      --episodes 300 \
+      --seed 42 \
+      --out-dir out/kinematic_rl/run_001
+
+  # With SFT checkpoint (Option B initialization)
+  python -m training.rl.kinematic_waypoint_env \
+      --sft-checkpoint out/waypoint_bc/model.pt \
+      --episodes 300 \
+      --out-dir out/kinematic_rl_with_sft
+  ```
+
+- **Why this matters:**
+  - Provides realistic toy environment for RL refinement testing
+  - Connects SFT waypoint model with RL delta learning
+  - Enables quick iteration on PPO before CARLA evaluation
 
 ### Pipeline PR #4: Waypoint BC Training Runner + RL Integration Pipeline (2026-03-07)
 - **Created: `training/data/train_waypoint_bc_runner.py`**
