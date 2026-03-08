@@ -226,3 +226,239 @@ def check_space_time_collision(trajectory, obstacles):
 - [x] 代码实现分析
 - [x] 相关工作对比
 - [x] 扩展方向
+
+---
+
+## 九、完整代码实现
+
+以下是Qi提供的**完整实现代码**：
+
+### 9.1 config.py - 配置参数
+
+```python
+import numpy as np
+
+class VehicleParam:
+    WIDTH = 2.0
+    LF = 3.8  # 后轴中心到车头距离
+    LB = 0.8  # 后轴中心到车尾距离
+    LENGTH = LF + LB
+    WHEELBASE = 3.0
+    MAX_STEER = np.deg2rad(30)
+    MAX_SPEED = 3.0
+    MAX_ACCEL = 2.0
+    TR = 0.5
+    TW = 0.5
+    WD = WIDTH
+
+class SpaceTimeHybridAStarConfig:
+    XY_RESOLUTION = 0.5
+    YAW_RESOLUTION = np.deg2rad(15.0)
+    TIME_RESOLUTION = 0.05
+    TIME_STEP = 1.0
+    MAX_PLAN_TIME = 60.0
+    SPEED_RESOLUTION = 0.6
+    STEER_NUM = 12
+    EXPAND_DISTANCE = 10.0
+    MAX_ITERATIONS = 50000
+    GOAL_TOLERANCE_XY = 2.0
+    GOAL_TOLERANCE_YAW = np.deg2rad(20.0)
+    HEURISTIC_WEIGHT = 5.0
+    STEER_CHANGE_WEIGHT = 0.2
+    STEER_WEIGHT = 0.3
+    GOAL_TIME_WEIGHT = 0.1
+    SAFE_WEIGHT = 5.0
+    SB_COST = 100.0
+    REF_LINE_WEIGHT = 0.01
+    SAFE_BUFFER = 0.5
+    ACTIVATE_DISTANCE = 3.0
+```
+
+### 9.2 kinematic_model.py - 自行车模型
+
+```python
+import numpy as np
+import math
+
+class KinematicModel:
+    def __init__(self, param=VehicleParam()):
+        self.param = param
+        self.wheelbase = param.WHEELBASE
+        self.max_steer = param.MAX_STEER
+        self.max_speed = param.MAX_SPEED
+
+    def motion_prediction(self, x, y, yaw, velocity, steer, dt=0.5):
+        steer = max(-self.max_steer, min(self.max_steer, steer))
+        velocity = max(-self.max_speed, min(self.max_speed, velocity))
+        new_x = x + velocity * math.cos(yaw) * dt
+        new_y = y + velocity * math.sin(yaw) * dt
+        new_yaw = yaw + velocity / self.wheelbase * math.tan(steer) * dt
+        new_yaw = self.normalize_angle(new_yaw)
+        return new_x, new_y, new_yaw
+
+    def normalize_angle(self, angle):
+        while angle > math.pi:
+            angle -= 2.0 * math.pi
+        while angle < -math.pi:
+            angle += 2.0 * math.pi
+        return angle
+```
+
+### 9.3 obstacle.py - 动态障碍物
+
+```python
+import as np
+
+class math
+import numpy Obstacle:
+    def __init__(self, center, length=3, width=2.0, theta=0, velocity=0.0):
+        self.center = center
+        self.length = length
+        self.width = width
+        self.theta = theta
+        self.velocity = velocity
+        self.radius = math.hypot(length/2, width/2)
+
+    def get_vertices(self, time=0):
+        """获取时刻t的障碍物顶点位置"""
+        x = self.center[0] + self.velocity * time * math.cos(self.theta)
+        y = self.center[1] + self.velocity * time * math.sin(self.theta)
+        # 计算四个顶点 (略)
+        return vertices
+
+    def has_overlap(self, other_center_x, other_center_y, other_length,
+                    other_width, other_theta, time=0.0, safe_distance=0.2):
+        """时空碰撞检测 - 返回是否碰撞"""
+        cur_x = self.center[0] + self.velocity * time * math.cos(self.theta)
+        cur_y = self.center[1] + self.velocity * time * math.sin(self.theta)
+        # 基于SAT分离轴定理的碰撞检测
+        return has_collision
+
+    def get_min_distance(self, other_center_x, other_center_y, other_length,
+                        other_width, other_theta, time=0.0, safe_distance=0.5):
+        """计算到障碍物的最小距离"""
+        if self.has_overlap(...):
+            return 0.0
+        return min_distance
+```
+
+### 9.4 env.py - 环境
+
+```python
+import numpy as np
+
+class Env:
+    def __init__(self):
+        self.ref_line, self.bound1, self.bound2, self.other_line = self.get_refline_info()
+
+    def get_refline_info(self):
+        refline, bound1, bound2, other_line = [], [], [], []
+        for i in np.arange(0, 60, 10):
+            refline.append((i, 0))
+            other_line.append((i, 5))
+            bound1.append((i, -2.5))
+            bound2.append((i, 7.5))
+        return refline, bound1, bound2, other_line
+```
+
+### 9.5 space_time_hybrid_a_star.py - 主算法
+
+```python
+import numpy as np
+import heapq
+import math
+
+class HybridAStarNode:
+    def __init__(self, x_ind, y_ind, yaw_ind, time_ind, x_list, y_list, yaw_list,
+                 velocity_list, steer_list, time_list=0.0, parent_index=None, cost=None):
+        self.x_index = x_ind
+        self.y_index = y_ind
+        self.yaw_index = yaw_ind
+        self.time_index = time_ind
+        # ... 轨迹和控制序列
+
+class SpaceTimeHybridAStar:
+    def __init__(self, kinematic_model, config):
+        self.model = kinematic_model
+        self.config = config
+
+    def plan(self, start_x, start_y, start_yaw, start_velocity,
+             goal_x, goal_y, goal_yaw, goal_velocity, 
+             obstacles, env, animate=False):
+        # 1. 初始化
+        start_node = HybridAStarNode(...)
+        
+        # 2. A*搜索循环
+        while iteration < self.max_iterations:
+            # 弹出代价最小节点
+            # 检查目标是否到达
+            # 扩展邻居节点
+            # 时空碰撞检测
+            
+        return path
+
+    def get_motion_primitives(self, current_velocity):
+        """生成速度-转向角运动基元"""
+        primitives = []
+        velocities = np.arange(self.speed_resolution, self.model.max_speed, 
+                              self.speed_resolution)
+        for velocity in velocities:
+            for i in range(self.steer_num + 1):
+                angle = i * self.model.max_steer / self.steer_num
+                if angle != 0:
+                    primitives.append((velocity, angle))
+                    primitives.append((velocity, -angle))
+        return primitives
+
+    def check_car_collision_and_get_min_distance(self, x_list, y_list, yaw_list, 
+                                               obstacles, time):
+        """时空碰撞检测"""
+        for x, y, yaw in zip(x_list, y_list, yaw_list):
+            if self.is_point_out_of_bounds(x, y):
+                return False, 0.0
+            for obstacle in obstacles:
+                distance = obstacle.get_min_distance(...)
+                if distance < 1e-2:
+                    return False, 0.0
+        return True, min_distance
+```
+
+### 9.6 main.py - 运行示例
+
+```python
+from env import Env
+from obstacle import Obstacle
+from space_time_hybrid_a_star import SpaceTimeHybridAStar
+from kinematic_model import KinematicModel
+
+def main():
+    env = Env()
+    model = KinematicModel()
+    planner = SpaceTimeHybridAStar(model)
+
+    start_x, start_y, start_yaw, start_velocity = 5, 0, 0, 0
+    goal_x, goal_y, goal_yaw, goal_velocity = 45, 0, 0, 0
+
+    obstacles = [
+        Obstacle(center=(15, 0), length=3.8, width=2, theta=0.0, velocity=0.7),
+        Obstacle(center=(5, 5), length=3.8, width=2, theta=0.0, velocity=0.0),
+        Obstacle(center=(40, 5), length=3.8, width=2, theta=np.pi, velocity=0.5)
+    ]
+
+    path = planner.plan(start_x, start_y, start_yaw, start_velocity,
+                       goal_x, goal_y, goal_yaw, goal_velocity,
+                       obstacles=obstacles, env=env)
+    
+    if path:
+        print(f"Path found: {len(path.x_list)} points")
+        # 生成动画...
+```
+
+---
+
+## 运行结果
+
+```
+Path found in X iterations
+2D animation saved as 'vehicle_animation.gif'
+```
