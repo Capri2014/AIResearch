@@ -1,14 +1,15 @@
 # Status (ClawBot)
 
-_Last updated: 2026-03-08 (Pipeline PR #2 - Trajectory Follower)_
+_Last updated: 2026-03-08 (Pipeline PR #3 - ScenarioSuite)_
 
 ## Current focus
 Driving-first pipeline: **Waymo episodes → PyTorch SSL pretrain → waypoint BC → RL refinement → CARLA ScenarioRunner eval**.
 
 ## Daily Cadence
 
-- ✅ **Pipeline PR #2** (2026-03-08): Trajectory Follower for Smooth CARLA Eval - **NEW**
-- ✅ **Pipeline PR #1** (2026-03-08): Trajectory Planning Interface - **NEW**
+- ✅ **Pipeline PR #3** (2026-03-08): ScenarioSuite Configuration System - **NEW**
+- ✅ **Pipeline PR #2** (2026-03-08): Trajectory Follower for Smooth CARLA Eval
+- ✅ **Pipeline PR #1** (2026-03-08): Trajectory Planning Interface
 - ⏳ **Pipeline PR #6** (2026-02-28): RL Refinement Evaluation + Metrics Hardening - awaiting review
 - ⏳ **Pipeline PR #1** (2026-02-18): RL Checkpoint Selection with Policy Entropy - awaiting review
 - ⏳ **Pipeline PR #9** (2026-02-17): Evaluation + Metrics Hardening for RL Refinement - awaiting review
@@ -39,7 +40,28 @@ Driving-first pipeline: **Waymo episodes → PyTorch SSL pretrain → waypoint B
   - `_apply_trajectory_control()` for smooth tracking
   - Graceful fallback when unavailable
 
-**Purpose:** Bridges smooth trajectories from TrajectoryPlanner to CARLA vehicle control.
+### Pipeline PR #3: ScenarioSuite Configuration System (Today, 10:30am PT)
+- **Created: `training/eval/scenario_suite.py`** (450+ lines)
+  
+- **Key components:**
+  - `ScenarioSuite` / `ScenarioConfig`: Configuration dataclasses
+  - `ScenarioType`: Navigation, turn_left, turn_right, lane_change, etc.
+  - `WeatherPreset`: Clear, cloudy, night, rain, fog, sunset
+  - `WaypointConfig` / `TrajectoryConfig`: Planning parameters
+  - `ScenarioMetrics` / `SuiteMetrics`: Result aggregation
+
+- **Predefined suites:**
+  - `smoke`: 2 scenarios (quick test)
+  - `standard`: 10 scenarios (navigation + turns + weather)
+  - `full`: 40+ scenarios (all combinations)
+
+- **Created: `training/eval/run_scenario_suite.py`** (250+ lines)
+  - Executable runner: `python -m training.eval.run_scenario_suite`
+  - Integrates with TrajectoryPlanner/TrajectoryFollower
+  - CARLA connection options (host/port)
+  - Metrics output to JSON
+
+**Purpose:** Standardized scenario configuration for CARLA closed-loop evaluation.
 
 ### Pipeline PR #1: Trajectory Planning Interface (Today, 5:30am PT)
 - **Created: `training/planning/` module**
@@ -58,9 +80,9 @@ Driving-first pipeline: **Waymo episodes → PyTorch SSL pretrain → waypoint B
 
 **Purpose:** Bridges discrete waypoint predictions from BC to smooth, executable trajectories.
 
-## Complete Pipeline (PR #1 + #2)
+## Complete Pipeline (PR #1 + #2 + #3)
 ```
-Waypoint BC → TrajectoryPlanner → TrajectoryFollower → CARLA vehicle
+Waypoint BC → TrajectoryPlanner → TrajectoryFollower → ScenarioSuite eval → CARLA
 ```
 
 ## Next (top 3)
@@ -75,7 +97,7 @@ Waypoint BC → TrajectoryPlanner → TrajectoryFollower → CARLA vehicle
 
 **Driving-First Pipeline:**
 ```
-Waymo episodes → SSL pretrain → waypoint BC → RL refinement → TrajectoryPlanner → TrajectoryFollower → CARLA eval
+Waymo episodes → SSL pretrain → waypoint BC → RL refinement → TrajectoryPlanner → TrajectoryFollower → ScenarioSuite → CARLA eval
 ```
 
 **Residual Delta Learning:**
@@ -90,5 +112,6 @@ final_waypoints = sft_waypoints + delta_head(z)
 
 ## Links
 - Daily notes: `clawbot/daily/2026-03-08.md`
+- PR #3 branch: `feature/daily-2026-03-08-c`
 - PR #2 branch: `feature/daily-2026-03-08-b`
 - PR #1 branch: `feature/daily-2026-03-08-a`
