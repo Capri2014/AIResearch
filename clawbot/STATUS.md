@@ -1,12 +1,13 @@
 # Status (ClawBot)
 
-_Last updated: 2026-03-09 (Pipeline PR #2 today)_
+_Last updated: 2026-03-09 (Pipeline PR #3 today)_
 
 ## Current focus
 Driving-first pipeline: **Waymo episodes → PyTorch SSL pretrain → waypoint BC → RL refinement → CARLA ScenarioRunner eval**.
 
 ## Daily Cadence
 
+- ✅ **Pipeline PR #3** (2026-03-09): Scenario-Specific Evaluation Module
 - ✅ **Pipeline PR #2** (2026-03-09): ScenarioRunner RL Evaluation Integration
 - ✅ **Pipeline PR #1** (2026-03-09): CARLA RL Bridge - Closed-Loop Integration
 - ✅ **Pipeline PR #6** (2026-03-08): RL Refinement Evaluation + Metrics Hardening (Evening)
@@ -51,7 +52,7 @@ CARLA ScenarioRunner (scenario eval)
 metrics.json (ADE, FDE, Success, RC, collisions, infractions)
 ```
 
-**Branch:** `feature/daily-2026-03-09-b` | **Commit:** 184532d
+**Branch:** `feature/daily-2026-03-09-c` | **Commit:** 1c21c28
 
 ---
 
