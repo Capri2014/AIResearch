@@ -1,12 +1,13 @@
 # Status (ClawBot)
 
-_Last updated: 2026-03-09 (Pipeline PR #1 today)_
+_Last updated: 2026-03-09 (Pipeline PR #2 today)_
 
 ## Current focus
 Driving-first pipeline: **Waymo episodes → PyTorch SSL pretrain → waypoint BC → RL refinement → CARLA ScenarioRunner eval**.
 
 ## Daily Cadence
 
+- ✅ **Pipeline PR #2** (2026-03-09): ScenarioRunner RL Evaluation Integration
 - ✅ **Pipeline PR #1** (2026-03-09): CARLA RL Bridge - Closed-Loop Integration
 - ✅ **Pipeline PR #6** (2026-03-08): RL Refinement Evaluation + Metrics Hardening (Evening)
 - ✅ **Pipeline PR #5** (2026-03-08): RL Refinement Stub - PPO Residual Delta-Waypoint Learning
@@ -15,6 +16,44 @@ Driving-first pipeline: **Waymo episodes → PyTorch SSL pretrain → waypoint B
 - ⏳ **Pipeline PR #8** (2026-02-17): CARLA Closed-Loop Waypoint BC Evaluation - awaiting review
 
 ## Recent changes
+
+### Pipeline PR #2: ScenarioRunner RL Evaluation Integration (Today, 10:30am PT)
+- **Created: `training/rl/srunner_rl_eval.py`**
+  - Bridges trained RL policies with CARLA ScenarioRunner for closed-loop scenario-specific evaluation
+  - Loads RL checkpoint metadata (encoder, head, delta_head presence)
+  - Supports dry-run mode for quick validation
+  - Wraps ScenarioRunner invocation with timeout handling
+  - Outputs metrics.json compatible with existing schema
+
+**Run:**
+```bash
+# Validate checkpoint only (dry-run)
+python -m training.rl.srunner_rl_eval \
+    --checkpoint out/ppo_residual_delta_stub/run_2026-03-08/model.pt \
+    --dry-run
+
+# Run full ScenarioRunner evaluation
+python -m training.rl.srunner_rl_eval \
+    --checkpoint out/ppo_residual_delta_stub/run_2026-03-08/model.pt \
+    --suite smoke \
+    --carla-host 127.0.0.1 \
+    --carla-port 2000
+```
+
+**Architecture:**
+```
+RL Checkpoint (PPO Residual Delta)
+    ↓
+srunner_rl_eval.py
+    ↓
+CARLA ScenarioRunner (scenario eval)
+    ↓
+metrics.json (ADE, FDE, Success, RC, collisions, infractions)
+```
+
+**Branch:** `feature/daily-2026-03-09-b` | **Commit:** 184532d
+
+---
 
 ### Pipeline PR #1: CARLA RL Bridge - Closed-Loop Integration (Today, 8:30am PT)
 - **Created: `training/rl/carla_rl_bridge.py`**
