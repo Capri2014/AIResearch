@@ -1,19 +1,43 @@
 # Status (ClawBot)
 
-_Last updated: 2026-03-08 (Pipeline PR #5)_
+_Last updated: 2026-03-08 (Pipeline PR #6)_
 
 ## Current focus
 Driving-first pipeline: **Waymo episodes → PyTorch SSL pretrain → waypoint BC → RL refinement → CARLA ScenarioRunner eval**.
 
 ## Daily Cadence
 
+- ✅ **Pipeline PR #6** (2026-03-08): RL Refinement Evaluation + Metrics Hardening (Evening)
 - ✅ **Pipeline PR #5** (2026-03-08): RL Refinement Stub - PPO Residual Delta-Waypoint Learning
-- ⏳ **Pipeline PR #6** (2026-02-28): RL Refinement Evaluation + Metrics Hardening - awaiting review
 - ⏳ **Pipeline PR #1** (2026-02-18): RL Checkpoint Selection with Policy Entropy - awaiting review
 - ⏳ **Pipeline PR #9** (2026-02-17): Evaluation + Metrics Hardening for RL Refinement - awaiting review
 - ⏳ **Pipeline PR #8** (2026-02-17): CARLA Closed-Loop Waypoint BC Evaluation - awaiting review
 
 ## Recent changes
+
+### Pipeline PR #6: RL Refinement Evaluation + Metrics Hardening (Today, 6:30pm PT)
+- **Created: `training/rl/run_det_eval.py`**
+  - Deterministic evaluation runner for waypoint RL policy
+  - CLI wrapper combining compare_sft_vs_rl + validate_metrics
+  - Runs N episodes with configurable seeds
+  - Auto-validates against `data/schema/metrics.json`
+  - Prints 3-line summary (ADE, FDE, Success Rate)
+
+**Run:**
+```bash
+python -m training.rl.run_det_eval --episodes 20 --seed-base 42
+```
+
+**Demo Results (5 episodes, seed-base 100):**
+```
+ADE: 10.65m (SFT) → 10.65m (RL) [+0%]
+FDE: 25.52m (SFT) → 25.28m (RL) [+1%]
+Success: 0% (SFT) → 0% (RL) [+0%]
+```
+
+**Branch:** `feature/daily-2026-03-08-e` | **Commit:** 90e941c
+
+---
 
 ### Pipeline PR #5: RL Refinement Stub - PPO Residual Delta-Waypoint Learning (Today, 4:30pm PT)
 - **Created: `training/rl/ppo_residual_delta_stub.py`**
@@ -82,4 +106,5 @@ final_waypoints = sft_waypoints + delta_head(z)
 ## Links
 - Daily notes: `clawbot/daily/2026-03-08.md`
 - Branch: `feature/daily-2026-03-08-e`
-- Commit: 3c96932
+- Commit: 90e941c
+- PR: https://github.com/Capri2014/AIResearch/compare/master...feature/daily-2026-03-08-e
