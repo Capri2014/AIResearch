@@ -1,12 +1,13 @@
 # Status (ClawBot)
 
-_Last updated: 2026-03-09 (Pipeline PR #3 today)_
+_Last updated: 2026-03-09 (Pipeline PR #4 today)_
 
 ## Current focus
 Driving-first pipeline: **Waymo episodes → PyTorch SSL pretrain → waypoint BC → RL refinement → CARLA ScenarioRunner eval**.
 
 ## Daily Cadence
 
+- ✅ **Pipeline PR #4** (2026-03-09): Waypoint Behavior Cloning Module
 - ✅ **Pipeline PR #3** (2026-03-09): Scenario-Specific Evaluation Module
 - ✅ **Pipeline PR #2** (2026-03-09): ScenarioRunner RL Evaluation Integration
 - ✅ **Pipeline PR #1** (2026-03-09): CARLA RL Bridge - Closed-Loop Integration
@@ -17,6 +18,35 @@ Driving-first pipeline: **Waymo episodes → PyTorch SSL pretrain → waypoint B
 - ⏳ **Pipeline PR #8** (2026-02-17): CARLA Closed-Loop Waypoint BC Evaluation - awaiting review
 
 ## Recent changes
+
+### Pipeline PR #4: Waypoint Behavior Cloning Module (Today, 1:30pm PT)
+- **Created: `training/bc/`**
+  - `waypoint_bc.py`: WaypointBCModel, SSLEncoder, WaypointHead, BCConfig
+  - `run_bc_train.py`: CLI training runner with best.pt checkpoint saving
+  - Supervised learning for waypoint prediction using pre-trained encoder features
+  - Bridges SSL pretrain → waypoint BC → RL refinement pipeline
+
+**Run:**
+```bash
+# Train BC model
+python -m training.bc.run_bc_train --epochs 50 --batch-size 64
+
+# Quick smoke test
+python -m training.bc.waypoint_bc
+```
+
+**Architecture:**
+```
+Waymo episodes → SSL encoder → WaypointHead → waypoints + speed
+                                         ↓
+                              BC loss (L2 waypoint + speed)
+                                         ↓
+                              best.pt (for RL refinement)
+```
+
+**Branch:** `feature/daily-2026-03-09-d` | **Commit:** 2a36c8e
+
+---
 
 ### Pipeline PR #2: ScenarioRunner RL Evaluation Integration (Today, 10:30am PT)
 - **Created: `training/rl/srunner_rl_eval.py`**
