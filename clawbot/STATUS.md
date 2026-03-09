@@ -1,12 +1,13 @@
 # Status (ClawBot)
 
-_Last updated: 2026-03-09 (Pipeline PR #4 today)_
+_Last updated: 2026-03-09 (Pipeline PR #5 today)_
 
 ## Current focus
 Driving-first pipeline: **Waymo episodes → PyTorch SSL pretrain → waypoint BC → RL refinement → CARLA ScenarioRunner eval**.
 
 ## Daily Cadence
 
+- ✅ **Pipeline PR #5** (2026-03-09): PPO Residual Delta Training Runner - RL after SFT
 - ✅ **Pipeline PR #4** (2026-03-09): Waypoint Behavior Cloning Module
 - ✅ **Pipeline PR #3** (2026-03-09): Scenario-Specific Evaluation Module
 - ✅ **Pipeline PR #2** (2026-03-09): ScenarioRunner RL Evaluation Integration
@@ -18,6 +19,38 @@ Driving-first pipeline: **Waymo episodes → PyTorch SSL pretrain → waypoint B
 - ⏳ **Pipeline PR #8** (2026-02-17): CARLA Closed-Loop Waypoint BC Evaluation - awaiting review
 
 ## Recent changes
+
+### Pipeline PR #5: PPO Residual Delta Training Runner - RL after SFT (Today, 4:30pm PT)
+- **Created: `training/rl/train_ppo_residual_delta.py`**
+  - PPO training runner for residual delta-waypoint learning
+  - Loads SFT checkpoint as frozen base model
+  - Trains learnable delta head to correct SFT predictions
+  - Integrates with toy waypoint environment (kinematics)
+  - Outputs metrics.json + train_metrics.json under out/
+
+**Design (Option B):**
+```
+final_waypoints = sft_waypoints + delta_head(z)
+```
+
+**Run:**
+```bash
+# Train with mock SFT model
+python -m training.rl.train_ppo_residual_delta --num_episodes 100
+
+# Train with real SFT checkpoint
+python -m training.rl.train_ppo_residual_delta \
+  --sft_checkpoint out/waypoint_bc/run_20260309_163356/best.pt \
+  --num_episodes 100
+```
+
+**Architecture:**
+```
+SFT checkpoint (frozen) → + delta_head (learnable) → PPO update → final_waypoints
+```
+
+**Branch:** `feature/daily-2026-03-09-e` | **Commit:** 63dd84f
+
 
 ### Pipeline PR #4: Waypoint Behavior Cloning Module (Today, 1:30pm PT)
 - **Created: `training/bc/`**
