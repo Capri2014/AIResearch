@@ -1,12 +1,13 @@
 # Status (ClawBot)
 
-_Last updated: 2026-03-09 (Pipeline PR #5 today)_
+_Last updated: 2026-03-09 (Pipeline PR #6 today)_
 
 ## Current focus
 Driving-first pipeline: **Waymo episodes → PyTorch SSL pretrain → waypoint BC → RL refinement → CARLA ScenarioRunner eval**.
 
 ## Daily Cadence
 
+- ✅ **Pipeline PR #6** (2026-03-09): Deterministic Checkpoint Evaluation - RL refinement evaluation
 - ✅ **Pipeline PR #5** (2026-03-09): PPO Residual Delta Training Runner - RL after SFT
 - ✅ **Pipeline PR #4** (2026-03-09): Waypoint Behavior Cloning Module
 - ✅ **Pipeline PR #3** (2026-03-09): Scenario-Specific Evaluation Module
@@ -50,6 +51,40 @@ SFT checkpoint (frozen) → + delta_head (learnable) → PPO update → final_wa
 ```
 
 **Branch:** `feature/daily-2026-03-09-e` | **Commit:** 63dd84f
+
+
+### Pipeline PR #6: Deterministic Checkpoint Evaluation (Today, 6:30pm PT)
+- **Created: `training/rl/eval_det_checkpoint.py`**
+  - Loads trained PPO residual delta checkpoint
+  - Runs deterministic evaluation on toy waypoint env (fixed seeds)
+  - Outputs `out/eval/<run_id>/metrics.json` compliant with `data/schema/metrics.json`
+  - Supports custom checkpoint path, episodes, seed-base, max-steps
+  - Auto-finds latest checkpoint if none specified
+
+**Run:**
+```bash
+# Evaluate latest checkpoint (20 episodes, seeds 42-61)
+python -m training.rl.eval_det_checkpoint --episodes 20 --seed-base 42
+
+# Evaluate specific checkpoint
+python -m training.rl.eval_det_checkpoint \
+    --checkpoint out/ppo_residual_delta_rl/run_20260309_193549/best.pt \
+    --episodes 20 --seed-base 42
+
+# Validate output against schema
+python -m training.rl.validate_metrics out/eval/<run_id>/metrics.json
+```
+
+**Output:**
+- `out/eval/<run_id>/metrics.json` with:
+  - `run_id`, `domain: "rl"`, `git` metadata
+  - `policy`: checkpoint path and name
+  - `scenarios`: per-episode results (ADE, FDE, success, return, steps)
+  - `summary`: aggregate metrics (ade_mean, fde_mean, success_rate, etc.)
+
+**Schema Compliance:** ✅ Validated against `data/schema/metrics.json`
+
+**Branch:** `feature/daily-2026-03-09-e` | **Commit:** 2f03393
 
 
 ### Pipeline PR #4: Waypoint Behavior Cloning Module (Today, 1:30pm PT)
