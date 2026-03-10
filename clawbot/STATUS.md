@@ -1,12 +1,14 @@
 # Status (ClawBot)
 
-_Last updated: 2026-03-09 (Pipeline PR #6 today)_
+_Last updated: 2026-03-10 (Pipeline PR #2 today)_
 
 ## Current focus
 Driving-first pipeline: **Waymo episodes → PyTorch SSL pretrain → waypoint BC → RL refinement → CARLA ScenarioRunner eval**.
 
 ## Daily Cadence
 
+- ✅ **Pipeline PR #2** (2026-03-10): Enhanced ScenarioRunner RL Eval with Policy Injection
+- ✅ **Pipeline PR #1** (2026-03-10): Waymo Episodes Data Loader & Preprocessing
 - ✅ **Pipeline PR #6** (2026-03-09): Deterministic Checkpoint Evaluation - RL refinement evaluation
 - ✅ **Pipeline PR #5** (2026-03-09): PPO Residual Delta Training Runner - RL after SFT
 - ✅ **Pipeline PR #4** (2026-03-09): Waypoint Behavior Cloning Module
@@ -20,6 +22,50 @@ Driving-first pipeline: **Waymo episodes → PyTorch SSL pretrain → waypoint B
 - ⏳ **Pipeline PR #8** (2026-02-17): CARLA Closed-Loop Waypoint BC Evaluation - awaiting review
 
 ## Recent changes
+
+### Pipeline PR #2: Enhanced ScenarioRunner RL Eval with Policy Injection (Today, 10:30am PT)
+- **Updated: `training/rl/srunner_rl_eval.py`**
+  - Added WaypointPolicyWrapper integration for RL checkpoint loading
+  - Proper RL agent script generation for ScenarioRunner interface
+  - Full metrics extraction (ADE, FDE, Success, Route Completion, Collisions)
+  - XML/JSON output parsing from ScenarioRunner
+  - Mock mode for testing without CARLA
+  - Dry-run mode for checkpoint validation
+
+**Run:**
+```bash
+# Dry-run to validate checkpoint
+python -m training.rl.srunner_rl_eval \
+    --checkpoint out/ppo_residual_delta/run_2026-03-10/model.pt \
+    --dry-run
+
+# Mock evaluation (no CARLA)
+python -m training.rl.srunner_rl_eval \
+    --checkpoint out/ppo_residual_delta/run_2026-03-10/model.pt \
+    --mock --num-episodes 3
+
+# Full ScenarioRunner evaluation
+python -m training.rl.srunner_rl_eval \
+    --checkpoint out/ppo_residual_delta/run_2026-03-10/model.pt \
+    --suite smoke \
+    --carla-host 127.0.0.1
+```
+
+**Architecture:**
+```
+RL Checkpoint (PPO Residual Delta)
+    ↓
+load_policy_wrapper() → WaypointPolicyWrapper
+    ↓
+create_rl_agent_script() → rl_agent.py
+    ↓
+ScenarioRunner --agent rl_agent.py
+    ↓
+parse_srunner_output() → metrics.json
+```
+
+**Branch:** `feature/daily-2026-03-10-b` | **Commit:** 1f2f791
+
 
 ### Pipeline PR #5: PPO Residual Delta Training Runner - RL after SFT (Today, 4:30pm PT)
 - **Created: `training/rl/train_ppo_residual_delta.py`**
