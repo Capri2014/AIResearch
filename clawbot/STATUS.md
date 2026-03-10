@@ -1,12 +1,13 @@
 # Status (ClawBot)
 
-_Last updated: 2026-03-10 (Pipeline PR #4 today)_
+_Last updated: 2026-03-10 (Pipeline PR #5 today)_
 
 ## Current focus
 Driving-first pipeline: **Waymo episodes → PyTorch SSL pretrain → waypoint BC → RL refinement → CARLA ScenarioRunner eval**.
 
 ## Daily Cadence
 
+- ✅ **Pipeline PR #5** (2026-03-10): Gymnasium Waypoint Environment Wrapper
 - ✅ **Pipeline PR #4** (2026-03-10): Unified Driving Pipeline Runner
 - ✅ **Pipeline PR #2** (2026-03-10): Enhanced ScenarioRunner RL Eval with Policy Injection
 - ✅ **Pipeline PR #1** (2026-03-10): Waymo Episodes Data Loader & Preprocessing
@@ -23,6 +24,34 @@ Driving-first pipeline: **Waymo episodes → PyTorch SSL pretrain → waypoint B
 - ⏳ **Pipeline PR #8** (2026-02-17): CARLA Closed-Loop Waypoint BC Evaluation - awaiting review
 
 ## Recent changes
+
+### Pipeline PR #5: Gymnasium Waypoint Environment Wrapper (Today, 4:30pm PT)
+- **Created: `training/rl/waypoint_gym_env.py`**
+  - WaypointGymEnv: gymnasium.Env interface for ToyWaypointEnv
+  - Supports delta waypoint actions (Option B) and steer/throttle
+  - Normalized observation/action spaces for RL stability
+  - Enables integration with stable-baselines3, tianshou, etc.
+
+- **Created: `training/rl/train_gym_waypoint.py`**
+  - Training runner with random baseline
+  - Outputs metrics.json + train_metrics.json under out/
+
+**Run:**
+```bash
+# Test environment
+python -m training.rl.waypoint_gym_env --episodes 2
+
+# Train with baseline
+python -m training.rl.train_gym_waypoint --num_episodes 50
+```
+
+**Output:**
+- `out/gym_waypoint/run_20260310_193603/metrics.json`
+- `out/gym_waypoint/run_20260310_193603/train_metrics.json`
+
+**Branch:** `feature/daily-2026-03-10-e` | **Commit:** 920d5b6
+
+---
 
 ### Pipeline PR #4: Unified Driving Pipeline Runner (Today, 1:30pm PT)
 - **Created: `training/pipeline/`**
