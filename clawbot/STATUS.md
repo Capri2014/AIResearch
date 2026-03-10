@@ -1,12 +1,13 @@
 # Status (ClawBot)
 
-_Last updated: 2026-03-07 (Pipeline PR #2)_
+_Last updated: 2026-03-10 (Pipeline PR #3)_
 
 ## Current focus
 Driving-first pipeline: **Waymo episodes → PyTorch SSL pretrain → waypoint BC → RL refinement → CARLA ScenarioRunner eval**.
 
 ## Daily Cadence
 
+- ✅ **Pipeline PR #3** (2026-03-10): Multi-Scenario Evaluation Framework
 - ✅ **Pipeline PR #2** (2026-03-07): Kinematic Waypoint Env Evaluation with ADE/FDE
 - ✅ **Pipeline PR #6** (2026-02-28): RL Refinement Evaluation + Metrics Hardening
 - ⏳ **Pipeline PR #1** (2026-02-18): RL Checkpoint Selection with Policy Entropy - awaiting review
@@ -15,6 +16,16 @@ Driving-first pipeline: **Waymo episodes → PyTorch SSL pretrain → waypoint B
 - ⏳ **Pipeline PR #5** (2026-02-16): RL Refinement Stub for Residual Delta-Waypoint Learning - awaiting review
 
 ## Recent changes
+
+### Pipeline PR #3: Multi-Scenario Evaluation Framework (2026-03-10)
+- **Created: `training/rl/eval_multi_scenario.py`**
+  - Multi-scenario evaluation runner for kinematic waypoint RL environment
+  - Supports 5 scenario configurations: simple, moderate, hard, urban, highway
+  - Each scenario has unique: world_size, num_waypoints, max_steps, obstacle_density
+  - Aggregates ADE/FDE, route_completion, collisions, offroad metrics
+  - Outputs metrics.json compatible with data/schema/metrics.json (domain="rl")
+  - Supports both SFT and RL policies with checkpoint loading
+  - Bridges kinematic environment evaluation with broader CARLA eval framework
 
 ### Pipeline PR #2: Kinematic Waypoint Env Evaluation with ADE/FDE (2026-03-07)
 - **Created: `training/rl/eval_kinematic_waypoint_env.py`**
@@ -47,8 +58,8 @@ Driving-first pipeline: **Waymo episodes → PyTorch SSL pretrain → waypoint B
   - Entropy history tracking: `entropy_history.json` with episode-wise records
 
 ## Next (top 3)
-1. Run RL training with entropy-based checkpoint selection
-2. Validate metrics from full CARLA evaluation runs
+1. Run multi-scenario evaluation to validate SFT vs RL performance
+2. Integrate kinematic env results with CARLA ScenarioRunner eval
 3. Compare entropy curves across different seeds
 
 ## Blockers / questions for owner
@@ -72,6 +83,6 @@ final_waypoints = sft_waypoints + delta_head(z)
 - Metrics: ADE/FDE, route_completion, collisions
 
 ## Links
-- Daily notes: `clawbot/daily/2026-03-07.md`
-- Branch: `feature/daily-2026-03-07-b`
-- PR: https://github.com/Capri2014/AIResearch/pull/new/feature/daily-2026-03-07-b
+- Daily notes: `clawbot/daily/2026-03-10.md`
+- Branch: `feature/daily-2026-03-10-c`
+- PR: https://github.com/Capri2014/AIResearch/pull/new/feature/daily-2026-03-10-c
