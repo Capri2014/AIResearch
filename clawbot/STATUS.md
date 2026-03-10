@@ -1,12 +1,13 @@
 # Status (ClawBot)
 
-_Last updated: 2026-03-10 (Pipeline PR #2 today)_
+_Last updated: 2026-03-10 (Pipeline PR #4 today)_
 
 ## Current focus
 Driving-first pipeline: **Waymo episodes → PyTorch SSL pretrain → waypoint BC → RL refinement → CARLA ScenarioRunner eval**.
 
 ## Daily Cadence
 
+- ✅ **Pipeline PR #4** (2026-03-10): Unified Driving Pipeline Runner
 - ✅ **Pipeline PR #2** (2026-03-10): Enhanced ScenarioRunner RL Eval with Policy Injection
 - ✅ **Pipeline PR #1** (2026-03-10): Waymo Episodes Data Loader & Preprocessing
 - ✅ **Pipeline PR #6** (2026-03-09): Deterministic Checkpoint Evaluation - RL refinement evaluation
@@ -22,6 +23,52 @@ Driving-first pipeline: **Waymo episodes → PyTorch SSL pretrain → waypoint B
 - ⏳ **Pipeline PR #8** (2026-02-17): CARLA Closed-Loop Waypoint BC Evaluation - awaiting review
 
 ## Recent changes
+
+### Pipeline PR #4: Unified Driving Pipeline Runner (Today, 1:30pm PT)
+- **Created: `training/pipeline/`**
+  - `run_driving_pipeline.py`: Unified pipeline entry point
+  - `__init__.py`: Module initialization
+
+**Run:**
+```bash
+# Run full pipeline (BC -> RL -> Eval)
+python -m training.pipeline.run_driving_pipeline \
+    --bc_checkpoint out/waypoint_bc/run_20260309_163356/best.pt \
+    --rl_episodes 100 \
+    --eval_suite smoke \
+    --carla_host 127.0.0.1
+
+# Run just RL training
+python -m training.pipeline.run_driving_pipeline \
+    --stage rl \
+    --bc_checkpoint out/waypoint_bc/run_20260309_163356/best.pt \
+    --rl_episodes 50
+
+# Dry-run validation
+python -m training.pipeline.run_driving_pipeline \
+    --stage full \
+    --dry_run
+```
+
+**Architecture:**
+```
+BC Checkpoint (SFT)
+    ↓
+training.pipeline.run_driving_pipeline
+    ├── Stage RL: train_ppo_residual_real.py
+    │       ↓
+    │   RL Checkpoint (SFT + delta_head)
+    │
+    └── Stage Eval: srunner_rl_eval.py
+            ↓
+        ScenarioRunner eval
+            ↓
+        metrics.json
+```
+
+**Branch:** `feature/daily-2026-03-10-d` | **Commit:** (new)
+
+---
 
 ### Pipeline PR #2: Enhanced ScenarioRunner RL Eval with Policy Injection (Today, 10:30am PT)
 - **Updated: `training/rl/srunner_rl_eval.py`**
