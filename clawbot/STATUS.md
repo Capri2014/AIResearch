@@ -1,15 +1,64 @@
 # Status (ClawBot)
 
-_Last updated: 2026-03-11 (Pipeline PR #1 today)_
+_Last updated: 2026-03-11 (Pipeline PR #2 today)_
 
 ## Current focus
 Driving-first pipeline: **Waymo episodes → PyTorch SSL pretrain → waypoint BC → RL refinement → CARLA ScenarioRunner eval**.
 
 ## Daily Cadence
 
+- ✅ **Pipeline PR #2** (2026-03-11): Waypoint Inference + CarlaWaypointAgent
 - ✅ **Pipeline PR #1** (2026-03-11): Waypoint Tracking Controller for Smooth CARLA Control
 
-### Pipeline PR #1: Waypoint CARLA Control (Today Tracking Controller for Smooth, 8:30am PT)
+### Pipeline PR #2: Waypoint Inference + CarlaWaypointAgent (Today, 10:30am PT)
+- **Created: `sim/driving/carla_srunner/waypoint_inference.py`**
+  - WaypointInference: Loads BC checkpoint, predicts waypoints from BEV
+  - Batch inference support, speed prediction
+  - Waypoint coordinate transformation (vehicle → global frame)
+  - Factory function `create_inference()`
+
+- **Created: `sim/driving/carla_srunner/carla_waypoint_agent.py`**
+  - CarlaWaypointAgent: End-to-end driving agent
+  - Integrates WaypointInference + WaypointTrackingController
+  - `compute_control(bev_image, vehicle)`: Full perception → control pipeline
+  - `compute_control_from_waypoints()`: Direct waypoint input for RL/external
+  - MockVehicle for testing without CARLA
+
+- **Updated: `sim/driving/carla_srunner/policy_wrapper.py`**
+  - Added imports for new modules
+  - Added `use_full_agent` config option
+
+**Architecture:**
+```
+BEV Image
+    ↓
+WaypointInference (BC checkpoint)
+    ↓
+waypoints [num_waypoints, 2]
+    ↓
+CarlaWaypointAgent
+    ├── WaypointTrackingController
+    │   ├── Pure Pursuit → steering
+    │   ├── Curvature → target speed
+    │   └── PID → throttle/brake
+    ↓
+CARLA VehicleControl
+```
+
+**Run:**
+```python
+from sim.driving.carla_srunner.carla_waypoint_agent import create_agent
+
+agent = create_agent("out/waypoint_bc/run_XXXX/best.pt", "tesla_model3")
+control = agent.compute_control(bev_image, vehicle)
+# Returns: {"throttle": 0.5, "steer": 0.1, "brake": 0.0, ...}
+```
+
+**Branch:** `feature/daily-2026-03-11-a` | **Commit:** 43c6c3d
+
+---
+
+### Pipeline PR #1: Waypoint Tracking Controller for Smooth CARLA Control (Today, 8:30am PT)
 - **Created: `sim/driving/carla_srunner/waypoint_controller.py`**
   - WaypointTrackingController: Sophisticated waypoint-to-control converter
   - Pure pursuit steering with dynamic lookahead
