@@ -1,32 +1,48 @@
 # Status (ClawBot)
 
-_Last updated: 2026-03-11 (Pipeline PR #2 today)_
+_Last updated: 2026-03-11 (Pipeline PR #3 today)_
 
 ## Current focus
 Driving-first pipeline: **Waymo episodes → PyTorch SSL pretrain → waypoint BC → RL refinement → CARLA ScenarioRunner eval**.
 
 ## Daily Cadence
 
+- ✅ **Pipeline PR #3** (2026-03-11): Waypoint Visualization Module
 - ✅ **Pipeline PR #2** (2026-03-11): Waypoint Inference + CarlaWaypointAgent
 - ✅ **Pipeline PR #1** (2026-03-11): Waypoint Tracking Controller for Smooth CARLA Control
 
-### Pipeline PR #2: Waypoint Inference + CarlaWaypointAgent (Today, 10:30am PT)
-- **Created: `sim/driving/carla_srunner/waypoint_inference.py`**
-  - WaypointInference: Loads BC checkpoint, predicts waypoints from BEV
-  - Batch inference support, speed prediction
-  - Waypoint coordinate transformation (vehicle → global frame)
-  - Factory function `create_inference()`
+### Pipeline PR #3: Waypoint Visualization Module (Today, 1:30pm PT)
+- **Created: `sim/driving/carla_srunner/waypoint_visualizer.py`**
+  - WaypointVisualizer: Visualization utilities for debugging waypoints
+  - VisualizationConfig: Configuration dataclass for all options
+  - Supports 2D BEV image rendering and CARLA 3D world visualization
+  - Features: waypoint numbering, heading arrows, reference paths, speed display
+  - Factory function `create_visualizer()`
 
-- **Created: `sim/driving/carla_srunner/carla_waypoint_agent.py`**
-  - CarlaWaypointAgent: End-to-end driving agent
-  - Integrates WaypointInference + WaypointTrackingController
-  - `compute_control(bev_image, vehicle)`: Full perception → control pipeline
-  - `compute_control_from_waypoints()`: Direct waypoint input for RL/external
-  - MockVehicle for testing without CARLA
+- **Created: `sim/driving/carla_srunner/test_waypoint_visualizer.py`**
+  - Unit tests for WaypointVisualizer (7 tests, all passing)
+  - Tests: import, config creation, visualizer creation, waypoint shapes
 
 - **Updated: `sim/driving/carla_srunner/policy_wrapper.py`**
-  - Added imports for new modules
-  - Added `use_full_agent` config option
+  - Added import for waypoint_visualizer module
+  - Added WAYPOINT_VISUALIZER_AVAILABLE flag
+
+**Run:**
+```python
+from sim.driving.carla_srunner.waypoint_visualizer import create_visualizer
+
+viz = create_visualizer()
+image = viz.create_bev_image(waypoints, vehicle_heading=0.0, predicted_speed=8.0)
+
+# In CARLA:
+viz.draw_waypoints_carla(carla_world, waypoints, vehicle_transform)
+```
+
+**Branch:** `feature/daily-2026-03-11-c` | **Commit:** c2bb423
+
+---
+
+### Pipeline PR #2: Waypoint Inference + CarlaWaypointAgent (Today, 10:30am PT)
 
 **Architecture:**
 ```
