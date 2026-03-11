@@ -49,6 +49,16 @@ try:
 except ImportError:
     WAYPOINT_INFERENCE_AVAILABLE = False
 
+try:
+    from sim.driving.carla_srunner.waypoint_visualizer import (
+        WaypointVisualizer,
+        VisualizationConfig,
+        create_visualizer,
+    )
+    WAYPOINT_VISUALIZER_AVAILABLE = True
+except ImportError:
+    WAYPOINT_VISUALIZER_AVAILABLE = False
+
 
 @dataclass
 class PolicyConfig:
