@@ -50,6 +50,16 @@ except ImportError:
     WAYPOINT_INFERENCE_AVAILABLE = False
 
 try:
+    from sim.driving.carla_srunner.bev_encoder import (
+        BEVEncoder,
+        BEVEncoderConfig,
+        create_bev_encoder,
+    )
+    BEV_ENCODER_AVAILABLE = True
+except ImportError:
+    BEV_ENCODER_AVAILABLE = False
+
+try:
     from sim.driving.carla_srunner.waypoint_visualizer import (
         WaypointVisualizer,
         VisualizationConfig,
