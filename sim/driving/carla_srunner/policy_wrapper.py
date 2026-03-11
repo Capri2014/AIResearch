@@ -20,7 +20,7 @@ import json
 
 import numpy as np
 
-# Optional import for advanced controller
+# Optional imports for advanced controller and agent
 try:
     from sim.driving.carla_srunner.waypoint_controller import (
         WaypointTrackingController,
@@ -31,6 +31,24 @@ try:
 except ImportError:
     WAYPOINT_CONTROLLER_AVAILABLE = False
 
+try:
+    from sim.driving.carla_srunner.carla_waypoint_agent import (
+        CarlaWaypointAgent,
+        create_agent,
+    )
+    CARLA_AGENT_AVAILABLE = True
+except ImportError:
+    CARLA_AGENT_AVAILABLE = False
+
+try:
+    from sim.driving.carla_srunner.waypoint_inference import (
+        WaypointInference,
+        create_inference,
+    )
+    WAYPOINT_INFERENCE_AVAILABLE = True
+except ImportError:
+    WAYPOINT_INFERENCE_AVAILABLE = False
+
 
 @dataclass
 class PolicyConfig:
@@ -40,6 +58,7 @@ class PolicyConfig:
     horizon_steps: int = 20
     device: str = "auto"
     use_advanced_controller: bool = True
+    use_full_agent: bool = False  # Use CarlaWaypointAgent instead of just controller
     vehicle_type: str = "tesla_model3"
 
 
