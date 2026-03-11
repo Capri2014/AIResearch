@@ -7,11 +7,39 @@ Driving-first pipeline: **Waymo episodes → PyTorch SSL pretrain → waypoint B
 
 ## Daily Cadence
 
+- ✅ **Pipeline PR #4** (2026-03-11): BEV Encoder Module
 - ✅ **Pipeline PR #3** (2026-03-11): Waypoint Visualization Module
 - ✅ **Pipeline PR #2** (2026-03-11): Waypoint Inference + CarlaWaypointAgent
 - ✅ **Pipeline PR #1** (2026-03-11): Waypoint Tracking Controller for Smooth CARLA Control
 
-### Pipeline PR #3: Waypoint Visualization Module (Today, 1:30pm PT)
+### Pipeline PR #4: BEV Encoder Module (Today, 1:30pm PT)
+- **Created: `sim/driving/carla_srunner/bev_encoder.py`**
+  - BEVEncoder: Unified BEV encoder combining camera + LiDAR
+  - LidarToBEV: Convert LiDAR point clouds to BEV grid
+  - CameraToBEV: Transform camera features to BEV
+  - BEVEncoderConfig: Configuration dataclass
+  - create_bev_encoder(): Factory function
+  - get_bev_image(): Visualization helper
+  - Supports concat/attention/sum fusion
+
+- **Created: `sim/driving/carla_srunner/test_bev_encoder.py`**
+  - Unit tests for all BEV encoder components (12 tests)
+
+- **Updated: `sim/driving/carla_srunner/policy_wrapper.py`**
+  - Added BEV encoder imports
+  - Added BEV_ENCODER_AVAILABLE flag
+
+**Run:**
+```python
+from sim.driving.carla_srunner.bev_encoder import create_bev_encoder
+
+encoder = create_bev_encoder(input_types=["camera", "lidar"])
+bev_features = encoder.encode(cameras=cams, lidar_points=lidar)
+```
+
+**Branch:** `feature/daily-2026-03-11-d` | **Commit:** a0a740b
+
+---
 - **Created: `sim/driving/carla_srunner/waypoint_visualizer.py`**
   - WaypointVisualizer: Visualization utilities for debugging waypoints
   - VisualizationConfig: Configuration dataclass for all options
