@@ -1,12 +1,59 @@
 # Status (ClawBot)
 
-_Last updated: 2026-03-10 (Pipeline PR #5 today)_
+_Last updated: 2026-03-11 (Pipeline PR #1 today)_
 
 ## Current focus
 Driving-first pipeline: **Waymo episodes → PyTorch SSL pretrain → waypoint BC → RL refinement → CARLA ScenarioRunner eval**.
 
 ## Daily Cadence
 
+- ✅ **Pipeline PR #1** (2026-03-11): Waypoint Tracking Controller for Smooth CARLA Control
+
+### Pipeline PR #1: Waypoint CARLA Control (Today Tracking Controller for Smooth, 8:30am PT)
+- **Created: `sim/driving/carla_srunner/waypoint_controller.py`**
+  - WaypointTrackingController: Sophisticated waypoint-to-control converter
+  - Pure pursuit steering with dynamic lookahead
+  - Curvature-based speed profiling
+  - PID speed controller with anti-windup
+  - Obstacle proximity braking
+  - Steering smoothing
+  - Multiple vehicle presets (Tesla Model 3, Ford Escape, generic)
+
+- **Updated: `sim/driving/carla_srunner/policy_wrapper.py`**
+  - Added optional WaypointTrackingController integration
+  - New config: use_advanced_controller, vehicle_type
+  - Falls back to simple controller if advanced unavailable
+
+**Architecture:**
+```
+Waypoints (from policy)
+    ↓
+WaypointTrackingController
+    ├── Pure Pursuit → steering
+    ├── Curvature Analysis → target speed  
+    ├── PID Speed Controller → throttle/brake
+    └── Smoothing → smooth control
+    ↓
+CARLA VehicleControl
+```
+
+**Test Results:**
+- Straight path (8 m/s): throttle=1.0, steer=0.0 ✓
+- Curved path (8 m/s): throttle=1.0, steer=0.025, target_speed=13.37 m/s ✓
+
+**Run:**
+```python
+from sim.driving.carla_srunner.waypoint_controller import create_controller
+
+controller = create_controller("tesla_model3")
+control = controller.get_control_as_carla(waypoints, current_speed, dt)
+```
+
+**Branch:** `feature/daily-2026-03-11-a` | **Commit:** (new)
+
+---
+
+- ✅ **Pipeline PR #6** (2026-03-10): RL Refinement Eval - Comfort Metrics + Comparison Loader
 - ✅ **Pipeline PR #5** (2026-03-10): Gymnasium Waypoint Environment Wrapper
 - ✅ **Pipeline PR #4** (2026-03-10): Unified Driving Pipeline Runner
 - ✅ **Pipeline PR #2** (2026-03-10): Enhanced ScenarioRunner RL Eval with Policy Injection
@@ -24,6 +71,44 @@ Driving-first pipeline: **Waymo episodes → PyTorch SSL pretrain → waypoint B
 - ⏳ **Pipeline PR #8** (2026-02-17): CARLA Closed-Loop Waypoint BC Evaluation - awaiting review
 
 ## Recent changes
+
+### Pipeline PR #6: RL Refinement Eval - Comfort Metrics + Comparison Loader (Today, 6:30pm PT)
+- **Updated: `training/rl/eval_toy_waypoint_env.py`**
+  - Added comfort metrics (max_accel, max_jerk) tracking per episode
+  - Added `_compute_comfort_metrics()` function to compute acceleration and jerk
+  - Updated `_run_episode()` to track per-step accelerations and jerks
+  - Updated `_compute_summary()` to include comfort metrics in aggregates
+
+- **Created: `training/rl/load_eval_results.py`**
+  - Comparison loader for SFT vs RL evaluation results
+  - Supports `--list` to show available eval runs
+  - Supports `--auto` to auto-find latest SFT/RL runs
+  - Outputs 3-line summary with ADE, FDE, Success metrics
+  - Outputs comfort metrics comparison when available
+
+**Run:**
+```bash
+# Run evaluation with comfort metrics
+python -m training.rl.eval_toy_waypoint_env --policy sft --episodes 20 --seed-base 42
+python -m training.rl.eval_toy_waypoint_env --policy rl --episodes 20 --seed-base 42
+
+# Compare results
+python -m training.rl.load_eval_results --sft out/eval/20260310-213540 --rl out/eval/20260310-213551
+
+# List available runs
+python -m training.rl.load_eval_results --list
+```
+
+**Demo Results (20 episodes, seeds 42-61):**
+| Policy | ADE | FDE | Max Accel | Max Jerk |
+|--------|-----|-----|-----------|----------|
+| SFT | 13.31m | 37.17m | 4.27 m/s² | 37.55 m/s³ |
+| RL | 13.03m | 36.60m | 4.00 m/s² | 36.71 m/s³ |
+| Delta | +2.1% | +1.5% | +6.3% | +2.2% |
+
+**Branch:** `feature/daily-2026-03-10-f` | **Commit:** 2f89a99
+
+---
 
 ### Pipeline PR #5: Gymnasium Waypoint Environment Wrapper (Today, 4:30pm PT)
 - **Created: `training/rl/waypoint_gym_env.py`**

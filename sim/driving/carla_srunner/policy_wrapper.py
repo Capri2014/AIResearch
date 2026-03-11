@@ -3,6 +3,7 @@
 This module provides:
 - WaypointPolicyWrapper: Loads trained checkpoints and serves waypoints to CARLA
 - Integration with ScenarioRunner's agent interface
+- Optional integration with WaypointTrackingController for smooth control
 
 Usage
 -----
@@ -19,6 +20,17 @@ import json
 
 import numpy as np
 
+# Optional import for advanced controller
+try:
+    from sim.driving.carla_srunner.waypoint_controller import (
+        WaypointTrackingController,
+        ControllerConfig,
+        create_controller,
+    )
+    WAYPOINT_CONTROLLER_AVAILABLE = True
+except ImportError:
+    WAYPOINT_CONTROLLER_AVAILABLE = False
+
 
 @dataclass
 class PolicyConfig:
@@ -27,6 +39,8 @@ class PolicyConfig:
     camera_name: str = "front"
     horizon_steps: int = 20
     device: str = "auto"
+    use_advanced_controller: bool = True
+    vehicle_type: str = "tesla_model3"
 
 
 class WaypointPolicyWrapper:
@@ -36,6 +50,7 @@ class WaypointPolicyWrapper:
     - Load trained checkpoints (SFT or SFT+RL)
     - Predict waypoints from camera images
     - Convert waypoints to CARLA vehicle commands
+    - Use advanced WaypointTrackingController for smooth control
     
     Usage with ScenarioRunner:
         policy = WaypointPolicyWrapper(checkpoint="path/to/model.pt")
@@ -49,6 +64,16 @@ class WaypointPolicyWrapper:
         self.cfg = cfg
         self._model = None
         self._initialized = False
+        self._controller = None
+        
+        # Initialize advanced controller if available
+        if WAYPOINT_CONTROLLER_AVAILABLE and cfg.use_advanced_controller:
+            try:
+                self._controller = create_controller(cfg.vehicle_type)
+                print(f"[policy_wrapper] Using advanced controller for {cfg.vehicle_type}")
+            except Exception as e:
+                print(f"[policy_wrapper] Failed to create controller: {e}")
+                self._controller = None
     
     def initialize(self) -> bool:
         """Initialize the policy from checkpoint."""
@@ -75,6 +100,11 @@ class WaypointPolicyWrapper:
     @property
     def is_initialized(self) -> bool:
         return self._initialized
+    
+    @property
+    def has_controller(self) -> bool:
+        """Check if advanced controller is available."""
+        return self._controller is not None
     
     def predict(self, images: Dict[str, np.ndarray]) -> np.ndarray:
         """
@@ -116,6 +146,8 @@ class WaypointPolicyWrapper:
         """
         Convert waypoints to CARLA vehicle control commands.
         
+        Uses advanced WaypointTrackingController if available for smoother control.
+        
         Args:
             waypoints: (H, 2) array in ego frame (x forward, y left)
             current_speed: Current vehicle speed in m/s
@@ -124,6 +156,11 @@ class WaypointPolicyWrapper:
         Returns:
             control: Dict with throttle, steer, brake for CARLA VehicleControl
         """
+        # Use advanced controller if available
+        if self._controller is not None:
+            return self._controller.get_control_as_carla(waypoints, current_speed, dt)
+        
+        # Fallback to simple controller
         if len(waypoints) == 0:
             return {"throttle": 0.0, "steer": 0.0, "brake": 1.0}
         
