@@ -66,6 +66,28 @@ def _compute_ade_fde(car_pos: np.ndarray, waypoints: np.ndarray, num_reached: in
     return ade, fde
 
 
+def _compute_comfort_metrics(accelerations: list[float], jerks: list[float]) -> dict:
+    """Compute comfort metrics from acceleration and jerk history.
+
+    Args:
+        accelerations: List of acceleration magnitudes per step
+        jerks: List of jerk magnitudes per step
+
+    Returns:
+        Dictionary with max_accel and max_jerk
+    """
+    if not accelerations:
+        return {"max_accel": float("nan"), "max_jerk": float("nan")}
+
+    max_accel = float(max(accelerations)) if accelerations else float("nan")
+    max_jerk = float(max(jerks)) if jerks else float("nan")
+
+    return {
+        "max_accel": max_accel,
+        "max_jerk": max_jerk,
+    }
+
+
 def _run_episode(*, seed: int, policy_name: str, max_steps: int, step_scale: float) -> Dict[str, Any]:
     # Create config with desired max steps (ignoring step_scale for now)
     config = WaypointEnvConfig(max_episode_steps=max_steps)
@@ -84,9 +106,28 @@ def _run_episode(*, seed: int, policy_name: str, max_steps: int, step_scale: flo
     steps = 0
     last_info: Dict[str, Any] = {}
 
+    # Track comfort metrics
+    prev_speed = float(env.state[3])  # Previous speed
+    prev_accel = 0.0  # Previous acceleration
+    accelerations = []
+    jerks = []
+
     while not done:
         act = policy((obs, info))
         obs, r, terminated, truncated, info = env.step(act)
+
+        # Compute acceleration and jerk
+        current_speed = float(env.state[3])
+        dt = 0.1  # Assume fixed timestep
+        accel = (current_speed - prev_speed) / dt
+        jerk = (accel - prev_accel) / dt
+
+        accelerations.append(abs(accel))
+        jerks.append(abs(jerk))
+
+        prev_speed = current_speed
+        prev_accel = accel
+
         ret += float(r)
         steps += 1
         done = terminated or truncated
@@ -101,6 +142,9 @@ def _run_episode(*, seed: int, policy_name: str, max_steps: int, step_scale: flo
     num_reached = env.current_waypoint_idx
     ade, fde = _compute_ade_fde(car_pos, waypoints, num_reached)
 
+    # Compute comfort metrics
+    comfort = _compute_comfort_metrics(accelerations, jerks)
+
     return {
         "scenario_id": f"seed:{seed}",
         "success": success,
@@ -110,6 +154,7 @@ def _run_episode(*, seed: int, policy_name: str, max_steps: int, step_scale: flo
         "return": float(ret),
         "steps": int(steps),
         "final_dist": float(final_dist),
+        "comfort": comfort,
         "raw": {"seed": int(seed)},
     }
 
@@ -124,10 +169,16 @@ def _compute_summary(scenarios: list[Dict[str, Any]]) -> Dict[str, Any]:
     successes = [1 if s.get("success") else 0 for s in scenarios]
     returns = [s.get("return", 0.0) for s in scenarios]
 
+    # Collect comfort metrics
+    max_accels = [s.get("comfort", {}).get("max_accel", float("nan")) for s in scenarios]
+    max_jerks = [s.get("comfort", {}).get("max_jerk", float("nan")) for s in scenarios]
+
     valid_ades = [a for a in ades if not np.isnan(a)]
     valid_fdes = [f for f in fdes if not np.isnan(f)]
+    valid_accels = [a for a in max_accels if not np.isnan(a)]
+    valid_jerks = [j for j in max_jerks if not np.isnan(j)]
 
-    return {
+    summary = {
         "ade_mean": float(np.mean(valid_ades)) if valid_ades else float("nan"),
         "ade_std": float(np.std(valid_ades)) if len(valid_ades) > 1 else 0.0,
         "fde_mean": float(np.mean(valid_fdes)) if valid_fdes else float("nan"),
@@ -136,6 +187,17 @@ def _compute_summary(scenarios: list[Dict[str, Any]]) -> Dict[str, Any]:
         "num_episodes": len(scenarios),
         "avg_return": float(np.mean(returns)) if returns else 0.0,
     }
+
+    # Add comfort metrics to summary
+    if valid_accels:
+        summary["max_accel_mean"] = float(np.mean(valid_accels))
+        summary["max_accel_std"] = float(np.std(valid_accels)) if len(valid_accels) > 1 else 0.0
+
+    if valid_jerks:
+        summary["max_jerk_mean"] = float(np.mean(valid_jerks))
+        summary["max_jerk_std"] = float(np.std(valid_jerks)) if len(valid_jerks) > 1 else 0.0
+
+    return summary
 
 
 def main() -> None:
