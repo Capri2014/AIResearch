@@ -1,16 +1,49 @@
 # Status (ClawBot)
 
-_Last updated: 2026-03-12 (Pipeline PR #4 today)_
+_Last updated: 2026-03-12 (Pipeline PR #5 today)_
 
 ## Current focus
 Driving-first pipeline: **Waymo episodes → PyTorch SSL pretrain → waypoint BC → RL refinement → CARLA ScenarioRunner eval**.
 
 ## Daily Cadence
 
+- ✅ **Pipeline PR #5** (2026-03-12): PPO SFT Delta - RL Refinement After BC
 - ✅ **Pipeline PR #4** (2026-03-12): BEV Encoder Integration for Waypoint BC
 - ✅ **Pipeline PR #3** (2026-03-12): BC-to-RL Bridge Module
 - ✅ **Pipeline PR #2** (2026-03-12): BC Evaluation Module with ADE/FDE Metrics
 - ✅ **Pipeline PR #1** (2026-03-12): SSL Encoder Integration for Waypoint BC
+
+### Pipeline PR #5: PPO SFT Delta - RL Refinement After BC (This PR)
+
+- **Created: `training/rl/run_ppo_sft_delta.py`**
+  - **PPOSFTDeltaConfig**: Configuration dataclass for PPO residual delta learning
+  - **PPOBCDeltaAgent**: PPO agent that learns residual delta-waypoint corrections on top of BC predictions
+  - **MockBCWaypointModel**: Fallback mock BC model when no checkpoint available
+  - Integrates with BCToRLBridge for loading trained BC checkpoints
+  - Tracks ADE/FDE metrics during training
+
+- RL refinement AFTER SFT (Option B): action space = waypoint deltas
+- Loads BC checkpoint via BCToRLBridge (auto-detects latest if not provided)
+- Learns residual corrections: final_waypoints = bc_waypoints + delta
+- Outputs `metrics.json` and `train_metrics.json` to `out/ppo_sft_delta/`
+
+**Architecture:**
+```
+State [4] → BC Model (or Mock) → BC Waypoints [8, 2]
+                                        ↓
+                                 + Delta [8, 2] (learned)
+                                        ↓
+                                 Final Waypoints [8, 2]
+```
+
+**Usage:**
+```bash
+python -m training.rl.run_ppo_sft_delta --num_episodes 50
+python -m training.rl.run_ppo_sft_delta --bc_checkpoint out/waypoint_bc/run_XXXX/best.pt
+python -m training.rl.run_ppo_sft_delta --use_mock_bc
+```
+
+---
 
 ### Pipeline PR #4: BEV Encoder Integration for Waypoint BC (This PR)
 - **Created: `training/bc/bev_encoder_integration.py`**
