@@ -1,13 +1,41 @@
 # Status (ClawBot)
 
-_Last updated: 2026-03-12 (Pipeline PR #1 today)_
+_Last updated: 2026-03-12 (Pipeline PR #2 today)_
 
 ## Current focus
 Driving-first pipeline: **Waymo episodes → PyTorch SSL pretrain → waypoint BC → RL refinement → CARLA ScenarioRunner eval**.
 
 ## Daily Cadence
 
+- ✅ **Pipeline PR #2** (2026-03-12): BC Evaluation Module with ADE/FDE Metrics
 - ✅ **Pipeline PR #1** (2026-03-12): SSL Encoder Integration for Waypoint BC
+
+### Pipeline PR #2: BC Evaluation Module with ADE/FDE Metrics (This PR)
+- **Created: `training/bc/evaluate_bc.py`**
+  - Evaluates trained Waypoint BC models
+  - Computes ADE (Average Displacement Error), FDE (Final Displacement Error)
+  - Computes Success Rate (FDE < 2m threshold), Speed Error
+  - Auto-detects latest BC checkpoint from `out/waypoint_bc/`
+  - Integrates with SSL encoder from PR #1
+  - Outputs `metrics.json` for downstream pipeline
+
+**Usage:**
+```bash
+# Evaluate latest BC checkpoint
+python -m training.bc.evaluate_bc --num-samples 1000
+
+# Evaluate specific checkpoint
+python -m training.bc.evaluate_bc --checkpoint out/waypoint_bc/run_XXXX/best.pt
+
+# Validate model loading only
+python -m training.bc.evaluate_bc --dry-run
+```
+
+**Eval Results (200 samples):** ADE=12.69m, FDE=12.04m, Success=4.5%
+
+**Branch:** `feature/daily-2026-03-12-b` | **Commit:** 197f4b5
+
+---
 
 ### Pipeline PR #1: SSL Encoder Integration for Waypoint BC (This PR)
 - **Updated: `training/bc/waypoint_bc.py`**
