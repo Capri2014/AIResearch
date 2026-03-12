@@ -1,16 +1,34 @@
 # Status (ClawBot)
 
-_Last updated: 2026-03-11 (Pipeline PR #3 today)_
+_Last updated: 2026-03-11 (Pipeline PR #6 today)_
 
 ## Current focus
 Driving-first pipeline: **Waymo episodes → PyTorch SSL pretrain → waypoint BC → RL refinement → CARLA ScenarioRunner eval**.
 
 ## Daily Cadence
 
+- ✅ **Pipeline PR #6** (2026-03-11): RL Evaluation + Metrics Hardening
+- ✅ **Pipeline PR #5** (2026-03-11): PPO Delta Waypoint Training
 - ✅ **Pipeline PR #4** (2026-03-11): BEV Encoder Module
 - ✅ **Pipeline PR #3** (2026-03-11): Waypoint Visualization Module
 - ✅ **Pipeline PR #2** (2026-03-11): Waypoint Inference + CarlaWaypointAgent
 - ✅ **Pipeline PR #1** (2026-03-11): Waypoint Tracking Controller for Smooth CARLA Control
+
+### Pipeline PR #6: RL Evaluation + Metrics Hardening (6:30pm PT)
+- **Updated: `training/rl/compare_sft_vs_rl.py`**
+  - Added `--checkpoint` flag to load trained PPO checkpoints for comparison
+  - Added `--validate` flag to validate outputs against `data/schema/metrics.json`
+  - Outputs schema-compliant `metrics.json` with per-episode results
+
+**Usage:**
+```bash
+python -m training.rl.compare_sft_vs_rl --episodes 20 --seed-base 42 --validate
+python -m training.rl.compare_sft_vs_rl --checkpoint out/ppo_delta_waypoint/.../best.pt --validate
+```
+
+**Branch:** `feature/daily-2026-03-11-e` | **Commit:** 8e3d611
+
+---
 
 ### Pipeline PR #4: BEV Encoder Module (Today, 1:30pm PT)
 - **Created: `sim/driving/carla_srunner/bev_encoder.py`**
