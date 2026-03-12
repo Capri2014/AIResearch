@@ -1,15 +1,57 @@
 # Status (ClawBot)
 
-_Last updated: 2026-03-12 (Pipeline PR #3 today)_
+_Last updated: 2026-03-12 (Pipeline PR #4 today)_
 
 ## Current focus
 Driving-first pipeline: **Waymo episodes → PyTorch SSL pretrain → waypoint BC → RL refinement → CARLA ScenarioRunner eval**.
 
 ## Daily Cadence
 
+- ✅ **Pipeline PR #4** (2026-03-12): BEV Encoder Integration for Waypoint BC
 - ✅ **Pipeline PR #3** (2026-03-12): BC-to-RL Bridge Module
 - ✅ **Pipeline PR #2** (2026-03-12): BC Evaluation Module with ADE/FDE Metrics
 - ✅ **Pipeline PR #1** (2026-03-12): SSL Encoder Integration for Waypoint BC
+
+### Pipeline PR #4: BEV Encoder Integration for Waypoint BC (This PR)
+- **Created: `training/bc/bev_encoder_integration.py`**
+  - **BEVBCConfig**: Configuration dataclass for BEV-integrated BC training
+  - **BEVWaypointBCModel**: Full BC model with BEV encoder integration
+  - **create_bev_bc_model()**: Factory function to create model
+  - **find_latest_bev_encoder_checkpoint()**: Helper for checkpoint discovery
+  
+- Supports camera + LiDAR based BEV encoding via sim/driving/carla_srunner
+- Falls back to simple SSL encoder when BEV encoder unavailable
+- Dynamic BEV channel detection for flexible projection
+
+**Architecture:**
+```
+Camera Images → CameraToBEV → Camera BEV Features
+LiDAR Points → LidarToBEV → LiDAR BEV Features
+                      ↓
+              Feature Fusion
+                      ↓
+              BEV Features [B, channels, H, W]
+                      ↓
+              bev_projection (AdaptiveAvgPool2d + FC)
+                      ↓
+              Features [B, encoder_dim]
+                      ↓
+              WaypointHead → waypoints, speed
+```
+
+**Usage:**
+```python
+from training.bc import BEVBCConfig, create_bev_bc_model
+
+# With BEV encoder
+config = BEVBCConfig(use_bev_encoder=True, input_types=["camera", "lidar"])
+model = create_bev_bc_model(config)
+waypoints, speed = model(x=None, cameras=cameras, lidar_points=lidar)
+```
+
+**Smoke Test:** ✓ SSL encoder mode ✓, BEV encoder mode ✓
+
+**Branch:** `feature/daily-2026-03-12-d` | **Commit:** afae8c6
 
 ### Pipeline PR #3: BC-to-RL Bridge Module (This PR)
 - **Created: `training/bc/bc_to_rl_bridge.py`**
