@@ -5,12 +5,20 @@ Trains Waypoint Behavior Cloning model using supervised learning.
 Bridges SSL pretrain → waypoint BC → RL refinement pipeline.
 
 Usage:
+    # Train with auto-detected SSL encoder
     python -m training.bc.run_bc_train --epochs 50 --batch-size 64
+    
+    # Train with specific SSL encoder
+    python -m training.bc.run_bc_train --ssl-encoder-path out/pretrain_ssl_stub/encoder.pt
+    
+    # Train from scratch (no SSL)
+    python -m training.bc.run_bc_train --epochs 50 --freeze-encoder --ssl-encoder-path=""
 """
 
 import argparse
 import datetime
 from pathlib import Path
+from typing import Optional
 import torch
 import json
 
@@ -45,7 +53,10 @@ def parse_args():
     parser.add_argument("--num-samples", type=int, default=1000, help="Number of synthetic samples")
     
     # Checkpoints
-    parser.add_argument("--ssl-encoder-path", type=str, default=None, help="Path to pre-trained SSL encoder")
+    parser.add_argument("--ssl-encoder-path", type=str, default=None, 
+                        help="Path to pre-trained SSL encoder (auto-detects if not provided)")
+    parser.add_argument("--freeze-encoder", action="store_true", default=True,
+                        help="Freeze SSL encoder weights during training (recommended)")
     parser.add_argument("--checkpoint-dir", type=str, default="out/waypoint_bc", help="Output directory")
     parser.add_argument("--resume", type=str, default=None, help="Resume from checkpoint")
     
@@ -54,6 +65,45 @@ def parse_args():
     parser.add_argument("--seed", type=int, default=42, help="Random seed")
     
     return parser.parse_args()
+
+
+def find_latest_ssl_encoder(search_dirs: list = None) -> Optional[str]:
+    """Auto-detect latest SSL encoder checkpoint.
+    
+    Searches in:
+    - out/pretrain_ssl_stub/
+    - out/pretrain_*/
+    - Custom search_dirs
+    
+    Returns:
+        Path to latest encoder.pt or None if not found
+    """
+    import glob
+    
+    if search_dirs is None:
+        search_dirs = ["out/pretrain_ssl_stub", "out"]
+    
+    candidates = []
+    for base_dir in search_dirs:
+        base = Path(base_dir)
+        if not base.exists():
+            continue
+        
+        # Find all encoder.pt files
+        for pt_file in glob.glob(str(base / "**" / "encoder.pt"), recursive=True):
+            pt_path = Path(pt_file)
+            # Get modification time
+            mtime = pt_path.stat().st_mtime
+            candidates.append((mtime, pt_path))
+    
+    if candidates:
+        # Return most recent
+        candidates.sort(reverse=True)
+        latest = candidates[0][1]
+        print(f"[BC] Auto-detected latest SSL encoder: {latest}")
+        return str(latest)
+    
+    return None
 
 
 def set_seed(seed: int):
@@ -76,6 +126,13 @@ def main():
         device = "cuda" if torch.cuda.is_available() else "cpu"
     print(f"Using device: {device}")
     
+    # Auto-detect SSL encoder if not provided
+    ssl_encoder_path = args.ssl_encoder_path
+    if ssl_encoder_path is None:
+        ssl_encoder_path = find_latest_ssl_encoder()
+        if ssl_encoder_path:
+            print(f"[BC] Using auto-detected SSL encoder: {ssl_encoder_path}")
+    
     # Config
     config = BCConfig(
         encoder_dim=args.encoder_dim,
@@ -86,7 +143,8 @@ def main():
         batch_size=args.batch_size,
         epochs=args.epochs,
         grad_clip=args.grad_clip,
-        ssl_encoder_path=args.ssl_encoder_path,
+        ssl_encoder_path=ssl_encoder_path,
+        freeze_encoder=args.freeze_encoder,
         checkpoint_dir=args.checkpoint_dir,
     )
     

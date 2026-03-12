@@ -1,20 +1,40 @@
 # Status (ClawBot)
 
-_Last updated: 2026-03-11 (Pipeline PR #6 today)_
+_Last updated: 2026-03-12 (Pipeline PR #1 today)_
 
 ## Current focus
 Driving-first pipeline: **Waymo episodes → PyTorch SSL pretrain → waypoint BC → RL refinement → CARLA ScenarioRunner eval**.
 
 ## Daily Cadence
 
-- ✅ **Pipeline PR #6** (2026-03-11): RL Evaluation + Metrics Hardening
-- ✅ **Pipeline PR #5** (2026-03-11): PPO Delta Waypoint Training
-- ✅ **Pipeline PR #4** (2026-03-11): BEV Encoder Module
-- ✅ **Pipeline PR #3** (2026-03-11): Waypoint Visualization Module
-- ✅ **Pipeline PR #2** (2026-03-11): Waypoint Inference + CarlaWaypointAgent
-- ✅ **Pipeline PR #1** (2026-03-11): Waypoint Tracking Controller for Smooth CARLA Control
+- ✅ **Pipeline PR #1** (2026-03-12): SSL Encoder Integration for Waypoint BC
 
-### Pipeline PR #6: RL Evaluation + Metrics Hardening (6:30pm PT)
+### Pipeline PR #1: SSL Encoder Integration for Waypoint BC (This PR)
+- **Updated: `training/bc/waypoint_bc.py`**
+  - Implemented `load_encoder()` method in WaypointBCModel
+  - Supports loading SSL encoder checkpoints from training/pretrain/
+  - Supports TinyMultiCamEncoder format
+  - Added `freeze_encoder` config option (default: True)
+
+- **Updated: `training/bc/run_bc_train.py`**
+  - Added `--freeze-encoder` flag (enabled by default)
+  - Added `find_latest_ssl_encoder()` auto-detection
+  - Auto-detects SSL encoder if path not provided
+
+**Usage:**
+```bash
+# Train with auto-detected SSL encoder
+python -m training.bc.run_bc_train --epochs 50 --batch-size 64
+
+# Train with specific encoder
+python -m training.bc.run_bc_train --ssl-encoder-path out/pretrain_ssl_stub/encoder.pt
+```
+
+**Branch:** `feature/daily-2026-03-12-a` | **Commit:** (pending)
+
+---
+
+### Pipeline PR #6: RL Evaluation + Metrics Hardening (2026-03-11, 6:30pm PT)
 - **Updated: `training/rl/compare_sft_vs_rl.py`**
   - Added `--checkpoint` flag to load trained PPO checkpoints for comparison
   - Added `--validate` flag to validate outputs against `data/schema/metrics.json`

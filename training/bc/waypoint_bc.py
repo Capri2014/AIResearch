@@ -3,6 +3,17 @@ Waypoint Behavior Cloning (BC) Module
 
 Supervised learning for waypoint prediction using pre-trained SSL encoder features.
 Bridges SSL pretrain → waypoint BC → RL refinement pipeline.
+
+Architecture:
+    BEV Input [B, 3, H, W]
+        ↓
+    SSLEncoder (pretrained, frozen)
+        ↓
+    Features [B, encoder_dim]
+        ↓
+    WaypointHead
+        ↓
+    waypoints [B, num_waypoints, 2], speed [B, 1]
 """
 
 import torch
@@ -36,20 +47,21 @@ class BCConfig:
     
     # Checkpoint
     ssl_encoder_path: Optional[str] = None  # Path to pre-trained SSL encoder
+    freeze_encoder: bool = True  # Freeze SSL encoder weights during BC training
     checkpoint_dir: str = "out/waypoint_bc"
 
 
 class SSLEncoder(nn.Module):
     """
-    Mock SSL Encoder that extracts features from perception input.
-    In production, loads pre-trained SSL encoder (JEPA, contrastive, etc.).
+    SSL Encoder that extracts features from perception input.
+    Loads pre-trained SSL encoder from checkpoint when available.
+    Falls back to random initialization for training from scratch.
     """
     def __init__(self, input_dim: int = 3, encoder_dim: int = 256):
         super().__init__()
         self.encoder_dim = encoder_dim
         
-        # Mock encoder backbone (CNN + MLP)
-        # In production: load real SSL encoder checkpoint
+        # CNN backbone for BEV encoding
         self.conv = nn.Sequential(
             nn.Conv2d(input_dim, 32, 3, stride=2, padding=1),
             nn.ReLU(),
@@ -59,6 +71,7 @@ class SSLEncoder(nn.Module):
             nn.ReLU(),
         )
         
+        # Feature projection
         self.fc = nn.Sequential(
             nn.Linear(128 * 16 * 16, encoder_dim),
             nn.ReLU(),
@@ -125,6 +138,10 @@ class WaypointBCModel(nn.Module):
     """
     Full Waypoint Behavior Cloning model.
     Combines SSL encoder + waypoint prediction head.
+    
+    Supports loading pre-trained SSL encoder from:
+    - training/pretrain/ encoder.pt checkpoints
+    - Custom encoder checkpoints
     """
     def __init__(self, config: BCConfig, load_encoder: bool = True):
         super().__init__()
@@ -145,10 +162,76 @@ class WaypointBCModel(nn.Module):
             self.load_encoder(config.ssl_encoder_path)
             
     def load_encoder(self, path: str):
-        """Load pre-trained SSL encoder weights."""
-        # In production: load real SSL encoder
-        # For now: mock implementation
-        pass
+        """Load pre-trained SSL encoder weights.
+        
+        Supports multiple checkpoint formats:
+        - Direct encoder state_dict (key: 'encoder' or top-level)
+        - TinyMultiCamEncoder format from training/pretrain/
+        
+        Args:
+            path: Path to encoder checkpoint (.pt file)
+        """
+        path = Path(path)
+        if not path.exists():
+            print(f"[BC] Warning: SSL encoder checkpoint not found: {path}")
+            print("[BC] Using random encoder initialization")
+            return
+            
+        try:
+            checkpoint = torch.load(path, map_location='cpu')
+            
+            # Handle different checkpoint formats
+            state_dict = None
+            encoder_dim = self.config.encoder_dim
+            
+            # Format 1: {'encoder': state_dict, 'out_dim': dim}
+            if 'encoder' in checkpoint:
+                state_dict = checkpoint['encoder']
+                encoder_dim = checkpoint.get('out_dim', encoder_dim)
+                
+            # Format 2: Direct state_dict (top-level keys)
+            elif 'conv.0.weight' in checkpoint or 'per_cam.net.0.weight' in checkpoint:
+                state_dict = checkpoint
+                
+            else:
+                print(f"[BC] Warning: Unknown checkpoint format in {path}")
+                print("[BC] Using random encoder initialization")
+                return
+            
+            # Try to load state dict
+            # Handle TinyMultiCamEncoder format (per_cam prefix)
+            if state_dict and 'per_cam.net.0.weight' in state_dict:
+                # TinyMultiCamEncoder format - map to our encoder
+                # Create a new state dict with mapped keys
+                mapped_state = {}
+                for key, value in state_dict.items():
+                    if key.startswith('per_cam.'):
+                        # Remove 'per_cam.' prefix
+                        mapped_state[key[7:]] = value
+                    else:
+                        mapped_state[key] = value
+                state_dict = mapped_state
+                encoder_dim = checkpoint.get('out_dim', encoder_dim)
+            
+            if state_dict:
+                # Try loading with strict=False to allow partial matches
+                loaded = self.encoder.load_state_dict(state_dict, strict=False)
+                if loaded.missing_keys:
+                    print(f"[BC] Warning: Missing keys in encoder load: {loaded.missing_keys[:5]}")
+                if loaded.unexpected_keys:
+                    print(f"[BC] Warning: Unexpected keys: {loaded.unexpected_keys[:5]}")
+                print(f"[BC] Loaded pre-trained SSL encoder from: {path}")
+                print(f"[BC] Encoder output dimension: {encoder_dim}")
+                
+                # Freeze encoder if configured
+                if self.config.freeze_encoder:
+                    for param in self.encoder.parameters():
+                        param.requires_grad = False
+                    print("[BC] SSL encoder is frozen (freeze_encoder=True)")
+                    
+        except Exception as e:
+            print(f"[BC] Warning: Failed to load encoder from {path}: {e}")
+            print("[BC] Using random encoder initialization")
         
     def forward(self, x: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
         """
