@@ -16,6 +16,12 @@ from .waypoint_bc import (
     load_checkpoint,
 )
 
+from .bc_to_rl_bridge import (
+    BCToRLBridge,
+    BCToRLBridgeConfig,
+    find_latest_bc_checkpoint,
+)
+
 __all__ = [
     "WaypointBCModel",
     "WaypointBCDataset", 
@@ -25,4 +31,7 @@ __all__ = [
     "evaluate",
     "save_checkpoint",
     "load_checkpoint",
+    "BCToRLBridge",
+    "BCToRLBridgeConfig",
+    "find_latest_bc_checkpoint",
 ]

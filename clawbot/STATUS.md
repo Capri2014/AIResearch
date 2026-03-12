@@ -1,14 +1,37 @@
 # Status (ClawBot)
 
-_Last updated: 2026-03-12 (Pipeline PR #2 today)_
+_Last updated: 2026-03-12 (Pipeline PR #3 today)_
 
 ## Current focus
 Driving-first pipeline: **Waymo episodes → PyTorch SSL pretrain → waypoint BC → RL refinement → CARLA ScenarioRunner eval**.
 
 ## Daily Cadence
 
+- ✅ **Pipeline PR #3** (2026-03-12): BC-to-RL Bridge Module
 - ✅ **Pipeline PR #2** (2026-03-12): BC Evaluation Module with ADE/FDE Metrics
 - ✅ **Pipeline PR #1** (2026-03-12): SSL Encoder Integration for Waypoint BC
+
+### Pipeline PR #3: BC-to-RL Bridge Module (This PR)
+- **Created: `training/bc/bc_to_rl_bridge.py`**
+  - Loads trained Waypoint BC model checkpoints
+  - Provides waypoint predictions as initial proposals for RL refinement
+  - Bridges BC training → RL refinement pipeline
+  - `BCToRLBridge`: Main bridge class with predict_waypoints(), predict(), encode_state()
+  - `BCToRLBridgeConfig`: Configuration dataclass
+  - `find_latest_bc_checkpoint()`: Helper to find latest BC checkpoint
+  - Delta head factory for residual learning
+
+**Usage:**
+```python
+from training.bc import BCToRLBridge, find_latest_bc_checkpoint
+
+bridge = BCToRLBridge(checkpoint_path=find_latest_bc_checkpoint())
+waypoints = bridge.predict_waypoints(bev_input)  # [B, 8, 2]
+```
+
+**Smoke Test:** ✓ All tests pass
+
+**Branch:** `feature/daily-2026-03-12-c` | **Commit:** (pending)
 
 ### Pipeline PR #2: BC Evaluation Module with ADE/FDE Metrics (This PR)
 - **Created: `training/bc/evaluate_bc.py`**
