@@ -22,6 +22,14 @@ from .bc_to_rl_bridge import (
     find_latest_bc_checkpoint,
 )
 
+from .bev_encoder_integration import (
+    BEVBCConfig,
+    BEVWaypointBCModel,
+    create_bev_bc_model,
+    find_latest_bev_encoder_checkpoint,
+    BEV_ENCODER_AVAILABLE,
+)
+
 __all__ = [
     "WaypointBCModel",
     "WaypointBCDataset", 
@@ -34,4 +42,9 @@ __all__ = [
     "BCToRLBridge",
     "BCToRLBridgeConfig",
     "find_latest_bc_checkpoint",
+    "BEVBCConfig",
+    "BEVWaypointBCModel",
+    "create_bev_bc_model",
+    "find_latest_bev_encoder_checkpoint",
+    "BEV_ENCODER_AVAILABLE",
 ]
