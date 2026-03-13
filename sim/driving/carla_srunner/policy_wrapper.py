@@ -3,6 +3,7 @@
 This module provides:
 - WaypointPolicyWrapper: Loads trained checkpoints and serves waypoints to CARLA
 - Integration with ScenarioRunner's agent interface
+- BEV Encoder: Unified camera + LiDAR to BEV feature conversion
 
 Usage
 -----
@@ -18,6 +19,20 @@ from typing import Dict, List, Optional, Tuple
 import json
 
 import numpy as np
+
+# BEV Encoder availability flag
+BEV_ENCODER_AVAILABLE = True
+
+try:
+    from sim.driving.carla_srunner.bev_encoder import (
+        BEVEncoder,
+        BEVEncoderConfig,
+        create_bev_encoder,
+        FusionType,
+    )
+except ImportError as e:
+    BEV_ENCODER_AVAILABLE = False
+    print(f"[policy_wrapper] BEV encoder not available: {e}")
 
 
 @dataclass
