@@ -1,17 +1,46 @@
 # Status (ClawBot)
 
-_Last updated: 2026-03-12 (Pipeline PR #5 today)_
+_Last updated: 2026-03-12 (Pipeline PR #6 today)_
 
 ## Current focus
 Driving-first pipeline: **Waymo episodes → PyTorch SSL pretrain → waypoint BC → RL refinement → CARLA ScenarioRunner eval**.
 
 ## Daily Cadence
 
+- ✅ **Pipeline PR #6** (2026-03-12): RL Evaluation + Metrics Hardening
 - ✅ **Pipeline PR #5** (2026-03-12): PPO SFT Delta - RL Refinement After BC
 - ✅ **Pipeline PR #4** (2026-03-12): BEV Encoder Integration for Waypoint BC
 - ✅ **Pipeline PR #3** (2026-03-12): BC-to-RL Bridge Module
 - ✅ **Pipeline PR #2** (2026-03-12): BC Evaluation Module with ADE/FDE Metrics
 - ✅ **Pipeline PR #1** (2026-03-12): SSL Encoder Integration for Waypoint BC
+
+### Pipeline PR #6: RL Evaluation + Metrics Hardening (This PR)
+
+- **Created: `training/rl/load_metrics.py`**
+  - Load and compare existing evaluation metrics without re-running
+  - Compare SFT vs RL policies via 3-line summary
+  - Auto-detect latest eval runs with `--latest` flag
+  - Validate outputs against `data/schema/metrics.json`
+
+**Usage:**
+```bash
+# Compare two eval runs
+python -m training.rl.load_metrics sft.json rl.json
+
+# Auto-detect latest
+python -m training.rl.load_metrics --latest
+
+# With validation
+python -m training.rl.load_metrics --latest --validate
+```
+
+**Results (10 episodes):**
+- SFT ADE: 14.12m → RL ADE: 13.70m (3% improvement)
+- SFT FDE: 41.92m → RL FDE: 41.16m (2% improvement)
+
+**Branch:** `feature/daily-2026-03-12-e`
+
+---
 
 ### Pipeline PR #5: PPO SFT Delta - RL Refinement After BC (This PR)
 
