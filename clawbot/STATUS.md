@@ -1,12 +1,13 @@
 # Status (ClawBot)
 
-_Last updated: 2026-02-28 (Pipeline PR #6)_
+_Last updated: 2026-03-13 (Pipeline PR #3)_
 
 ## Current focus
 Driving-first pipeline: **Waymo episodes → PyTorch SSL pretrain → waypoint BC → RL refinement → CARLA ScenarioRunner eval**.
 
 ## Daily Cadence
 
+- ✅ **Pipeline PR #3** (2026-03-13): Pipeline Integration: Checkpoint Utilities + Eval Runner
 - ✅ **Pipeline PR #6** (2026-02-28): RL Refinement Evaluation + Metrics Hardening
 - ⏳ **Pipeline PR #1** (2026-02-18): RL Checkpoint Selection with Policy Entropy - awaiting review
 - ⏳ **Pipeline PR #9** (2026-02-17): Evaluation + Metrics Hardening for RL Refinement - awaiting review
@@ -15,7 +16,28 @@ Driving-first pipeline: **Waymo episodes → PyTorch SSL pretrain → waypoint B
 
 ## Recent changes
 
-### Pipeline PR #6: RL Refinement Evaluation + Metrics Hardening (Today, 6:30pm PT)
+### Pipeline PR #3: Pipeline Integration: Checkpoint Utilities + Eval Runner (2026-03-13)
+- **Created: `training/utils/checkpoint_utils.py`**
+  - `detect_checkpoint_type()`: Auto-detect BC/RL/SSL checkpoint types
+  - `load_checkpoint_metadata()`: Extract epoch, config, metrics from checkpoints
+  - `validate_checkpoint_for_eval()`: Ensure checkpoints can run in CARLA
+  - `get_checkpoint_info()`: Comprehensive checkpoint inspection
+  - CLI with `--json` flag for programmatic output
+
+- **Created: `training/eval/run_pipeline_eval.py`**
+  - Unified evaluation script for any checkpoint (BC or RL)
+  - Supports 5 scenarios: straight_clear, straight_cloudy, straight_night, straight_rain, turn_clear
+  - Comparison mode: `--compare --checkpoint2 <path>`
+  - Outputs standardized `metrics.json` and `comparison.json`
+  - Auto-detects checkpoint type and validates before eval
+  - Dry-run mode when CARLA unavailable
+
+**Key additions:**
+- Bridge between RL training → CARLA evaluation
+- Standardized checkpoint inspection across pipeline stages
+- Comparison framework for BC vs RL policies
+
+### Pipeline PR #6: RL Refinement Evaluation + Metrics Hardening (2026-02-28)
 - **Updated: `training/rl/compare_sft_vs_rl.py`**
   - Added git metadata capture (repo, commit, branch) for reproducibility
   - Now outputs proper git info in metrics.json
@@ -83,5 +105,5 @@ final_waypoints = sft_waypoints + delta_head(z)
 - Metrics: ADE/FDE, route_completion, collisions
 
 ## Links
-- Daily notes: `clawbot/daily/2026-02-28.md`
-- Branch: `feature/contingency-planning-v3`
+- Daily notes: `clawbot/daily/2026-03-13.md`
+- Branch: `feature/daily-2026-03-13-c`
