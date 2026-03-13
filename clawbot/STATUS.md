@@ -1,12 +1,13 @@
 # Status (ClawBot)
 
-_Last updated: 2026-03-13 (Pipeline PR #4)_
+_Last updated: 2026-03-13 (Pipeline PR #5)_
 
 ## Current focus
 Driving-first pipeline: **Waymo episodes → PyTorch SSL pretrain → waypoint BC → RL refinement → CARLA ScenarioRunner eval**.
 
 ## Daily Cadence
 
+- ✅ **Pipeline PR #5** (2026-03-13): RL Refinement After SFT - Residual Delta-Waypoint Learning
 - ✅ **Pipeline PR #4** (2026-03-13): BEV Encoder Module - camera + LiDAR to BEV
 - ✅ **Pipeline PR #3** (2026-03-13): Pipeline Integration: Checkpoint Utilities + Eval Runner
 - ✅ **Pipeline PR #6** (2026-02-28): RL Refinement Evaluation + Metrics Hardening
@@ -40,6 +41,31 @@ Driving-first pipeline: **Waymo episodes → PyTorch SSL pretrain → waypoint B
 - Bridges perception (camera + LiDAR) to waypoint BC model
 - Unified BEV representation for multi-modal sensing
 - Supports flexible fusion strategies
+
+### Pipeline PR #5: RL Refinement After SFT - Residual Delta-Waypoint Learning (2026-03-13)
+- **Executed:** `training/rl/rl_refinement_stub.py`
+- **Run output:** `out/rl_refinement_daily_2026_03_13/`
+  - `config.json` - training configuration
+  - `metrics.json` - per-eval-interval metrics (policy_loss, value_loss, entropy, kl, delta_norm)
+  - `train_metrics.json` - training summary with rewards, lengths, final metrics
+  - `checkpoints/checkpoint_50.pt` - model checkpoint
+  - `final.pt` - final model
+
+**Key architecture:**
+- **Option B:** Action space = waypoint deltas
+- **Residual learning:** `final_waypoints = sft_waypoints + delta_head(z)`
+- **SFT model loading:** Can initialize from trained BC checkpoint via `--sft-model`
+- **PPO training:** Learns delta corrections while SFT model stays frozen
+
+**Key metrics (50 episodes):**
+- Mean reward (last 10 eps): -9.92
+- Mean delta norm: 2.41
+- Final avg reward: -6.55
+
+**Key additions:**
+- RL-after-SFT pipeline integration
+- Residual delta-waypoint learning with frozen SFT backbone
+- Toy waypoint environment for rapid experimentation
 
 ### Pipeline PR #3: Pipeline Integration: Checkpoint Utilities + Eval Runner (2026-03-13)
 - **Created: `training/utils/checkpoint_utils.py`**
@@ -131,4 +157,4 @@ final_waypoints = sft_waypoints + delta_head(z)
 
 ## Links
 - Daily notes: `clawbot/daily/2026-03-13.md`
-- Branch: `feature/daily-2026-03-13-d`
+- Branch: `feature/daily-2026-03-13-e`
