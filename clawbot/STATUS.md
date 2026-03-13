@@ -1,12 +1,13 @@
 # Status (ClawBot)
 
-_Last updated: 2026-03-13 (Pipeline PR #3)_
+_Last updated: 2026-03-13 (Pipeline PR #4)_
 
 ## Current focus
 Driving-first pipeline: **Waymo episodes → PyTorch SSL pretrain → waypoint BC → RL refinement → CARLA ScenarioRunner eval**.
 
 ## Daily Cadence
 
+- ✅ **Pipeline PR #4** (2026-03-13): BEV Encoder Module - camera + LiDAR to BEV
 - ✅ **Pipeline PR #3** (2026-03-13): Pipeline Integration: Checkpoint Utilities + Eval Runner
 - ✅ **Pipeline PR #6** (2026-02-28): RL Refinement Evaluation + Metrics Hardening
 - ⏳ **Pipeline PR #1** (2026-02-18): RL Checkpoint Selection with Policy Entropy - awaiting review
@@ -15,6 +16,30 @@ Driving-first pipeline: **Waymo episodes → PyTorch SSL pretrain → waypoint B
 - ⏳ **Pipeline PR #5** (2026-02-16): RL Refinement Stub for Residual Delta-Waypoint Learning - awaiting review
 
 ## Recent changes
+
+### Pipeline PR #4: BEV Encoder Module (2026-03-13)
+- **Created: `sim/driving/carla_srunner/bev_encoder.py`**
+  - `BEVEncoder`: Unified BEV encoder combining camera + LiDAR inputs
+  - `LidarToBEV`: Convert LiDAR point clouds to BEV grid representation
+    - Height bin encoding (4 bins for elevation)
+    - Intensity channel support
+    - Configurable resolution and range
+  - `CameraToBEV`: Transform camera features to BEV via perspective projection
+  - `BEVEncoderConfig`: Configuration dataclass for all options
+  - Supports multiple fusion types: concat, attention, sum
+  - Factory function `create_bev_encoder()`
+  - `get_bev_image()` for visualization
+
+- **Created: `sim/driving/carla_srunner/test_bev_encoder.py`**
+  - Unit tests for all BEV encoder components
+
+- **Updated: `sim/driving/carla_srunner/policy_wrapper.py`**
+  - Added BEV encoder imports and BEV_ENCODER_AVAILABLE flag
+
+**Key additions:**
+- Bridges perception (camera + LiDAR) to waypoint BC model
+- Unified BEV representation for multi-modal sensing
+- Supports flexible fusion strategies
 
 ### Pipeline PR #3: Pipeline Integration: Checkpoint Utilities + Eval Runner (2026-03-13)
 - **Created: `training/utils/checkpoint_utils.py`**
@@ -106,4 +131,4 @@ final_waypoints = sft_waypoints + delta_head(z)
 
 ## Links
 - Daily notes: `clawbot/daily/2026-03-13.md`
-- Branch: `feature/daily-2026-03-13-c`
+- Branch: `feature/daily-2026-03-13-d`
