@@ -1,20 +1,55 @@
 # Status (ClawBot)
 
-_Last updated: 2026-03-12 (Pipeline PR #6 today)_
+_Last updated: 2026-03-13 (Pipeline PR #1 today)_
 
 ## Current focus
 Driving-first pipeline: **Waymo episodes → PyTorch SSL pretrain → waypoint BC → RL refinement → CARLA ScenarioRunner eval**.
 
 ## Daily Cadence
 
-- ✅ **Pipeline PR #6** (2026-03-12): RL Evaluation + Metrics Hardening
-- ✅ **Pipeline PR #5** (2026-03-12): PPO SFT Delta - RL Refinement After BC
-- ✅ **Pipeline PR #4** (2026-03-12): BEV Encoder Integration for Waypoint BC
-- ✅ **Pipeline PR #3** (2026-03-12): BC-to-RL Bridge Module
-- ✅ **Pipeline PR #2** (2026-03-12): BC Evaluation Module with ADE/FDE Metrics
-- ✅ **Pipeline PR #1** (2026-03-12): SSL Encoder Integration for Waypoint BC
+- ✅ **Pipeline PR #1** (2026-03-13): Unified CARLA Evaluation Pipeline v2
 
-### Pipeline PR #6: RL Evaluation + Metrics Hardening (This PR)
+### Pipeline PR #1: Unified CARLA Evaluation Pipeline v2 (This PR)
+
+- **Created: `training/eval/unified_carla_eval.py`**
+  - **EvalConfig**: Configuration dataclass for unified evaluation
+  - **PolicyLoader**: Loads BC, RL, or SFT+Delta policy checkpoints
+  - **EpisodeMetrics**: Per-episode metrics (ADE, FDE, route completion, infractions)
+  - **compute_aggregate_metrics()**: Aggregate statistics across episodes
+
+**Features:**
+- Multi-policy support: BC, RL, SFT+Delta policies
+- Auto-detection of latest checkpoints
+- Multi-weather evaluation: clear, cloudy, night, rain
+- Multi-town support for CARLA
+- Comprehensive metrics: waypoint metrics + ScenarioRunner metrics
+- Weather-specific breakdowns in separate JSON files
+
+**Usage:**
+```bash
+# Dry-run
+python3 -m training.eval.unified_carla_eval --dry-run
+
+# Full evaluation
+python3 -m training.eval.unified_carla_eval \
+    --weather clear,cloudy,night,rain \
+    --num-episodes 10
+
+# RL policy evaluation
+python3 -m training.eval.unified_carla_eval \
+    --checkpoint out/ppo_sft_delta/run_20260312/model.pt \
+    --policy-type rl
+```
+
+**Output:**
+- `out/eval_unified/<run_id>/metrics.json`
+- `out/eval_unified/<run_id>/weather_*.json`
+
+**Branch:** `feature/daily-2026-03-13-a`
+
+---
+
+### Pipeline PR #6: RL Evaluation + Metrics Hardening
 
 - **Created: `training/rl/load_metrics.py`**
   - Load and compare existing evaluation metrics without re-running
