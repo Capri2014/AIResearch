@@ -72,13 +72,19 @@ class WaypointInference:
         # Build model
         self.model = self._build_model()
         
-        # Load weights
-        if "model_state" in checkpoint:
-            self.model.load_state_dict(checkpoint["model_state"])
+        # Load weights - handle multiple checkpoint formats
+        state_dict = None
+        if "model_state_dict" in checkpoint:
+            state_dict = checkpoint["model_state_dict"]
+        elif "model_state" in checkpoint:
+            state_dict = checkpoint["model_state"]
         elif "state_dict" in checkpoint:
-            self.model.load_state_dict(checkpoint["state_dict"])
+            state_dict = checkpoint["state_dict"]
         else:
-            self.model.load_state_dict(checkpoint)
+            state_dict = checkpoint
+        
+        # Load with strict=False to handle minor mismatches
+        self.model.load_state_dict(state_dict, strict=False)
         
         self.model.to(self.device)
         self.model.eval()

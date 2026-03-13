@@ -7,7 +7,55 @@ Driving-first pipeline: **Waymo episodes → PyTorch SSL pretrain → waypoint B
 
 ## Daily Cadence
 
+- ✅ **Pipeline PR #2** (2026-03-13): End-to-End Inference Runner
 - ✅ **Pipeline PR #1** (2026-03-13): Unified CARLA Evaluation Pipeline v2
+
+### Pipeline PR #2: End-to-End Inference Runner (This PR)
+
+- **Created: `training/eval/run_e2e_inference.py`**
+  - **E2EInferenceConfig**: Configuration dataclass for end-to-end inference
+  - **E2EInferenceRunner**: Main runner class
+  - **predict_waypoints()**: Bridge to WaypointInference
+  - **compute_control()**: Bridge to WaypointTrackingController
+  - Auto-detects latest BC/RL checkpoints
+  - Mock mode for testing without CARLA
+
+**Features:**
+- Multi-policy support: BC, RL, SFT+Delta checkpoints
+- Auto-detection: Finds latest checkpoint if not provided
+- Controller integration: Uses WaypointTrackingController
+- CARLA-ready: --use-carla flag for real evaluation
+
+**Usage:**
+```bash
+# Dry-run
+python3 -m training.eval.run_e2e_inference --dry-run
+
+# Run with mock (test)
+python3 -m training.eval.run_e2e_inference --episodes 10
+
+# Run with specific checkpoint
+python3 -m training.eval.run_e2e_inference \
+    --checkpoint out/waypoint_bc/run_20260312_083423/best.pt
+
+# Run with RL checkpoint
+python3 -m training.eval.run_e2e_inference --policy-type rl --episodes 10
+
+# Real CARLA
+python3 -m training.eval.run_e2e_inference --use-carla --episodes 10
+```
+
+**Test Results (3 episodes, mock):**
+- Success Rate: 100% (3/3)
+- ADE: 10.75m ± 1.59m
+- FDE: 1.94m ± 0.00m
+
+**Updated: `sim/driving/carla_srunner/waypoint_inference.py`**
+- Fixed checkpoint loading to handle multiple formats
+
+**Branch:** `feature/daily-2026-03-13-b`
+
+---
 
 ### Pipeline PR #1: Unified CARLA Evaluation Pipeline v2 (This PR)
 
