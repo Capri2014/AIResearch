@@ -7,10 +7,10 @@ Driving-first pipeline: **Waymo episodes → PyTorch SSL pretrain → waypoint B
 
 ## Daily Cadence
 
+- ✅ **Pipeline PR #6** (2026-03-13): RL Refinement Evaluation + Metrics Hardening (evening)
 - ✅ **Pipeline PR #5** (2026-03-13): RL Refinement After SFT - Residual Delta-Waypoint Learning
 - ✅ **Pipeline PR #4** (2026-03-13): BEV Encoder Module - camera + LiDAR to BEV
 - ✅ **Pipeline PR #3** (2026-03-13): Pipeline Integration: Checkpoint Utilities + Eval Runner
-- ✅ **Pipeline PR #6** (2026-02-28): RL Refinement Evaluation + Metrics Hardening
 - ⏳ **Pipeline PR #1** (2026-02-18): RL Checkpoint Selection with Policy Entropy - awaiting review
 - ⏳ **Pipeline PR #9** (2026-02-17): Evaluation + Metrics Hardening for RL Refinement - awaiting review
 - ⏳ **Pipeline PR #8** (2026-02-17): CARLA Closed-Loop Waypoint BC Evaluation - awaiting review
@@ -88,7 +88,25 @@ Driving-first pipeline: **Waymo episodes → PyTorch SSL pretrain → waypoint B
 - Standardized checkpoint inspection across pipeline stages
 - Comparison framework for BC vs RL policies
 
-### Pipeline PR #6: RL Refinement Evaluation + Metrics Hardening (2026-02-28)
+### Pipeline PR #6: RL Refinement Evaluation + Metrics Hardening (2026-03-13 evening)
+- **Executed:** `training/rl/compare_sft_vs_rl.py` with 20 episodes
+- **Run output:** `out/eval/20260313-213224_sft/` and `out/eval/20260313-213224_rl/`
+  - `metrics.json` - per-scenario and summary metrics (ADE, FDE, success_rate)
+- **Metrics schema:** Validated against `data/schema/metrics.json`
+
+**Results (20 episodes):**
+- ADE: 13.31m (SFT) → 13.03m (RL) [+2%]
+- FDE: 37.17m (SFT) → 36.60m (RL) [+2%]
+- Success: 0% (both)
+
+**Key additions:**
+- Deterministic evaluation with seeded episodes
+- Standardized metrics.json output compatible with schema
+- 3-line comparison report (ADE, FDE, Success Rate)
+
+---
+
+### Pipeline PR #6 (original): RL Refinement Evaluation + Metrics Hardening (2026-02-28)
 - **Updated: `training/rl/compare_sft_vs_rl.py`**
   - Added git metadata capture (repo, commit, branch) for reproducibility
   - Now outputs proper git info in metrics.json
