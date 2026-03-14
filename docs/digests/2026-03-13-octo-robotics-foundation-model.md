@@ -100,6 +100,20 @@ Key finding: **Finetuning Octo outperforms next best by 52%** with minimal data.
 - **Multi-camera video generation**: Octo outputs actions, not video; Tesla's world simulator generates video for evaluation
 - **Safety / rollback / verification**: No explicit safety gating or rollback mechanisms
 
+### Comparison to RT-X
+| Aspect | Octo | RT-X (RT-1-X / RT-2-X) |
+|--------|------|------------------------|
+| Architecture | Transformer + Diffusion | Transformer (RT-1-X) / VLM co-tune (RT-2-X) |
+| Action output | Continuous diffusion | Discrete action tokens |
+| Parameters | 27M / 93M | RT-1-X: ~35M; RT-2-X: 55B |
+| Zero-shot (WidowX) | 0.80 | RT-1-X: 0.60; RT-2-X: 0.85 |
+| Finetuning (100 demos) | 0.72 | Not explicitly reported |
+| Open weights | ✅ HF Hub | ✅ RT-1-X only |
+| pip-installable | ✅ | ❌ (TFDS only) |
+| Colab notebooks | ✅ Inference + Finetuning | ✅ Dataset only |
+
+**Why Octo wins for reproducibility**: pip-installable, full inference/finetuning colabs, HF Hub weights for both 27M and 93M variants.
+
 ## Action items for AIResearch (interfaces / contracts to copy)
 
 - [ ] **Adopt diffusion policy** for waypoint/action prediction — aligns with Octo architecture and Tesla's reported output stochasticity
