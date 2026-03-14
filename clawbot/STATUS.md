@@ -1,12 +1,13 @@
 # Status (ClawBot)
 
-_Last updated: 2026-03-14 (Pipeline PR #1)_
+_Last updated: 2026-03-14 (Pipeline PR #2)_
 
 ## Current focus
 Driving-first pipeline: **Waymo episodes → PyTorch SSL pretrain → waypoint BC → RL refinement → CARLA ScenarioRunner eval**.
 
 ## Daily Cadence
 
+- ✅ **Pipeline PR #2** (2026-03-14): SSL-to-Waypoint BC Transfer Learning
 - ✅ **Pipeline PR #1** (2026-03-14): Speed Prediction for Waypoint BC Model
 - ✅ **Pipeline PR #6** (2026-03-13): RL Refinement Evaluation + Metrics Hardening (evening)
 - ✅ **Pipeline PR #5** (2026-03-13): RL Refinement After SFT - Residual Delta-Waypoint Learning
@@ -18,6 +19,27 @@ Driving-first pipeline: **Waymo episodes → PyTorch SSL pretrain → waypoint B
 - ⏳ **Pipeline PR #5** (2026-02-16): RL Refinement Stub for Residual Delta-Waypoint Learning - awaiting review
 
 ## Recent changes
+
+### Pipeline PR #2: SSL-to-Waypoint BC Transfer Learning (2026-03-14)
+- **Created: `training/sft/ssl_pretrained_loader.py`**
+  - `SSLConfig`: Configuration for SSL pretrained models
+  - `SSLEncoder`: ResNet-based encoder wrapper (resnet34/50, efficientnet_b0)
+  - `JEPAEncoder`: Joint Embedding Predictive Architecture encoder
+  - `SSLFeatureExtractor`: Feature extraction utility class
+  - `load_ssl_pretrained()`: Load SSL checkpoint and return model
+  - `BCWithSSLEncoder`: Waypoint BC model with SSL pretrained encoder
+  - `create_bc_with_ssl_pretrained()`: Factory function
+
+- **Updated: `sim/driving/carla_srunner/policy_wrapper.py`**
+  - Added `SSLWaypointPolicyWrapper`: CARLA-integrable policy
+  - SSL_PRETRAINED_AVAILABLE flag
+  - Supports JEPA, contrastive, and temporal_contrastive model types
+
+**Key additions:**
+- Bridges SSL pretraining to waypoint BC pipeline
+- Transfer learning from self-supervised models to driving policy
+- Encoder weights frozen by default for transfer learning
+- Falls back to simple CNN if torchvision unavailable
 
 ### Pipeline PR #1: Speed Prediction for Waypoint BC Model (2026-03-14)
 - **Created: `training/waypoint_speed_head.py`**
@@ -189,4 +211,5 @@ final_waypoints = sft_waypoints + delta_head(z)
 
 ## Links
 - Daily notes: `clawbot/daily/2026-03-14.md`
-- Branch: `feature/daily-2026-03-14-a`
+- Branch: `feature/daily-2026-03-14-b`
+- PR #2 URL: https://github.com/Capri2014/AIResearch/pull/new/feature/daily-2026-03-14-b
