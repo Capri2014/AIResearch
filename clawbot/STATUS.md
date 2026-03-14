@@ -1,12 +1,13 @@
 # Status (ClawBot)
 
-_Last updated: 2026-03-14 (Pipeline PR #2)_
+_Last updated: 2026-03-14 (Pipeline PR #3)_
 
 ## Current focus
 Driving-first pipeline: **Waymo episodes → PyTorch SSL pretrain → waypoint BC → RL refinement → CARLA ScenarioRunner eval**.
 
 ## Daily Cadence
 
+- ✅ **Pipeline PR #3** (2026-03-14): CARLA Scenario Configuration Module
 - ✅ **Pipeline PR #2** (2026-03-14): SSL-to-Waypoint BC Transfer Learning
 - ✅ **Pipeline PR #1** (2026-03-14): Speed Prediction for Waypoint BC Model
 - ✅ **Pipeline PR #6** (2026-03-13): RL Refinement Evaluation + Metrics Hardening (evening)
@@ -53,6 +54,47 @@ Driving-first pipeline: **Waymo episodes → PyTorch SSL pretrain → waypoint B
   - `waypoints_to_control()` now accepts `target_speeds` parameter
   - `predict_with_speed()` for joint waypoint + speed prediction
   - Speed-aware throttle/brake control based on current vs target speed
+
+### Pipeline PR #3: CARLA Scenario Configuration Module (2026-03-14)
+- **Created: `sim/driving/carla_srunner/scenario_config.py`**
+  - `WeatherPreset` enum: clear, cloudy, night, rain, fog, sunset
+  - `TimeOfDay` enum: day, night, sunset, dawn
+  - `MapName` enum: Town01-Town07, Town10HD
+  - `ScenarioType` enum: straight, turn_left, turn_right, lane_change, merge, etc.
+  - `WeatherConfig`: Configurable weather with preset factory
+  - `RouteDefinition`: Route waypoints, start/end positions, distance
+  - `ScenarioConfig`: Complete scenario with success criteria
+
+- **10 Standard Scenarios:**
+  - straight_clear, straight_cloudy, straight_night, straight_rain
+  - turn_left_clear, turn_right_clear
+  - lane_change_clear, merge_clear
+  - straight_fog, straight_sunset
+
+- **Scenario Suites:**
+  - smoke (2): straight_clear, turn_left_clear
+  - quick (3): + straight_cloudy
+  - full (8): all main scenarios
+  - adverse (3): rain, fog, sunset
+  - night (1): straight_night
+
+- **Created: `sim/driving/carla_srunner/test_scenario_config.py`**
+  - WeatherConfig tests
+  - Scenario definitions tests
+  - Suite generation tests
+  - Filtering tests (by tag, difficulty)
+  - Serialization tests
+
+- **Updated: `sim/driving/carla_srunner/policy_wrapper.py`**
+  - Added SCENARIO_CONFIG_AVAILABLE flag
+  - Imports and exposes scenario config functions
+
+**Key additions:**
+- Standardized scenario definitions for CARLA evaluation
+- Weather presets with realistic parameters
+- Success criteria per scenario (timeout, max collisions, completion threshold)
+- Helper functions: get_scenario, get_scenario_suite, get_scenarios_by_tag
+- JSON export for ScenarioRunner integration
 
 ### Pipeline PR #4: BEV Encoder Module (2026-03-13)
 - **Created: `sim/driving/carla_srunner/bev_encoder.py`**
