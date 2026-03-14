@@ -127,6 +127,7 @@ class WaypointPolicyWrapper:
         waypoints: np.ndarray,
         current_speed: float = 0.0,
         dt: float = 0.05,
+        target_speeds: Optional[np.ndarray] = None,
     ) -> Dict[str, float]:
         """
         Convert waypoints to CARLA vehicle control commands.
@@ -135,6 +136,7 @@ class WaypointPolicyWrapper:
             waypoints: (H, 2) array in ego frame (x forward, y left)
             current_speed: Current vehicle speed in m/s
             dt: Time step for command duration
+            target_speeds: (H,) optional target speeds in m/s for each waypoint
         
         Returns:
             control: Dict with throttle, steer, brake for CARLA VehicleControl
@@ -152,19 +154,59 @@ class WaypointPolicyWrapper:
         # Clamp steering to reasonable range
         steer = float(np.clip(steer, -0.7, 0.7))  # ~40 degrees
         
-        # Throttle/brake based on distance and angle
+        # Get target speed if available (from speed prediction)
+        if target_speeds is not None and len(target_speeds) > 0:
+            target_speed = float(target_speeds[0])
+        else:
+            # Default speed profile: slower for turns, faster for straight
+            # Compute curvature from waypoints
+            curvature = 0.0
+            if len(waypoints) >= 3:
+                # Simple curvature proxy: angle change between segments
+                v1 = waypoints[1] - waypoints[0]
+                v2 = waypoints[2] - waypoints[1]
+                if np.linalg.norm(v1) > 0.1 and np.linalg.norm(v2) > 0.1:
+                    v1_norm = v1 / np.linalg.norm(v1)
+                    v2_norm = v2 / np.linalg.norm(v2)
+                    angle = np.arccos(np.clip(np.dot(v1_norm, v2_norm), -1, 1))
+                    curvature = angle
+            
+            # Speed: slower for curves, faster for straight
+            if curvature > 0.3:
+                target_speed = 3.0  # ~10 km/h for sharp turns
+            elif curvature > 0.1:
+                target_speed = 6.0  # ~20 km/h for gentle curves
+            else:
+                target_speed = 10.0  # ~35 km/h for straight
+        
+        # Speed control: throttle/brake based on current vs target speed
+        speed_error = target_speed - current_speed
+        
         if target_distance < 2.0:
             # Close to target: slow down
             throttle = 0.0
-            brake = 0.3
+            brake = 0.5
+        elif speed_error < -1.0:
+            # Going too fast: brake
+            throttle = 0.0
+            brake = min(0.3, -speed_error / 10.0)
+        elif speed_error > 2.0:
+            # Need to speed up
+            if abs(steer) > 0.5:
+                # Sharp turn: moderate throttle
+                throttle = 0.3
+                brake = 0.0
+            else:
+                throttle = 0.6
+                brake = 0.0
         elif abs(steer) > 0.5:
             # Sharp turn: slow down
             throttle = 0.2
             brake = 0.1
         else:
-            # Normal driving
-            throttle = 0.5
-            brake = 0.0
+            # Maintain speed
+            throttle = 0.4 if speed_error > 0 else 0.0
+            brake = 0.1 if speed_error < 0 else 0.0
         
         return {
             "throttle": throttle,
@@ -199,6 +241,74 @@ class WaypointPolicyWrapper:
         control = self.waypoints_to_control(waypoints, current_speed=speed)
         
         return control
+    
+    def predict_with_speed(
+        self,
+        images: Dict[str, np.ndarray],
+    ) -> Tuple[np.ndarray, np.ndarray]:
+        """
+        Predict waypoints and speeds from images.
+        
+        Requires speed prediction-enabled model. Falls back to
+        default speed profile if not available.
+        
+        Args:
+            images: Dict of camera_name -> (H, W, C) numpy array
+        
+        Returns:
+            waypoints: (H, 2) numpy array in ego frame
+            speeds: (H,) numpy array of target speeds in m/s
+        """
+        if not self._initialized:
+            raise RuntimeError("Policy not initialized. Call initialize() first.")
+        
+        # Default: predict waypoints, use default speed profile
+        waypoints = self.predict(images)
+        
+        # Compute speed profile based on waypoint geometry
+        speeds = self._compute_speed_profile(waypoints)
+        
+        return waypoints, speeds
+    
+    def _compute_speed_profile(self, waypoints: np.ndarray) -> np.ndarray:
+        """Compute default speed profile from waypoints.
+        
+        Uses curvature to determine appropriate speeds:
+        - Straight segments: higher speeds
+        - Curved segments: lower speeds
+        """
+        H = len(waypoints)
+        speeds = np.ones(H) * 10.0  # Default 10 m/s
+        
+        if H < 2:
+            return speeds
+        
+        # Compute direction vectors
+        diffs = np.diff(waypoints, axis=0)  # (H-1, 2)
+        norms = np.linalg.norm(diffs, axis=1, keepdims=True)  # (H-1, 1)
+        norms = np.maximum(norms, 0.1)  # Avoid division by zero
+        
+        directions = diffs / norms  # (H-1, 2)
+        
+        # Compute curvature (direction changes)
+        dir_diffs = np.diff(directions, axis=0)  # (H-2, 2)
+        curvatures = np.linalg.norm(dir_diffs, axis=1)  # (H-2,)
+        
+        # Set speeds based on curvature
+        for i in range(len(curvatures)):
+            if curvatures[i] > 0.5:
+                speeds[i] = 3.0  # Sharp turn
+            elif curvatures[i] > 0.2:
+                speeds[i] = 6.0  # Gentle curve
+            else:
+                speeds[i] = 10.0  # Straight
+        
+        # First/last waypoints get similar speeds to neighbors
+        if len(speeds) > 0:
+            speeds[0] = speeds[1] if len(speeds) > 1 else 5.0
+            speeds[-1] = speeds[-2] if len(speeds) > 1 else 5.0
+        
+        return speeds
 
 
 class StubPolicyWrapper:
