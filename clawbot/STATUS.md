@@ -1,12 +1,13 @@
 # Status (ClawBot)
 
-_Last updated: 2026-03-14 (Pipeline PR #3)_
+_Last updated: 2026-03-14 (Pipeline PR #4)_
 
 ## Current focus
 Driving-first pipeline: **Waymo episodes → PyTorch SSL pretrain → waypoint BC → RL refinement → CARLA ScenarioRunner eval**.
 
 ## Daily Cadence
 
+- ✅ **Pipeline PR #4** (2026-03-14): Waypoint BC Model + Training Script
 - ✅ **Pipeline PR #3** (2026-03-14): CARLA Scenario Configuration Module
 - ✅ **Pipeline PR #2** (2026-03-14): SSL-to-Waypoint BC Transfer Learning
 - ✅ **Pipeline PR #1** (2026-03-14): Speed Prediction for Waypoint BC Model
@@ -20,6 +21,35 @@ Driving-first pipeline: **Waymo episodes → PyTorch SSL pretrain → waypoint B
 - ⏳ **Pipeline PR #5** (2026-02-16): RL Refinement Stub for Residual Delta-Waypoint Learning - awaiting review
 
 ## Recent changes
+
+### Pipeline PR #4: Waypoint BC Model + Training Script (2026-03-14)
+- **Created: `training/bc/waypoint_bc_model.py`**
+  - `WaypointBCModel`: Core model predicting future waypoints from BEV features
+  - `WaypointBCConfig`: Configuration dataclass
+  - `MLP`: Multi-layer perceptron with LayerNorm
+  - Temporal encoding: Optional LSTM-based temporal processing
+  - Speed prediction head: Optional speed prediction at each waypoint
+  - Loss functions: waypoint_l1_loss, speed_l1_loss, compute_bc_loss()
+  - Factory: create_waypoint_bc_model()
+
+- **Created: `training/bc/train_waypoint_bc.py`**
+  - `WaypointBCTrainer`: Full training loop with validation
+  - `WaypointBCDataset`: Dataset placeholder (replace with Waymo loader)
+  - Mixed precision (AMP): Efficient GPU training
+  - Cosine annealing LR: Smooth learning rate decay
+  - Checkpoint saving: Best + periodic checkpoints
+  - CLI: Full argparse interface
+
+- **Created: `training/bc/__init__.py`**: Module exports
+
+- **Updated: `sim/driving/carla_srunner/policy_wrapper.py`**
+  - Added WAYPOINT_BC_AVAILABLE flag
+  - Imports WaypointBCModel, WaypointBCConfig, create_waypoint_bc_model
+
+**Key additions:**
+- Core BC model bridging SSL encoder (PR #2) + Speed prediction (PR #1)
+- Ready for RL refinement (following PR #5 pattern)
+- Integrates with CARLA via policy wrapper
 
 ### Pipeline PR #2: SSL-to-Waypoint BC Transfer Learning (2026-03-14)
 - **Created: `training/sft/ssl_pretrained_loader.py`**
