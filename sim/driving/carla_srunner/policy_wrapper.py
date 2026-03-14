@@ -20,10 +20,11 @@ import json
 
 import numpy as np
 
-# BEV Encoder availability flag
+# Module availability flags
 BEV_ENCODER_AVAILABLE = True
 SSL_PRETRAINED_AVAILABLE = True
 SCENARIO_CONFIG_AVAILABLE = True
+WAYPOINT_BC_AVAILABLE = True
 
 try:
     from sim.driving.carla_srunner.bev_encoder import (
@@ -57,6 +58,17 @@ try:
 except ImportError as e:
     SCENARIO_CONFIG_AVAILABLE = False
     print(f"[policy_wrapper] Scenario config not available: {e}")
+
+try:
+    from training.bc.waypoint_bc_model import (
+        WaypointBCModel,
+        WaypointBCConfig,
+        WaypointBCWithSpeed,
+        create_waypoint_bc_model,
+    )
+except ImportError as e:
+    WAYPOINT_BC_AVAILABLE = False
+    print(f"[policy_wrapper] Waypoint BC not available: {e}")
 
 
 @dataclass
