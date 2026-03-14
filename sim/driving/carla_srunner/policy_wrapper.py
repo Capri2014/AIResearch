@@ -22,6 +22,7 @@ import numpy as np
 
 # BEV Encoder availability flag
 BEV_ENCODER_AVAILABLE = True
+SSL_PRETRAINED_AVAILABLE = True
 
 try:
     from sim.driving.carla_srunner.bev_encoder import (
@@ -33,6 +34,17 @@ try:
 except ImportError as e:
     BEV_ENCODER_AVAILABLE = False
     print(f"[policy_wrapper] BEV encoder not available: {e}")
+
+try:
+    from training.sft.ssl_pretrained_loader import (
+        load_ssl_pretrained,
+        SSLFeatureExtractor,
+        BCWithSSLEncoder,
+        create_bc_with_ssl_pretrained,
+    )
+except ImportError as e:
+    SSL_PRETRAINED_AVAILABLE = False
+    print(f"[policy_wrapper] SSL pretrained loader not available: {e}")
 
 
 @dataclass
@@ -309,6 +321,147 @@ class WaypointPolicyWrapper:
             speeds[-1] = speeds[-2] if len(speeds) > 1 else 5.0
         
         return speeds
+
+
+class SSLWaypointPolicyWrapper:
+    """Waypoint policy using SSL pretrained encoder.
+    
+    This class provides a waypoint policy that uses an SSL pretrained encoder
+    for feature extraction, then predicts waypoints for CARLA control.
+    
+    Usage:
+        from sim.driving.carla_srunner.policy_wrapper import SSLWaypointPolicyWrapper, SSLPolicyConfig
+        
+        cfg = SSLPolicyConfig(
+            ssl_checkpoint="path/to/ssl/model.pt",
+            num_waypoints=8,
+            horizon_steps=20
+        )
+        policy = SSLWaypointPolicyWrapper(cfg)
+        waypoints = policy.predict(images)
+        control = policy.waypoints_to_control(waypoints)
+    """
+    
+    @dataclass
+    class SSLPolicyConfig:
+        """Configuration for SSL waypoint policy."""
+        ssl_checkpoint: Optional[Path] = None  # Path to SSL pretrained checkpoint
+        model_type: str = "jepa"  # jepa, contrastive, temporal_contrastive
+        num_waypoints: int = 8
+        horizon_steps: int = 20
+        hidden_dim: int = 256
+        feature_dim: int = 256
+        device: str = "auto"
+    
+    def __init__(self, cfg: SSLPolicyConfig | None = None):
+        cfg = cfg or self.SSLPolicyConfig()
+        self.cfg = cfg
+        self._model = None
+        self._initialized = False
+        
+        # Auto-detect device
+        if cfg.device == "auto":
+            import torch
+            self._device = "cuda" if torch.cuda.is_available() else "cpu"
+        else:
+            self._device = cfg.device
+    
+    def initialize(self) -> bool:
+        """Initialize the SSL waypoint policy."""
+        if self._initialized:
+            return True
+        
+        if not SSL_PRETRAINED_AVAILABLE:
+            print("[SSLWaypointPolicy] SSL pretrained loader not available")
+            return False
+        
+        try:
+            import torch
+            from training.sft.ssl_pretrained_loader import (
+                create_bc_with_ssl_pretrained,
+            )
+            
+            # Create BC model with SSL pretrained encoder
+            self._model = create_bc_with_ssl_pretrained(
+                checkpoint_path=str(self.cfg.ssl_checkpoint) if self.cfg.ssl_checkpoint else None,
+                model_type=self.cfg.model_type,
+                num_waypoints=self.cfg.num_waypoints,
+                device=self._device
+            )
+            self._model.eval()
+            
+            self._initialized = True
+            print(f"[SSLWaypointPolicy] Loaded SSL checkpoint: {self.cfg.ssl_checkpoint}")
+            return True
+        except Exception as e:
+            print(f"[SSLWaypointPolicy] Failed to initialize: {e}")
+            return False
+    
+    @property
+    def is_initialized(self) -> bool:
+        return self._initialized
+    
+    def predict(self, images: Dict[str, np.ndarray]) -> np.ndarray:
+        """
+        Predict waypoints from images.
+        
+        Args:
+            images: Dict of camera_name -> (H, W, C) numpy array
+        
+        Returns:
+            waypoints: (horizon_steps, 2) numpy array in ego frame (x, y) meters
+        """
+        if not self._initialized:
+            raise RuntimeError("Policy not initialized. Call initialize() first.")
+        
+        import torch
+        
+        # Get front camera image
+        front_image = images.get("front")
+        if front_image is None:
+            # Use first available camera
+            front_image = list(images.values())[0]
+        
+        # Convert to tensor (B=1, C, H, W)
+        if front_image.dtype != np.float32:
+            front_image = front_image.astype(np.float32) / 255.0
+        
+        # Handle (H, W, C) -> (C, H, W)
+        if front_image.ndim == 3 and front_image.shape[-1] == 3:
+            front_image = np.transpose(front_image, (2, 0, 1))
+        
+        # Add batch dimension and normalize to [-1, 1]
+        image_tensor = torch.from_numpy(front_image).unsqueeze(0).to(self._device)
+        image_tensor = image_tensor * 2.0 - 1.0  # Normalize to [-1, 1]
+        
+        # Predict waypoints
+        with torch.no_grad():
+            waypoints = self._model(image_tensor)
+        
+        # Convert to numpy (num_waypoints, 2)
+        waypoints_np = waypoints.cpu().numpy()[0]
+        
+        # Ensure we have the right number of waypoints
+        if len(waypoints_np) < self.cfg.horizon_steps:
+            # Repeat last waypoint to fill
+            last = waypoints_np[-1:]
+            waypoints_np = np.vstack([waypoints_np] + [last] * (self.cfg.horizon_steps - len(waypoints_np)))
+        elif len(waypoints_np) > self.cfg.horizon_steps:
+            waypoints_np = waypoints_np[:self.cfg.horizon_steps]
+        
+        return waypoints_np
+    
+    def waypoints_to_control(
+        self,
+        waypoints: np.ndarray,
+        current_speed: float = 0.0,
+        dt: float = 0.05,
+        target_speeds: Optional[np.ndarray] = None,
+    ) -> Dict[str, float]:
+        """Convert waypoints to CARLA vehicle control commands."""
+        # Reuse the method from WaypointPolicyWrapper
+        wrapper = WaypointPolicyWrapper(PolicyConfig(horizon_steps=len(waypoints)))
+        return wrapper.waypoints_to_control(waypoints, current_speed, dt, target_speeds)
 
 
 class StubPolicyWrapper:
