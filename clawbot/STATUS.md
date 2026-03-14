@@ -1,12 +1,13 @@
 # Status (ClawBot)
 
-_Last updated: 2026-03-14 (Pipeline PR #4)_
+_Last updated: 2026-03-14 (Pipeline PR #5)_
 
 ## Current focus
 Driving-first pipeline: **Waymo episodes → PyTorch SSL pretrain → waypoint BC → RL refinement → CARLA ScenarioRunner eval**.
 
 ## Daily Cadence
 
+- ✅ **Pipeline PR #5** (2026-03-14): PPO Residual Delta-Waypoint Training (Option B)
 - ✅ **Pipeline PR #4** (2026-03-14): Waypoint BC Model + Training Script
 - ✅ **Pipeline PR #3** (2026-03-14): CARLA Scenario Configuration Module
 - ✅ **Pipeline PR #2** (2026-03-14): SSL-to-Waypoint BC Transfer Learning
@@ -21,6 +22,37 @@ Driving-first pipeline: **Waymo episodes → PyTorch SSL pretrain → waypoint B
 - ⏳ **Pipeline PR #5** (2026-02-16): RL Refinement Stub for Residual Delta-Waypoint Learning - awaiting review
 
 ## Recent changes
+
+### Pipeline PR #5: PPO Residual Delta-Waypoint Training (Option B) (2026-03-14)
+- **Created: `training/rl/ppo_residual_delta.py`**
+  - `ToyWaypointEnv`: Simple toy environment for waypoint learning
+  - `DeltaWaypointActor`: Actor network predicting waypoint deltas
+  - `DeltaWaypointCritic`: Value network for state estimation
+  - `PPOAgent`: Full PPO training with GAE advantages
+
+- **Architecture (Option B):**
+  ```
+  final_waypoints = sft_waypoints + delta_head(z)
+  ```
+  - Action space = waypoint deltas (16 dims for 8 waypoints)
+  - Residual learning: Delta corrections while SFT model frozen
+  - SFT model loading: Optional via `--sft-model` flag
+
+- **Executed:** 50 episodes training
+- **Run output:** `out/rl_residual_delta_daily_2026_03_14/run_id/`
+  - `metrics.json` - per-eval-interval metrics
+  - `train_metrics.json` - training summary
+  - `final.pt` - final model checkpoint
+
+**Metrics (50 episodes):**
+- Final avg reward (last 10): 6.64
+- Delta norm: 0.018
+- Eval rewards: improving from 6.99 → 8.23
+
+**Key additions:**
+- RL-after-SFT pipeline with residual delta-waypoint learning
+- PPO training with proper metrics logging
+- Ready for integration with full SFT waypoint model
 
 ### Pipeline PR #4: Waypoint BC Model + Training Script (2026-03-14)
 - **Created: `training/bc/waypoint_bc_model.py`**
