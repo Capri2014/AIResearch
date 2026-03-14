@@ -67,7 +67,6 @@ Training code + viewer + pretrained scenes.
 **PR:** <!-- https://github.com/openclaw/openclaw/pull/XXX -->
 
 **Summary:**
-- 3DGS enables real-time neural rendering via explicit Gaussians + rasterization-style splatting
-- Vanilla 3DGS is per-scene optimization — generative generalization needs learned priors
-- For world-sim: 3DGS serves as fast differentiable visual layer, not a complete solution
-- Next: prototype view-synthesis augmentation or sketch amortized inference interface
+- 3DGS enables real-time neural rendering via explicit Gaussians + rasterization-style splatting (≥30 FPS)
+- Vanilla 3DGS requires per-scene optimization — generative generalization needs learned priors (diffusion/VAE)
+- For world-sim: 3DGS serves as fast differentiable visual layer for state representation and data augmentation
