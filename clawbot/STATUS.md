@@ -1,12 +1,13 @@
 # Status (ClawBot)
 
-_Last updated: 2026-03-13 (Pipeline PR #5)_
+_Last updated: 2026-03-14 (Pipeline PR #1)_
 
 ## Current focus
 Driving-first pipeline: **Waymo episodes → PyTorch SSL pretrain → waypoint BC → RL refinement → CARLA ScenarioRunner eval**.
 
 ## Daily Cadence
 
+- ✅ **Pipeline PR #1** (2026-03-14): Speed Prediction for Waypoint BC Model
 - ✅ **Pipeline PR #6** (2026-03-13): RL Refinement Evaluation + Metrics Hardening (evening)
 - ✅ **Pipeline PR #5** (2026-03-13): RL Refinement After SFT - Residual Delta-Waypoint Learning
 - ✅ **Pipeline PR #4** (2026-03-13): BEV Encoder Module - camera + LiDAR to BEV
@@ -17,6 +18,19 @@ Driving-first pipeline: **Waymo episodes → PyTorch SSL pretrain → waypoint B
 - ⏳ **Pipeline PR #5** (2026-02-16): RL Refinement Stub for Residual Delta-Waypoint Learning - awaiting review
 
 ## Recent changes
+
+### Pipeline PR #1: Speed Prediction for Waypoint BC Model (2026-03-14)
+- **Created: `training/waypoint_speed_head.py`**
+  - `SpeedHead`: MLP for predicting speed at each waypoint timestep
+  - `SpeedHeadConfig`: Configuration with min/max speed bounds (0-15 m/s)
+  - `forward_with_waypoints()`: Speed prediction conditioned on waypoint geometry
+  - `speed_l1_loss()` and `speed_mse_loss()`: Training losses
+  - `WaypointSpeedPolicy`: Combined waypoint + speed prediction wrapper
+  
+- **Updated: `sim/driving/carla_srunner/policy_wrapper.py`**
+  - `waypoints_to_control()` now accepts `target_speeds` parameter
+  - `predict_with_speed()` for joint waypoint + speed prediction
+  - Speed-aware throttle/brake control based on current vs target speed
 
 ### Pipeline PR #4: BEV Encoder Module (2026-03-13)
 - **Created: `sim/driving/carla_srunner/bev_encoder.py`**
@@ -174,5 +188,5 @@ final_waypoints = sft_waypoints + delta_head(z)
 - Metrics: ADE/FDE, route_completion, collisions
 
 ## Links
-- Daily notes: `clawbot/daily/2026-03-13.md`
-- Branch: `feature/daily-2026-03-13-e`
+- Daily notes: `clawbot/daily/2026-03-14.md`
+- Branch: `feature/daily-2026-03-14-a`
