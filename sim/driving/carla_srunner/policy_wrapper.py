@@ -23,6 +23,7 @@ import numpy as np
 # BEV Encoder availability flag
 BEV_ENCODER_AVAILABLE = True
 SSL_PRETRAINED_AVAILABLE = True
+SCENARIO_CONFIG_AVAILABLE = True
 
 try:
     from sim.driving.carla_srunner.bev_encoder import (
@@ -45,6 +46,17 @@ try:
 except ImportError as e:
     SSL_PRETRAINED_AVAILABLE = False
     print(f"[policy_wrapper] SSL pretrained loader not available: {e}")
+
+try:
+    from sim.driving.carla_srunner.scenario_config import (
+        get_scenario,
+        get_scenario_suite,
+        list_available_scenarios,
+        ScenarioConfig,
+    )
+except ImportError as e:
+    SCENARIO_CONFIG_AVAILABLE = False
+    print(f"[policy_wrapper] Scenario config not available: {e}")
 
 
 @dataclass
