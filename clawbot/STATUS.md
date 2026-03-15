@@ -1,12 +1,13 @@
 # Status (ClawBot)
 
-_Last updated: 2026-03-14 (Pipeline PR #6)_
+_Last updated: 2026-03-15 (Pipeline PR #1)_
 
 ## Current focus
 Driving-first pipeline: **Waymo episodes → PyTorch SSL pretrain → waypoint BC → RL refinement → CARLA ScenarioRunner eval**.
 
 ## Daily Cadence
 
+- ✅ **Pipeline PR #1** (2026-03-15): Waymo to Episode Converter + Dataset Loader
 - ✅ **Pipeline PR #6** (2026-03-14): RL Refinement Evaluation + Metrics Hardening (evening) - JSON fix
 - ✅ **Pipeline PR #5** (2026-03-14): PPO Residual Delta-Waypoint Training (Option B)
 - ✅ **Pipeline PR #4** (2026-03-14): Waypoint BC Model + Training Script
@@ -23,6 +24,36 @@ Driving-first pipeline: **Waymo episodes → PyTorch SSL pretrain → waypoint B
 - ⏳ **Pipeline PR #5** (2026-02-16): RL Refinement Stub for Residual Delta-Waypoint Learning - awaiting review
 
 ## Recent changes
+
+### Pipeline PR #1: Waymo to Episode Converter + Dataset Loader (2026-03-15)
+- **Created: `training/episodes/waymo_to_episode.py`**
+  - `WaymoToEpisodeConverter`: Converts Waymo TFRecords to episode.json format
+  - `WaymoConvertConfig`: Configuration dataclass for conversion
+  - Supports real Waymo data (with waymo_open_dataset) or stub data for testing
+  - Generates 8 future waypoints from vehicle state (position, yaw, speed)
+  - Outputs standardized episode.json + index file
+
+- **Created: `training/episodes/waymo_episode_dataset.py`**
+  - `WaymoEpisodeDataset`: PyTorch Dataset for BC/SSL training
+  - `WaymoEpisodeDatasetConfig`: Configuration for cameras, waypoints, temporal pairs
+  - `WaymoEpisodeBatchCollator`: Batch collation with tensor stacking
+  - `create_waymo_dataloader()`: Factory function for common configs
+
+- **Created: `training/episodes/__init__.py`**: Module exports
+
+**Testing:**
+- Stub conversion test: ✓
+- Dataset loading test: ✓
+- Waypoint generation: ✓ (8 waypoints per frame)
+- Camera paths: ✓ (5 cameras per frame)
+
+**Key additions:**
+- Bridges Waymo data to BC/SSL training pipeline
+- Completes first step of driving-first plan (Waymo → SSL pretrain)
+- Ready for integration with existing episode infrastructure
+
+**Branch:** `feature/daily-2026-03-15-a`
+**PR URL:** https://github.com/Capri2014/AIResearch/pull/new/feature/daily-2026-03-15-a
 
 ### Pipeline PR #5: PPO Residual Delta-Waypoint Training (Option B) (2026-03-14)
 - **Created: `training/rl/ppo_residual_delta.py`**
