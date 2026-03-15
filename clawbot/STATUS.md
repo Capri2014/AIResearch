@@ -1,12 +1,13 @@
 # Status (ClawBot)
 
-_Last updated: 2026-03-15 (Pipeline PR #4)_
+_Last updated: 2026-03-15 (Pipeline PR #5)_
 
 ## Current focus
 Driving-first pipeline: **Waymo episodes → PyTorch SSL pretrain → waypoint BC → RL refinement → CARLA ScenarioRunner eval**.
 
 ## Daily Cadence
 
+- ✅ **Pipeline PR #5** (2026-03-15): PPO Delta-Waypoint Training with SFT Initialization
 - ✅ **Pipeline PR #4** (2026-03-15): BC to RL Integration + Pipeline Unification
 - ✅ **Pipeline PR #3** (2026-03-15): Waypoint BC with SSL Encoder Transfer Learning
 - ✅ **Pipeline PR #2** (2026-03-15): Waymo SSL Pretraining Pipeline
@@ -27,6 +28,35 @@ Driving-first pipeline: **Waymo episodes → PyTorch SSL pretrain → waypoint B
 - ⏳ **Pipeline PR #5** (2026-02-16): RL Refinement Stub for Residual Delta-Waypoint Learning - awaiting review
 
 ## Recent changes
+
+### Pipeline PR #5: PPO Delta-Waypoint Training with SFT Initialization (2026-03-15)
+- **Created: `training/rl/ppo_delta_waypoint_trainer.py`**
+  - `PPODeltaConfig`: Configuration dataclass for PPO training
+  - `ResidualDeltaHead`: MLP predicting delta corrections to SFT waypoints
+  - `PPODeltaPolicy`: PPO policy network for delta-waypoint learning
+  - `SFTWaypointModelStub`: Stub SFT model for testing
+  - `train_ppo_delta_waypoint()`: Main training loop with GAE advantages
+  - Supports `--sft-checkpoint` flag to load BC checkpoint via bc_checkpoint_loader
+
+- **Design Pattern:**
+  - `final_waypoints = sft_waypoints + delta_head(z)`
+  - Option B: Action space = waypoint deltas
+  - SFT model stays frozen, only delta head is trained
+
+- **Output:** Artifacts in `out/ppo_delta_waypoint_2026_03_15/`:
+  - `metrics.json` - per-eval-interval metrics
+  - `train_metrics.json` - training summary
+  - `checkpoints/checkpoint_50.pt` - model checkpoint
+  - `final.pt` - final model
+
+**Testing:**
+- Smoke test (50 episodes): ✓
+- Mean reward: -2.83
+- Delta norm decreasing: 13.07 → 5.17
+
+**Branch:** `feature/daily-2026-03-15-e`
+
+---
 
 ### Pipeline PR #1: Waymo to Episode Converter + Dataset Loader (2026-03-15)
 - **Created: `training/episodes/waymo_to_episode.py`**
