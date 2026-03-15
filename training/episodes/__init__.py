@@ -4,6 +4,7 @@ This module provides:
 - Waymo to Episode conversion (waymo_to_episode.py)
 - Episode dataset for BC/SSL training (waymo_episode_dataset.py)
 - Episode indexing utilities (episode_index.py, episode_paths.py)
+- Episode dataloader (dataloader_episodes.py)
 """
 
 from training.episodes.waymo_episode_dataset import (
@@ -23,6 +24,9 @@ from training.episodes.waymo_to_episode import (
 from training.episodes.episode_index import (
     build_index,
     load_index,
+)
+
+from training.pretrain.dataloader_episodes import (
     EpisodesFrameIndexDataset,
 )
 

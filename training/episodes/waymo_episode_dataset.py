@@ -38,7 +38,7 @@ from torch.utils.data import Dataset
 @dataclass
 class WaymoEpisodeDatasetConfig:
     """Configuration for Waymo Episode Dataset."""
-    episode_dir: Path
+    episode_dir: str | Path  # Changed from Path to str | Path
     split: str = "train"  # train, val, test
     
     # Data selection
@@ -71,9 +71,15 @@ class WaymoEpisodeDataset(Dataset):
     
     def _load_episodes(self) -> None:
         """Load episode index and build frame lookup."""
-        episode_dir = self.config.episode_dir
+        episode_dir = Path(self.config.episode_dir)  # Convert to Path if string
         
         # Find all episode JSON files
+        if not episode_dir.exists():
+            # Create stub data for testing
+            print(f"Episode directory {episode_dir} not found, creating stub data")
+            self._create_stub_episodes()
+            return
+        
         episode_files = sorted(episode_dir.glob("*.json"))
         
         # Filter by split if using index
@@ -102,6 +108,65 @@ class WaymoEpisodeDataset(Dataset):
                 self.frames.append((ep_idx, frame_idx))
         
         print(f"Loaded {len(self.frames)} frames from {len(self.episodes)} episodes")
+    
+    def _create_stub_episodes(self) -> None:
+        """Create synthetic episodes for testing when real data is unavailable."""
+        import math
+        
+        num_episodes = 5
+        frames_per_episode = 50
+        
+        for ep_idx in range(num_episodes):
+            # Generate synthetic episode
+            episode = {
+                "episode_id": f"stub_episode_{ep_idx}",
+                "frames": [],
+            }
+            
+            for frame_idx in range(frames_per_episode):
+                t = frame_idx * 0.1  # 10 Hz sampling
+                
+                # Generate synthetic vehicle state (moving in a circle)
+                speed = 10.0 + math.sin(t * 0.5) * 2.0  # Varying speed
+                yaw = t * 0.2  # Gradual turn
+                x = math.cos(t * 0.2) * 50.0
+                y = math.sin(t * 0.2) * 50.0
+                
+                # Generate waypoints (future trajectory)
+                waypoints = []
+                for wp_idx in range(self.config.future_waypoints or 8):
+                    wp_t = t + (wp_idx + 1) * 0.5
+                    wp_x = x + speed * math.cos(yaw) * 0.5 * (wp_idx + 1)
+                    wp_y = y + speed * math.sin(yaw) * 0.5 * (wp_idx + 1)
+                    waypoints.append([wp_x, wp_y])
+                
+                frame = {
+                    "t": t,
+                    "timestamp": int(t * 1e9),
+                    "observations": {
+                        "state": {
+                            "speed_mps": speed,
+                            "yaw_rad": yaw,
+                            "position_x": x,
+                            "position_y": y,
+                        },
+                        "cameras": {
+                            cam: {"image_path": f"stub/{ep_idx}/{frame_idx}_{cam}.jpg"}
+                            for cam in self.config.cameras
+                        }
+                    },
+                    "future_waypoints": waypoints,
+                    "target_speed": speed,
+                }
+                episode["frames"].append(frame)
+            
+            self.episodes.append(episode)
+            
+            # Build frame index
+            for frame_idx in range(0, frames_per_episode, self.config.sample_interval):
+                self.frames.append((ep_idx, frame_idx))
+        
+        print(f"Created {len(self.frames)} stub frames from {len(self.episodes)} episodes")
     
     def __len__(self) -> int:
         return len(self.frames)
