@@ -48,7 +48,7 @@ def _git_info(repo_root: Path) -> Dict[str, Any]:
     }
 
 
-def _compute_ade_fde(car_pos: np.ndarray, waypoints: np.ndarray, num_reached: int) -> tuple[float, float]:
+def _compute_ade_fde(car_pos: np.ndarray, waypoints: np.ndarray, num_reached: int) -> tuple[float | None, float | None]:
     """Compute ADE (Average Displacement Error) and FDE (Final Displacement Error).
 
     ADE: Mean distance from car to each waypoint at the end of the episode.
@@ -61,8 +61,8 @@ def _compute_ade_fde(car_pos: np.ndarray, waypoints: np.ndarray, num_reached: in
         else:
             dists.append(float(np.linalg.norm(car_pos - wp)))
 
-    ade = float(sum(dists) / len(dists)) if dists else float("nan")
-    fde = float(dists[-1]) if dists else float("nan")
+    ade = float(sum(dists) / len(dists)) if dists else None
+    fde = float(dists[-1]) if dists else None
     return ade, fde
 
 
@@ -101,6 +101,9 @@ def _run_episode(*, seed: int, policy_name: str, max_steps: int, step_scale: flo
     num_reached = env.current_waypoint_idx
     ade, fde = _compute_ade_fde(car_pos, waypoints, num_reached)
 
+    # Convert NaN to None for valid JSON serialization
+    final_dist_val = final_dist if not np.isnan(final_dist) else None
+    
     return {
         "scenario_id": f"seed:{seed}",
         "success": success,
@@ -109,7 +112,7 @@ def _run_episode(*, seed: int, policy_name: str, max_steps: int, step_scale: flo
         # Extra per-episode metrics are allowed by the schema (additionalProperties).
         "return": float(ret),
         "steps": int(steps),
-        "final_dist": float(final_dist),
+        "final_dist": final_dist_val,
         "raw": {"seed": int(seed)},
     }
 
@@ -117,24 +120,25 @@ def _run_episode(*, seed: int, policy_name: str, max_steps: int, step_scale: flo
 def _compute_summary(scenarios: list[Dict[str, Any]]) -> Dict[str, Any]:
     """Compute aggregate metrics from scenario results."""
     if not scenarios:
-        return {"ade_mean": float("nan"), "fde_mean": float("nan"), "success_rate": 0.0}
+        return {"ade_mean": None, "fde_mean": None, "success_rate": 0.0}
 
-    ades = [s.get("ade", float("nan")) for s in scenarios]
-    fdes = [s.get("fde", float("nan")) for s in scenarios]
+    ades = [s.get("ade") for s in scenarios]
+    fdes = [s.get("fde") for s in scenarios]
     successes = [1 if s.get("success") else 0 for s in scenarios]
     returns = [s.get("return", 0.0) for s in scenarios]
 
-    valid_ades = [a for a in ades if not np.isnan(a)]
-    valid_fdes = [f for f in fdes if not np.isnan(f)]
+    valid_ades = [a for a in ades if a is not None and not np.isnan(a)]
+    valid_fdes = [f for f in fdes if f is not None and not np.isnan(f)]
 
     return {
-        "ade_mean": float(np.mean(valid_ades)) if valid_ades else float("nan"),
+        "ade_mean": float(np.mean(valid_ades)) if valid_ades else None,
         "ade_std": float(np.std(valid_ades)) if len(valid_ades) > 1 else 0.0,
-        "fde_mean": float(np.mean(valid_fdes)) if valid_fdes else float("nan"),
+        "fde_mean": float(np.mean(valid_fdes)) if valid_fdes else None,
         "fde_std": float(np.std(valid_fdes)) if len(valid_fdes) > 1 else 0.0,
         "success_rate": float(np.mean(successes)) if successes else 0.0,
+        "return_mean": float(np.mean(returns)) if returns else 0.0,
+        "steps_mean": float(np.mean([s.get("steps", 0) for s in scenarios])) if scenarios else 0.0,
         "num_episodes": len(scenarios),
-        "avg_return": float(np.mean(returns)) if returns else 0.0,
     }
 
 

@@ -109,6 +109,9 @@ def run_policy_on_env(
         ade = float(sum(dists) / len(dists)) if dists else float("nan")
         fde = float(dists[-1]) if dists else float("nan")
         
+        # Convert NaN to None for valid JSON serialization
+        final_dist_val = final_dist if not np.isnan(final_dist) else None
+        
         scenarios.append({
             "scenario_id": f"seed:{seed}",
             "success": success,
@@ -117,7 +120,7 @@ def run_policy_on_env(
             "return": float(total_reward),
             "steps": int(steps),
             "num_waypoints_reached": int(num_reached),
-            "final_dist": final_dist,
+            "final_dist": final_dist_val,
         })
     
     return scenarios
@@ -135,15 +138,18 @@ def compute_summary_metrics(scenarios: list[dict]) -> dict:
     valid_ades = [a for a in ades if not np.isnan(a)]
     valid_fdes = [f for f in fdes if not np.isnan(f)]
     
+    returns = [s.get("return", 0) for s in scenarios]
+    steps_list = [s.get("steps", 0) for s in scenarios]
+    
     return {
-        "ade_mean": float(np.mean(valid_ades)) if valid_ades else float("nan"),
+        "ade_mean": float(np.mean(valid_ades)) if valid_ades else None,
         "ade_std": float(np.std(valid_ades)) if len(valid_ades) > 1 else 0.0,
-        "fde_mean": float(np.mean(valid_fdes)) if valid_fdes else float("nan"),
+        "fde_mean": float(np.mean(valid_fdes)) if valid_fdes else None,
         "fde_std": float(np.std(valid_fdes)) if len(valid_fdes) > 1 else 0.0,
         "success_rate": float(np.mean(successes)) if successes else 0.0,
+        "return_mean": float(np.mean(returns)) if returns else 0.0,
+        "steps_mean": float(np.mean(steps_list)) if steps_list else 0.0,
         "num_episodes": len(scenarios),
-        "avg_return": float(np.mean([s.get("return", 0) for s in scenarios])),
-        "avg_steps": float(np.mean([s.get("steps", 0) for s in scenarios])),
     }
 
 
@@ -206,39 +212,57 @@ def main() -> None:
     sft_summary = sft_metrics["summary"]
     rl_summary = rl_metrics["summary"]
     
+    # Helper to format values, handling None
+    def fmt(v, fmt_str="{:.4f}"):
+        return fmt_str.format(v) if v is not None else "N/A"
+    
     print("\n" + "=" * 60)
     print("COMPARISON REPORT: SFT vs RL-Refined Policy")
     print("=" * 60)
     
     print(f"\nSFT Policy:")
-    print(f"  ADE: {sft_summary['ade_mean']:.4f} ± {sft_summary['ade_std']:.4f}m")
-    print(f"  FDE: {sft_summary['fde_mean']:.4f} ± {sft_summary['fde_std']:.4f}m")
+    print(f"  ADE: {fmt(sft_summary['ade_mean'])} ± {sft_summary['ade_std']:.4f}m")
+    print(f"  FDE: {fmt(sft_summary['fde_mean'])} ± {sft_summary['fde_std']:.4f}m")
     print(f"  Success Rate: {sft_summary['success_rate']:.1%}")
-    print(f"  Avg Return: {sft_summary['avg_return']:.3f}")
-    print(f"  Avg Steps: {sft_summary['avg_steps']:.1f}")
+    print(f"  Avg Return: {sft_summary['return_mean']:.3f}")
+    print(f"  Avg Steps: {sft_summary['steps_mean']:.1f}")
     
     print(f"\nRL-Refined Policy:")
-    print(f"  ADE: {rl_summary['ade_mean']:.4f} ± {rl_summary['ade_std']:.4f}m")
-    print(f"  FDE: {rl_summary['fde_mean']:.4f} ± {rl_summary['fde_std']:.4f}m")
+    print(f"  ADE: {fmt(rl_summary['ade_mean'])} ± {rl_summary['ade_std']:.4f}m")
+    print(f"  FDE: {fmt(rl_summary['fde_mean'])} ± {rl_summary['fde_std']:.4f}m")
     print(f"  Success Rate: {rl_summary['success_rate']:.1%}")
-    print(f"  Avg Return: {rl_summary['avg_return']:.3f}")
-    print(f"  Avg Steps: {rl_summary['avg_steps']:.1f}")
+    print(f"  Avg Return: {rl_summary['return_mean']:.3f}")
+    print(f"  Avg Steps: {rl_summary['steps_mean']:.1f}")
     
-    # Compute improvements
-    ade_improvement = sft_summary['ade_mean'] - rl_summary['ade_mean']
-    fde_improvement = sft_summary['fde_mean'] - rl_summary['fde_mean']
+    # Compute improvements (handle None values)
+    ade_sft = sft_summary['ade_mean']
+    ade_rl = rl_summary['ade_mean']
+    fde_sft = sft_summary['fde_mean']
+    fde_rl = rl_summary['fde_mean']
+    
+    ade_improvement = (ade_sft - ade_rl) if (ade_sft is not None and ade_rl is not None) else None
+    fde_improvement = (fde_sft - fde_rl) if (fde_sft is not None and fde_rl is not None) else None
     success_improvement = rl_summary['success_rate'] - sft_summary['success_rate']
     
+    def calc_pct(val, base):
+        if val is None or base is None or base == 0:
+            return "N/A"
+        return f"{val/base*100:+.0f}%"
+    
     print(f"\nImprovement (RL - SFT):")
-    print(f"  ADE: {ade_improvement:+.4f}m ({ade_improvement/sft_summary['ade_mean']*100:+.1f}%)")
-    print(f"  FDE: {fde_improvement:+.4f}m ({fde_improvement/sft_summary['fde_mean']*100:+.1f}%)")
+    print(f"  ADE: {ade_improvement:+.4f}m ({calc_pct(ade_improvement, ade_sft)})")
+    print(f"  FDE: {fde_improvement:+.4f}m ({calc_pct(fde_improvement, fde_sft)})")
     print(f"  Success Rate: {success_improvement:+.1%}")
     
     print("\n" + "=" * 60)
     print("3-LINE SUMMARY:")
     print("-" * 60)
-    print(f"ADE: {sft_summary['ade_mean']:.2f}m (SFT) → {rl_summary['ade_mean']:.2f}m (RL) [{ade_improvement/sft_summary['ade_mean']*100:+.0f}%]")
-    print(f"FDE: {sft_summary['fde_mean']:.2f}m (SFT) → {rl_summary['fde_mean']:.2f}m (RL) [{fde_improvement/sft_summary['fde_mean']*100:+.0f}%]")
+    ade_str = f"{ade_sft:.2f}m" if ade_sft is not None else "N/A"
+    ade_rl_str = f"{ade_rl:.2f}m" if ade_rl is not None else "N/A"
+    fde_str = f"{fde_sft:.2f}m" if fde_sft is not None else "N/A"
+    fde_rl_str = f"{fde_rl:.2f}m" if fde_rl is not None else "N/A"
+    print(f"ADE: {ade_str} (SFT) → {ade_rl_str} (RL) [{calc_pct(ade_improvement, ade_sft)}]")
+    print(f"FDE: {fde_str} (SFT) → {fde_rl_str} (RL) [{calc_pct(fde_improvement, fde_sft)}]")
     print(f"Success: {sft_summary['success_rate']:.0%} (SFT) → {rl_summary['success_rate']:.0%} (RL) [{success_improvement:+.0%}]")
     print("=" * 60)
     

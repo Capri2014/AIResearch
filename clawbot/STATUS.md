@@ -1,12 +1,13 @@
 # Status (ClawBot)
 
-_Last updated: 2026-03-14 (Pipeline PR #5)_
+_Last updated: 2026-03-14 (Pipeline PR #6)_
 
 ## Current focus
 Driving-first pipeline: **Waymo episodes → PyTorch SSL pretrain → waypoint BC → RL refinement → CARLA ScenarioRunner eval**.
 
 ## Daily Cadence
 
+- ✅ **Pipeline PR #6** (2026-03-14): RL Refinement Evaluation + Metrics Hardening (evening) - JSON fix
 - ✅ **Pipeline PR #5** (2026-03-14): PPO Residual Delta-Waypoint Training (Option B)
 - ✅ **Pipeline PR #4** (2026-03-14): Waypoint BC Model + Training Script
 - ✅ **Pipeline PR #3** (2026-03-14): CARLA Scenario Configuration Module
@@ -206,6 +207,29 @@ Driving-first pipeline: **Waymo episodes → PyTorch SSL pretrain → waypoint B
 - RL-after-SFT pipeline integration
 - Residual delta-waypoint learning with frozen SFT backbone
 - Toy waypoint environment for rapid experimentation
+
+### Pipeline PR #6: RL Refinement Evaluation + Metrics Hardening (2026-03-14 evening)
+- **Updated: `training/rl/compare_sft_vs_rl.py`**
+  - Fixed NaN serialization: use None (JSON null) instead of float('nan')
+  - Added return_mean and steps_mean to summary (schema-compliant)
+  - Added graceful handling of None values in print output
+  
+- **Updated: `training/rl/eval_toy_waypoint_env.py`**
+  - Same NaN serialization fixes
+  - Summary now includes return_mean, steps_mean
+
+- **Executed:** `compare_sft_vs_rl.py` with 5 episodes
+- **Output:** `out/eval/20260314-213457_*/metrics.json` (valid JSON)
+
+**Results (5 episodes):**
+- ADE: 18.55m (SFT) → 18.48m (RL) [+0%]
+- FDE: 47.32m (SFT) → 47.01m (RL) [+1%]
+- Success: 0% (both)
+
+**Key fixes:**
+- Valid JSON output (no NaN values)
+- Schema-compliant summary fields (return_mean, steps_mean)
+- Graceful None handling in comparison report
 
 ### Pipeline PR #3: Pipeline Integration: Checkpoint Utilities + Eval Runner (2026-03-13)
 - **Created: `training/utils/checkpoint_utils.py`**
