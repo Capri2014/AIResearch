@@ -1,12 +1,14 @@
 # Status (ClawBot)
 
-_Last updated: 2026-03-15 (Pipeline PR #2)_
+_Last updated: 2026-03-15 (Pipeline PR #4)_
 
 ## Current focus
 Driving-first pipeline: **Waymo episodes → PyTorch SSL pretrain → waypoint BC → RL refinement → CARLA ScenarioRunner eval**.
 
 ## Daily Cadence
 
+- ✅ **Pipeline PR #4** (2026-03-15): BC to RL Integration + Pipeline Unification
+- ✅ **Pipeline PR #3** (2026-03-15): Waypoint BC with SSL Encoder Transfer Learning
 - ✅ **Pipeline PR #2** (2026-03-15): Waymo SSL Pretraining Pipeline
 - ✅ **Pipeline PR #1** (2026-03-15): Waymo to Episode Converter + Dataset Loader
 - ✅ **Pipeline PR #6** (2026-03-14): RL Refinement Evaluation + Metrics Hardening (evening) - JSON fix
@@ -55,6 +57,35 @@ Driving-first pipeline: **Waymo episodes → PyTorch SSL pretrain → waypoint B
 
 **Branch:** `feature/daily-2026-03-15-a`
 **PR URL:** https://github.com/Capri2014/AIResearch/pull/new/feature/daily-2026-03-15-a
+
+### Pipeline PR #3: Waypoint BC with SSL Encoder Transfer Learning (2026-03-15)
+- **Created: `training/bc/train_waypoint_bc_ssl.py`**
+  - `WaypointBCWithSSLDataset`: Dataset that combines Waymo episodes with SSL encoder features
+  - Loads camera images, passes through SSL encoder to get BEV features
+  - Returns encoded features + waypoints for BC training
+  - `create_stub_ssl_encoder()`: Creates encoder for testing without pretrained weights
+  - Full training loop with mixed precision (AMP), checkpointing, cosine LR scheduler
+
+- **Updated: `training/pretrain/train_waymo_ssl.py`**
+  - Added `load_ssl_encoder()`: Loads pretrained encoder from checkpoint
+  - Returns (config, encoder) tuple, handles multiple checkpoint formats
+  - Fixed `weights_only=False` for torch.load compatibility
+
+**Testing:**
+- Import test: ✓
+- Encoder creation: ✓
+- Checkpoint loading: ✓
+- CLI help: ✓
+
+**Key additions:**
+- Bridges PR #2 (SSL pretrain) to waypoint BC training
+- Enables transfer learning from temporal contrastive pretraining
+- Supports both pretrained and stub encoder modes
+
+**Branch:** `feature/daily-2026-03-15-c`
+**PR URL:** https://github.com/Capri2014/AIResearch/pull/new/feature/daily-2026-03-15-c
+
+---
 
 ### Pipeline PR #2: Waymo SSL Pretraining Pipeline (2026-03-15)
 - **Created: `training/pretrain/waymo_ssl_dataset.py`**

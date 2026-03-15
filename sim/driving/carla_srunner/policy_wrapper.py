@@ -70,6 +70,30 @@ except ImportError as e:
     WAYPOINT_BC_AVAILABLE = False
     print(f"[policy_wrapper] Waypoint BC not available: {e}")
 
+# New BC checkpoint loader (supports SSL-based models)
+try:
+    from training.rl.bc_checkpoint_loader import (
+        load_bc_waypoint_model,
+        BCCheckpointConfig,
+        BCLoadConfig,
+    )
+    BC_CHECKPOINT_LOADER_AVAILABLE = True
+except ImportError as e:
+    BC_CHECKPOINT_LOADER_AVAILABLE = False
+    print(f"[policy_wrapper] BC checkpoint loader not available: {e}")
+
+# Waypoint policy wrapper for RL refinement
+try:
+    from training.rl.waypoint_policy_wrapper import (
+        WaypointPolicyWithDelta,
+        WaypointPolicyInference,
+        create_rl_refinement_model,
+    )
+    WAYPOINT_POLICY_WRAPPER_AVAILABLE = True
+except ImportError as e:
+    WAYPOINT_POLICY_WRAPPER_AVAILABLE = False
+    print(f"[policy_wrapper] Waypoint policy wrapper not available: {e}")
+
 
 @dataclass
 class PolicyConfig:
