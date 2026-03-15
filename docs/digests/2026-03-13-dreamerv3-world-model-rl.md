@@ -3,6 +3,7 @@
 **Date:** 2026-03-13  
 **Topic:** DreamerV3 world model + driving-focused simulators  
 **Match to claim:** "video + action → next video" (GAIA-1 family); DreamerV3 provides the RL planning backbone
+**PR:** #4
 
 ## TL;DR (3 bullets)
 - DreamerV3 learns a **latent dynamics model** that enables sample-efficient RL by planning in a compressed latent space, not pixel space.
