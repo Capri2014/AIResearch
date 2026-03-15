@@ -1,12 +1,13 @@
 # Status (ClawBot)
 
-_Last updated: 2026-03-15 (Pipeline PR #1)_
+_Last updated: 2026-03-15 (Pipeline PR #2)_
 
 ## Current focus
 Driving-first pipeline: **Waymo episodes → PyTorch SSL pretrain → waypoint BC → RL refinement → CARLA ScenarioRunner eval**.
 
 ## Daily Cadence
 
+- ✅ **Pipeline PR #2** (2026-03-15): Waymo SSL Pretraining Pipeline
 - ✅ **Pipeline PR #1** (2026-03-15): Waymo to Episode Converter + Dataset Loader
 - ✅ **Pipeline PR #6** (2026-03-14): RL Refinement Evaluation + Metrics Hardening (evening) - JSON fix
 - ✅ **Pipeline PR #5** (2026-03-14): PPO Residual Delta-Waypoint Training (Option B)
@@ -54,6 +55,42 @@ Driving-first pipeline: **Waymo episodes → PyTorch SSL pretrain → waypoint B
 
 **Branch:** `feature/daily-2026-03-15-a`
 **PR URL:** https://github.com/Capri2014/AIResearch/pull/new/feature/daily-2026-03-15-a
+
+### Pipeline PR #2: Waymo SSL Pretraining Pipeline (2026-03-15)
+- **Created: `training/pretrain/waymo_ssl_dataset.py`**
+  - `WaymoTemporalPairDataset`: Creates temporal frame pairs (t, t+Δt) for SSL
+  - `collate_temporal_pairs()`: Batch collation with stacked tensors
+  - `create_waymo_ssl_dataloader()`: Factory function
+  - Supports stub data generation for testing
+  - delta_t_range: 0.5-2.0 seconds
+
+- **Created: `training/pretrain/train_waymo_ssl.py`**
+  - `WaymoSSLConfig`: Full configuration dataclass
+  - `SimpleEncoder`: CNN encoder with ResNet backbone (resnet34/50, efficientnet_b0)
+  - Projection head: 512/2048/1280 → 256 → 128 embedding dim
+  - `temporal_info_nce_loss()`: Temporal contrastive loss
+  - Full training loop with checkpointing and metrics logging
+
+- **Updated: `training/episodes/waymo_episode_dataset.py`**
+  - Fixed episode_dir type to accept str | Path
+  - Added `_create_stub_episodes()` for synthetic data
+  - Returns flat dict format: episode_id, t, speed_mps, yaw_rad, camera_paths, future_waypoints
+
+- **Created: `training/pretrain/__init__.py`**: Module exports with lazy imports
+
+**Testing:**
+- Stub dataset creation: ✓ (250 frames from 5 episodes)
+- Temporal pair generation: ✓ (2970 pairs)
+- Batch collation: ✓ (speed, yaw, waypoints correct)
+- Imports: ✓
+
+**Key additions:**
+- Completes step 2 of driving-first pipeline (Waymo → SSL pretrain)
+- Encoder checkpoint ready for transfer to waypoint BC
+- Temporal contrastive learning teaches invariance to short-term motion
+
+**Branch:** `feature/daily-2026-03-15-b`
+**PR URL:** https://github.com/Capri2014/AIResearch/pull/new/feature/daily-2026-03-15-b
 
 ### Pipeline PR #5: PPO Residual Delta-Waypoint Training (Option B) (2026-03-14)
 - **Created: `training/rl/ppo_residual_delta.py`**

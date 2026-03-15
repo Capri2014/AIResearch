@@ -1,72 +1,78 @@
-# Pipeline PR #2: SSL-to-Waypoint BC Transfer Learning
-
 ## Summary
-Add SSL pretrained model loader and integration with waypoint BC pipeline, enabling transfer learning from self-supervised pretrained encoders to the driving policy.
+
+Implements PyTorch SSL pretraining pipeline for Waymo driving data with temporal contrastive learning. This bridges the gap between Waymo episodes (PR #1) and waypoint BC training.
 
 ## Changes
 
-### New File: `training/sft/ssl_pretrained_loader.py`
-- **SSLConfig**: Configuration dataclass for SSL pretrained models
-- **SSLEncoder**: ResNet-based encoder wrapper with projection head
-- **JEPAEncoder**: Joint Embedding Predictive Architecture encoder with predictor
-- **SSLFeatureExtractor**: Feature extraction utility class
-- **load_ssl_pretrained()**: Load SSL checkpoint and return model
-- **BCWithSSLEncoder**: Waypoint BC model with SSL pretrained encoder initialization
-- **create_bc_with_ssl_pretrained()**: Factory function to create BC model with SSL encoder
+### New Files
 
-### Updated: `sim/driving/carla_srunner/policy_wrapper.py`
-- Added SSL_PRETRAINED_AVAILABLE flag
-- Added **SSLWaypointPolicyWrapper**: CARLA-integrable policy using SSL pretrained encoder
-- Supports loading from SSL checkpoints (JEPA, contrastive, temporal_contrastive)
-- Seamlessly integrates with existing waypoints_to_control() method
+1. **training/pretrain/waymo_ssl_dataset.py**
+   - `WaymoTemporalPairDataset`: Creates temporal frame pairs (anchor at t, positive at t+Δt)
+   - `collate_temporal_pairs()`: Batch collation with stacked tensors for speed, yaw, waypoints
+   - `create_waymo_ssl_dataloader()`: Factory function for common configurations
+   - Supports configurable delta_t_range (default: 0.5-2.0 seconds)
+   - Creates stub synthetic data when episode directory is unavailable
 
-## Architecture
-```
-Waymo Episodes → SSL Pretrain (JEPA/Contrastive)
-                        ↓
-              SSL Encoder (frozen)
-                        ↓
-              BCWithSSLEncoder → waypoints → CARLA
-```
+2. **training/pretrain/train_waymo_ssl.py**
+   - `WaymoSSLConfig`: Configuration dataclass for all training parameters
+   - `SimpleEncoder`: CNN encoder with ResNet backbone (resnet34/50, efficientnet_b0)
+   - Projection head with 128-dim embedding output
+   - `temporal_info_nce_loss()`: Temporal contrastive loss
+   - Full training loop with checkpointing and metrics logging
+
+### Modified Files
+
+3. **training/episodes/waymo_episode_dataset.py**
+   - Fixed `episode_dir` type to accept both str and Path
+   - Added `_create_stub_episodes()` for synthetic data generation
+   - Returns flat dict format: episode_id, t, speed_mps, yaw_rad, camera_paths, future_waypoints
+
+4. **training/pretrain/__init__.py**: Module exports with lazy imports
 
 ## Usage
 
-### Python API
-```python
-from training.sft.ssl_pretrained_loader import (
-    load_ssl_pretrained,
-    create_bc_with_ssl_pretrained,
-)
+```bash
+# Run SSL pretraining with default settings
+python -m training.pretrain.train_waymo_ssl \
+    --episode-dir /path/to/waymo/episodes \
+    --batch-size 32 \
+    --num-steps 1000
 
-# Load SSL pretrained checkpoint
-ssl_model = load_ssl_pretrained("checkpoints/ssl_jepa.pt", model_type="jepa")
-
-# Create BC model with SSL encoder
-bc_model = create_bc_with_ssl_pretrained(
-    checkpoint_path="checkpoints/ssl_jepa.pt",
-    num_waypoints=8
-)
+# With custom encoder and longer delta_t range
+python -m training.pretrain.train_waymo_ssl \
+    --episode-dir /path/to/waymo/episodes \
+    --encoder-type resnet50 \
+    --delta-t-min 1.0 \
+    --delta-t-max 3.0 \
+    --batch-size 16 \
+    --out-dir out/waymo_ssl_resnet50
 ```
 
-### CARLA Integration
-```python
-from sim.driving.carla_srunner.policy_wrapper import SSLWaypointPolicyWrapper
+## Architecture
 
-policy = SSLWaypointPolicyWrapper(
-    ssl_checkpoint=Path("checkpoints/ssl_jepa.pt"),
-    model_type="jepa",
-    num_waypoints=8
-)
-policy.initialize()
-waypoints = policy.predict(images)
-control = policy.waypoints_to_control(waypoints)
 ```
+Waymo episodes → WaymoTemporalPairDataset → temporal InfoNCE → encoder checkpoint
+```
+
+The encoder checkpoint can then be loaded by the waypoint BC model for transfer learning.
+
+## Context
+
+Driving-first pipeline: **Waymo episodes → PyTorch SSL pretrain → waypoint BC → RL refinement → CARLA eval**
+
+This PR completes step 2 (SSL pretrain). The encoder output (128-dim embeddings) will be used as frozen features for waypoint BC training.
 
 ## Testing
-- ✓ ssl_pretrained_loader smoke test
-- ✓ policy_wrapper import test
 
-## Notes
-- Falls back to simple CNN encoder if torchvision unavailable
-- Supports multiple SSL model types: jepa, contrastive, temporal_contrastive
-- Encoder weights are frozen by default for transfer learning
+- Stub dataset creation: ✓ (250 frames from 5 episodes)
+- Temporal pair generation: ✓ (2970 pairs from 250 frames)
+- Batch collation: ✓ (speed, yaw, waypoints stacked correctly)
+- Import test: ✓
+
+## Checklist
+
+- [x] Code compiles without errors
+- [x] Stub data generation works for testing
+- [x] Temporal pairs generated correctly
+- [x] Batch collation produces expected tensor shapes
+- [x] Ready for integration with waypoint BC
