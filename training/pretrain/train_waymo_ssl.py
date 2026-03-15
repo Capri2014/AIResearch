@@ -508,5 +508,74 @@ def main():
     print(f"[waymo-ssl] Training complete: {summary}")
 
 
+def load_ssl_encoder(
+    checkpoint_path: str | Path,
+    device: str = "cuda",
+) -> Tuple[WaymoSSLConfig, SimpleEncoder]:
+    """
+    Load a pretrained SSL encoder from checkpoint.
+    
+    Args:
+        checkpoint_path: Path to the SSL checkpoint
+        device: Device to load the model on
+        
+    Returns:
+        Tuple of (config, encoder)
+    """
+    checkpoint_path = Path(checkpoint_path)
+    
+    if not checkpoint_path.exists():
+        raise FileNotFoundError(f"Checkpoint not found: {checkpoint_path}")
+    
+    print(f"[waymo-ssl] Loading checkpoint from {checkpoint_path}")
+    
+    # Load checkpoint
+    checkpoint = torch.load(checkpoint_path, map_location=device, weights_only=False)
+    
+    # Extract config (handle different checkpoint formats)
+    if 'config' in checkpoint:
+        cfg = checkpoint['config']
+        # Convert dict to WaymoSSLConfig if needed
+        if isinstance(cfg, dict):
+            cfg = WaymoSSLConfig(**cfg)
+    elif 'ssl_config' in checkpoint:
+        cfg = checkpoint['ssl_config']
+        if isinstance(cfg, dict):
+            cfg = WaymoSSLConfig(**cfg)
+    else:
+        # Default config
+        print("[waymo-ssl] Warning: No config in checkpoint, using defaults")
+        cfg = WaymoSSLConfig()
+    
+    # Create encoder
+    encoder = SimpleEncoder(
+        encoder_type=cfg.encoder_type,
+        pretrained=False,
+        embedding_dim=cfg.embedding_dim,
+    ).to(device)
+    
+    # Load weights
+    if 'encoder_state_dict' in checkpoint:
+        encoder.load_state_dict(checkpoint['encoder_state_dict'])
+    elif 'model_state_dict' in checkpoint:
+        encoder.load_state_dict(checkpoint['model_state_dict'])
+    elif 'state_dict' in checkpoint:
+        encoder.load_state_dict(checkpoint['state_dict'])
+    else:
+        # Try to find any state dict
+        for key in checkpoint.keys():
+            if 'encoder' in key.lower() or 'model' in key.lower():
+                if isinstance(checkpoint[key], dict):
+                    encoder.load_state_dict(checkpoint[key])
+                    break
+        else:
+            print("[waymo-ssl] Warning: No encoder state dict found")
+    
+    encoder.eval()
+    print(f"[waymo-ssl] Loaded encoder (embedding_dim={cfg.embedding_dim})")
+    
+    return cfg, encoder
+
+
 if __name__ == "__main__":
     main()
