@@ -1,12 +1,13 @@
 # Status (ClawBot)
 
-_Last updated: 2026-03-16 (Pipeline PR #1)_
+_Last updated: 2026-03-16 (Pipeline PR #3)_
 
 ## Current focus
 Driving-first pipeline: **Waymo episodes → PyTorch SSL pretrain → waypoint BC → RL refinement → CARLA ScenarioRunner eval**.
 
 ## Daily Cadence
 
+- ✅ **Pipeline PR #3** (2026-03-16): BC+SSL Integration Tests + Smoke Test
 - ✅ **Pipeline PR #1** (2026-03-16): E2E Pipeline Evaluation + Unified Checkpoint Manager
 - ✅ **Pipeline PR #5** (2026-03-15): PPO Delta-Waypoint Training with SFT Initialization
 - ✅ **Pipeline PR #4** (2026-03-15): BC to RL Integration + Pipeline Unification
@@ -58,6 +59,35 @@ Driving-first pipeline: **Waymo episodes → PyTorch SSL pretrain → waypoint B
 
 **Branch:** `feature/daily-2026-03-16-a`
 **PR URL:** https://github.com/Capri2014/AIResearch/pull/new/feature/daily-2026-03-16-a
+
+---
+
+### Pipeline PR #3: BC+SSL Integration Tests + Smoke Test (2026-03-16)
+- **Created: `training/bc/test_bc_ssl_integration.py`**
+  - 7 comprehensive integration tests for BC + SSL pipeline
+  - Tests SSL encoder creation, forward pass, training step, checkpoint save/load
+  - Validates manual SSL→BC integration pipeline
+
+**Test Results:**
+```
+✓ PASS: Import Verification
+✓ PASS: SSL Encoder Creation
+✓ PASS: BC+SSL Dataset Creation
+✓ PASS: Forward Pass
+✓ PASS: SSL + BC Integration
+✓ PASS: Training Step
+✓ PASS: Checkpoint Save/Load
+Total: 7/7 tests passed
+```
+
+**Key findings:**
+- SSL encoder produces 128-dim embeddings from 256x256 images
+- BC model expects [B, C, H, W] BEV features
+- Manual SSL+BC integration works
+- Note: WaypointBCModel stores ssl_encoder but doesn't integrate in forward pass
+
+**Branch:** `feature/daily-2026-03-16-c`
+**PR URL:** https://github.com/Capri2014/AIResearch/pull/new/feature/daily-2026-03-16-c
 
 ---
 
