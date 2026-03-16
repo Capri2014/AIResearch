@@ -6,6 +6,7 @@ Provides:
 - WaypointBCConfig: Configuration dataclass
 - train_waypoint_bc.py: Training script
 - Loss functions for BC training
+- WaypointVisualizer: Visualization and diagnostics
 """
 
 from .waypoint_bc_model import (
@@ -20,6 +21,12 @@ from .waypoint_bc_model import (
     speed_mse_loss,
 )
 
+from .waypoint_visualizer import (
+    WaypointVisualizer,
+    WaypointVisConfig,
+    create_waypoint_visualizer,
+)
+
 __all__ = [
     'WaypointBCModel',
     'WaypointBCConfig', 
@@ -30,4 +37,7 @@ __all__ = [
     'waypoint_mse_loss',
     'speed_l1_loss',
     'speed_mse_loss',
+    'WaypointVisualizer',
+    'WaypointVisConfig',
+    'create_waypoint_visualizer',
 ]
