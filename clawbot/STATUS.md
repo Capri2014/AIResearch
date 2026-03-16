@@ -1,12 +1,13 @@
 # Status (ClawBot)
 
-_Last updated: 2026-03-16 (Pipeline PR #3)_
+_Last updated: 2026-03-16 (Pipeline PR #4)_
 
 ## Current focus
 Driving-first pipeline: **Waymo episodes → PyTorch SSL pretrain → waypoint BC → RL refinement → CARLA ScenarioRunner eval**.
 
 ## Daily Cadence
 
+- ⏳ **Pipeline PR #4** (2026-03-16): SSL Encoder Integration + Waypoint Visualizer
 - ✅ **Pipeline PR #3** (2026-03-16): BC+SSL Integration Tests + Smoke Test
 - ✅ **Pipeline PR #1** (2026-03-16): E2E Pipeline Evaluation + Unified Checkpoint Manager
 - ✅ **Pipeline PR #5** (2026-03-15): PPO Delta-Waypoint Training with SFT Initialization
@@ -30,6 +31,41 @@ Driving-first pipeline: **Waymo episodes → PyTorch SSL pretrain → waypoint B
 - ⏳ **Pipeline PR #5** (2026-02-16): RL Refinement Stub for Residual Delta-Waypoint Learning - awaiting review
 
 ## Recent changes
+
+### Pipeline PR #4: SSL Encoder Integration + Waypoint Visualizer (2026-03-16)
+- **Updated: `training/bc/waypoint_bc_model.py`**
+  - SSL encoder integration: Added ssl_encoder and freeze_ssl_encoder parameters
+  - Added ssl_projection layer to map SSL embeddings to BEV feature space
+  - Support direct `images=` input for SSL encoding path
+  - Fixed temporal encoding input dimension bug (was incorrectly multiplying by temporal_history)
+  - Factory function now supports use_temporal, temporal_history, freeze_ssl_encoder params
+
+- **Created: `training/bc/waypoint_visualizer.py`**
+  - WaypointVisualizer: Visualization and diagnostics for waypoint predictions
+  - waypoints_to_image(): Render waypoints as overhead BEV view
+  - visualize_prediction(): Compare predicted vs target waypoints
+  - compute_metrics(): ADE, FDE, per-waypoint errors
+  - visualize_bev_features(): Heatmap of BEV activation maps
+
+- **Updated: `training/bc/__init__.py`**
+  - Added exports for WaypointVisualizer, WaypointVisConfig
+
+**Testing:**
+- Temporal forward pass: ✓
+- No temporal forward pass: ✓
+- SSL encoder path: ✓
+- predict() method: ✓
+- Visualizer metrics: ✓ (ADE, FDE computed correctly)
+
+**Key additions:**
+- Fixes the integration gap from PR #3 where ssl_encoder was stored but not used
+- Enables end-to-end SSL encoder → waypoint BC pipeline
+- Provides diagnostic tools for debugging waypoint predictions
+
+**Branch:** `feature/daily-2026-03-16-d`
+**PR URL:** https://github.com/Capri2014/AIResearch/pull/new/feature/daily-2026-03-16-d
+
+---
 
 ### Pipeline PR #1: E2E Pipeline Evaluation + Unified Checkpoint Manager (2026-03-16)
 - **Created: `training/eval/e2e_pipeline_eval.py`**
