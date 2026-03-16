@@ -184,7 +184,7 @@ def main() -> None:
     print(f"\n  ADE: {summary['ade_mean']:.4f} ± {summary['ade_std']:.4f}m")
     print(f"  FDE: {summary['fde_mean']:.4f} ± {summary['fde_std']:.4f}m")
     print(f"  Success Rate: {summary['success_rate']:.1%}")
-    print(f"  Avg Return: {summary['avg_return']:.3f}")
+    print(f"  Avg Return: {summary['return_mean']:.3f}")
 
 
 if __name__ == "__main__":
