@@ -1,12 +1,13 @@
 # Status (ClawBot)
 
-_Last updated: 2026-03-16 (Pipeline PR #1)_
+_Last updated: 2026-03-16 (Pipeline PR #2)_
 
 ## Current focus
 Driving-first pipeline: **Waymo episodes → PyTorch SSL pretrain → waypoint BC → RL refinement → CARLA ScenarioRunner eval**.
 
 ## Daily Cadence
 
+- ✅ **Pipeline PR #2** (2026-03-16): Pipeline Inference Module
 - ✅ **Pipeline PR #1** (2026-03-16): E2E Pipeline Evaluation + Unified Checkpoint Manager
 - ✅ **Pipeline PR #5** (2026-03-15): PPO Delta-Waypoint Training with SFT Initialization
 - ✅ **Pipeline PR #4** (2026-03-15): BC to RL Integration + Pipeline Unification
@@ -58,6 +59,47 @@ Driving-first pipeline: **Waymo episodes → PyTorch SSL pretrain → waypoint B
 
 **Branch:** `feature/daily-2026-03-16-a`
 **PR URL:** https://github.com/Capri2014/AIResearch/pull/new/feature/daily-2026-03-16-a
+
+---
+
+### Pipeline PR #2: Pipeline Inference Module (2026-03-16)
+- **Created: `training/inference/pipeline_inference.py`**
+  - `InferenceConfig`: Configuration dataclass for inference settings
+    - Checkpoint paths (BC, RL, SSL)
+    - Device, precision settings
+    - Number of waypoints, confidence computation options
+  
+  - `InferenceResult`: Result dataclass
+    - BC waypoints, RL delta, final waypoints
+    - Confidence scores (overall, BC-specific, RL-specific)
+    - Inference timing metadata
+  
+  - `PipelineInference`: Main inference class
+    - `load_models()`: Load BC/RL/SSL checkpoints
+    - `predict()`: Single observation inference
+    - `predict_batch()`: Batch inference
+    - `run_evaluation_suite()`: Scenario-based evaluation
+    - Supports both BC-only and BC+RL modes
+
+  - **Created: `training/inference/__init__.py`**: Module exports
+  - **Convenience function**: `load_inference_pipeline()`
+
+**Testing:**
+- Import test: ✓
+- Smoke test (dummy observation): ✓
+  - Mode: bc_only
+  - BC waypoints shape: (8, 2)
+  - Final waypoints shape: (8, 2)
+  - Confidence: 0.1
+
+**Key additions:**
+- Unified inference API for BC → RL pipeline
+- Real-time inference support with batch processing
+- Bridges trained checkpoints to CARLA integration and deployment
+- Confidence scoring for downstream decision making
+
+**Branch:** `feature/daily-2026-03-16-b`
+**PR URL:** https://github.com/Capri2014/AIResearch/pull/new/feature/daily-2026-03-16-b
 
 ---
 
