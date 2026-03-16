@@ -1,12 +1,13 @@
 # Status (ClawBot)
 
-_Last updated: 2026-03-15 (Pipeline PR #5)_
+_Last updated: 2026-03-16 (Pipeline PR #1)_
 
 ## Current focus
 Driving-first pipeline: **Waymo episodes → PyTorch SSL pretrain → waypoint BC → RL refinement → CARLA ScenarioRunner eval**.
 
 ## Daily Cadence
 
+- ✅ **Pipeline PR #1** (2026-03-16): E2E Pipeline Evaluation + Unified Checkpoint Manager
 - ✅ **Pipeline PR #5** (2026-03-15): PPO Delta-Waypoint Training with SFT Initialization
 - ✅ **Pipeline PR #4** (2026-03-15): BC to RL Integration + Pipeline Unification
 - ✅ **Pipeline PR #3** (2026-03-15): Waypoint BC with SSL Encoder Transfer Learning
@@ -28,6 +29,37 @@ Driving-first pipeline: **Waymo episodes → PyTorch SSL pretrain → waypoint B
 - ⏳ **Pipeline PR #5** (2026-02-16): RL Refinement Stub for Residual Delta-Waypoint Learning - awaiting review
 
 ## Recent changes
+
+### Pipeline PR #1: E2E Pipeline Evaluation + Unified Checkpoint Manager (2026-03-16)
+- **Created: `training/eval/e2e_pipeline_eval.py`**
+  - `E2EEvalConfig`: Configuration dataclass for E2E evaluation
+  - `EndToEndPipelineEvaluator`: Main evaluator class
+  - Loads BC checkpoint (WaypointBCModel) and RL checkpoint (PPO delta-waypoint)
+  - Runs CARLA scenarios with proper model integration
+  - Supports dry-run mode when CARLA unavailable
+  - CLI: `--bc-checkpoint`, `--rl-checkpoint`, `--scenarios`, etc.
+
+- **Created: `training/utils/checkpoint_manager.py`**
+  - `CheckpointType`: Enum for checkpoint types (BC_WAYPOINT, RL_PPO_DELTA, etc.)
+  - `CheckpointInfo`: Dataclass for checkpoint metadata
+  - `CheckpointManager`: Unified loading interface
+    - `inspect()`: View checkpoint without loading
+    - `load_checkpoint()`: Auto-detect type and load
+  - Supports BC waypoint, RL PPO/GRPO, SSL encoder checkpoints
+
+**Testing:**
+- Import test (e2e_pipeline_eval): ✓
+- Import test (checkpoint_manager): ✓
+- Checkpoint inspection (ppo_delta_waypoint_2026_03_15/final.pt): ✓
+
+**Key additions:**
+- Bridges training checkpoints to CARLA evaluation
+- Unified checkpoint loading across all pipeline stages
+
+**Branch:** `feature/daily-2026-03-16-a`
+**PR URL:** https://github.com/Capri2014/AIResearch/pull/new/feature/daily-2026-03-16-a
+
+---
 
 ### Pipeline PR #5: PPO Delta-Waypoint Training with SFT Initialization (2026-03-15)
 - **Created: `training/rl/ppo_delta_waypoint_trainer.py`**
