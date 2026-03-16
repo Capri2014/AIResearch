@@ -1,13 +1,14 @@
 # Status (ClawBot)
 
-_Last updated: 2026-03-16 (Pipeline PR #4)_
+_Last updated: 2026-03-16 (Pipeline PR #5)_
 
 ## Current focus
 Driving-first pipeline: **Waymo episodes → PyTorch SSL pretrain → waypoint BC → RL refinement → CARLA ScenarioRunner eval**.
 
 ## Daily Cadence
 
-- ⏳ **Pipeline PR #4** (2026-03-16): SSL Encoder Integration + Waypoint Visualizer
+- ⏳ **Pipeline PR #5** (2026-03-16): Kinematic Waypoint Follower Environment (Option B)
+- ✅ **Pipeline PR #4** (2026-03-16): SSL Encoder Integration + Waypoint Visualizer
 - ✅ **Pipeline PR #3** (2026-03-16): BC+SSL Integration Tests + Smoke Test
 - ✅ **Pipeline PR #1** (2026-03-16): E2E Pipeline Evaluation + Unified Checkpoint Manager
 - ✅ **Pipeline PR #5** (2026-03-15): PPO Delta-Waypoint Training with SFT Initialization
@@ -64,6 +65,44 @@ Driving-first pipeline: **Waymo episodes → PyTorch SSL pretrain → waypoint B
 
 **Branch:** `feature/daily-2026-03-16-d`
 **PR URL:** https://github.com/Capri2014/AIResearch/pull/new/feature/daily-2026-03-16-d
+
+---
+
+### Pipeline PR #5: Kinematic Waypoint Follower Environment (Option B) (2026-03-16)
+- **Created: `training/rl/kinematic_waypoint_env.py`**
+  - `KinematicVehicle`: Bicycle model kinematics for realistic vehicle simulation
+    - step(steer, throttle, dt): Update vehicle state
+    - State: [x, y, heading]
+  - `KinematicWaypointEnv`: Environment that simulates vehicle following predicted waypoints
+    - State: vehicle position + relative target waypoints (19 dims)
+    - Action: [steer, throttle]
+    - Rewards: waypoint tracking (negative ADE), progress, time penalty, success bonus
+    - Computes ADE, FDE, success metrics per episode
+  - `WaypointPPOAgent`: Simple PPO agent for waypoint following
+    - MLP policy/value networks
+    - Act method with exploration noise
+  - `train_kinematic_waypoint()`: Full training loop with eval intervals
+  - CLI: `--out-dir`, `--episodes`, `--seed`, `--eval-interval`
+
+**Testing (50 episodes):**
+- Episode 10: reward=-443.40, ADE=4.43, FDE=38.00
+- Episode 20: reward=-434.15, ADE=4.33, FDE=37.68
+- Episode 30: reward=-437.79, ADE=4.37, FDE=38.21
+- Episode 40: reward=-450.94, ADE=4.50, FDE=38.30
+- Episode 50: reward=-437.49, ADE=4.37, FDE=37.85
+
+**Key additions:**
+- Kinematic bicycle model for realistic vehicle simulation
+- RL-after-SFT testbed for Option B (waypoint deltas)
+- ADE/FDE metrics for measuring RL refinement quality
+- Can be extended to load SFT checkpoint and learn residual deltas
+
+**Output Artifacts:**
+- `out/kinematic_waypoint_20260316_193531/metrics.json`
+- `out/kinematic_waypoint_20260316_193531/train_metrics.json`
+
+**Branch:** `feature/daily-2026-03-16-e`
+**PR URL:** https://github.com/Capri2014/AIResearch/pull/new/feature/daily-2026-03-16-e
 
 ---
 
