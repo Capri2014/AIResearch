@@ -1,13 +1,14 @@
 # Status (ClawBot)
 
-_Last updated: 2026-03-17 (Pipeline PR #4)_
+_Last updated: 2026-03-17 (Pipeline PR #5)_
 
 ## Current focus
 Driving-first pipeline: **Waymo episodes → PyTorch SSL pretrain → waypoint BC → RL refinement → CARLA ScenarioRunner eval**.
 
 ## Daily Cadence
 
-- ⏳ **Pipeline PR #4** (2026-03-17): Multi-Scenario Evaluation Runner
+- ⏳ **Pipeline PR #5** (2026-03-17): RL Refinement Delta-Waypoint Training (Option B)
+- ✅ **Pipeline PR #4** (2026-03-17): Multi-Scenario Evaluation Runner
 - ⏳ **Pipeline PR #3** (2026-03-17): BC+SSL Inference Script + Dataset Fix
 - ⏳ **Pipeline PR #2** (2026-03-17): Waymo SSL Dataset Image Loading Fix
 - ⏳ **Pipeline PR #1** (2026-03-17): BC-to-Kinematic Integration for RL-after-SFT
@@ -61,6 +62,44 @@ Driving-first pipeline: **Waymo episodes → PyTorch SSL pretrain → waypoint B
 
 **Branch:** `feature/daily-2026-03-17-d`
 **PR URL:** https://github.com/Capri2014/AIResearch/pull/new/feature/daily-2026-03-17-d
+
+---
+
+### Pipeline PR #5: RL Refinement Delta-Waypoint Training (Option B) (2026-03-17)
+- **Created: `training/rl/rl_refinement_delta.py`**
+  - `RLRefinementConfig`: Configuration dataclass
+    - State dim: 20 (vehicle state + waypoints)
+    - Delta head: [128, 64] hidden dims
+    - PPO hyperparameters: gamma=0.99, lr=3e-4, clip_ratio=0.2
+  - `KinematicWaypointEnv`: Simplified kinematic environment
+    - Bicycle model kinematics
+    - SFT waypoint prediction (straight-line)
+    - Delta refinement applied on top
+    - Rewards: waypoint tracking + progress + time penalty + success bonus
+  - `DeltaWaypointPolicy`: Residual delta prediction network
+    - Encoder: 20 → 128 → 64 (ReLU)
+    - Mean head: 64 → 16 (num_waypoints * 2)
+    - Log std: learnable parameter
+    - Value head: 64 → 1
+  - `PPOAgent`: PPO training loop
+    - GAE advantage estimation
+    - Clipped surrogate objective
+    - Value and entropy losses
+
+**Testing (50 episodes):**
+- Final reward: -8.26
+- Mean reward (last 10): -9.53
+
+**Architecture:**
+- SFT Waypoints (straight-line) → + DeltaWaypointPolicy (residual) → Refined Waypoints
+
+**Output Artifacts:**
+- `out/rl_refinement_daily_2026_03_17/metrics.json`
+- `out/rl_refinement_daily_2026_03_17/train_metrics.json`
+- `out/rl_refinement_daily_2026_03_17/final.pt`
+
+**Branch:** `feature/daily-2026-03-17-e`
+**PR URL:** https://github.com/Capri2014/AIResearch/pull/new/feature/daily-2026-03-17-e
 
 ---
 
