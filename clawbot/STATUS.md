@@ -1,12 +1,13 @@
 # Status (ClawBot)
 
-_Last updated: 2026-03-10 (Pipeline PR #3)_
+_Last updated: 2026-03-16 (Pipeline PR #6 - today)_
 
 ## Current focus
 Driving-first pipeline: **Waymo episodes → PyTorch SSL pretrain → waypoint BC → RL refinement → CARLA ScenarioRunner eval**.
 
 ## Daily Cadence
 
+- ✅ **Pipeline PR #6** (2026-03-16): Toy Waypoint SFT vs RL Comparison
 - ✅ **Pipeline PR #3** (2026-03-10): Multi-Scenario Evaluation Framework
 - ✅ **Pipeline PR #2** (2026-03-07): Kinematic Waypoint Env Evaluation with ADE/FDE
 - ✅ **Pipeline PR #6** (2026-02-28): RL Refinement Evaluation + Metrics Hardening
@@ -16,6 +17,19 @@ Driving-first pipeline: **Waymo episodes → PyTorch SSL pretrain → waypoint B
 - ⏳ **Pipeline PR #5** (2026-02-16): RL Refinement Stub for Residual Delta-Waypoint Learning - awaiting review
 
 ## Recent changes
+
+### Pipeline PR #6: Toy Waypoint SFT vs RL Comparison (2026-03-16)
+- **Created: `training/rl/compare_toy_policies.py`**
+  - Runs both SFT and RL policies with the **same seeds** (deterministic evaluation)
+  - Writes `metrics_sft.json`, `metrics_rl.json`, and `comparison.json`
+  - Prints 3-line report: ADE, FDE, Success rate for each policy
+  - Includes comfort metrics (max_accel, max_jerk)
+  - Reuses existing metrics schema (domain="rl")
+  - Ran 30 episodes with seed base 0:
+    - SFT: ADE=16.24m, FDE=44.95m, Success=0.0%
+    - RL: ADE=16.22m, FDE=44.77m, Success=0.0%
+    - Delta: ADE=-0.02m (0.1% improvement), FDE=-0.19m (0.4% improvement)
+  - Mirrors `compare_kinematic_policies.py` but for toy environment
 
 ### Pipeline PR #3: Multi-Scenario Evaluation Framework (2026-03-10)
 - **Created: `training/rl/eval_multi_scenario.py`**
@@ -83,6 +97,6 @@ final_waypoints = sft_waypoints + delta_head(z)
 - Metrics: ADE/FDE, route_completion, collisions
 
 ## Links
-- Daily notes: `clawbot/daily/2026-03-10.md`
-- Branch: `feature/daily-2026-03-10-c`
-- PR: https://github.com/Capri2014/AIResearch/pull/new/feature/daily-2026-03-10-c
+- Daily notes: `clawbot/daily/2026-03-16.md`
+- Branch: `feature/daily-2026-03-10-f`
+- PR: https://github.com/Capri2014/AIResearch/pull/new/feature/daily-2026-03-10-f
