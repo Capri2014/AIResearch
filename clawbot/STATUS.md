@@ -1,12 +1,13 @@
 # Status (ClawBot)
 
-_Last updated: 2026-03-17 (Pipeline PR #2)_
+_Last updated: 2026-03-17 (Pipeline PR #3)_
 
 ## Current focus
 Driving-first pipeline: **Waymo episodes → PyTorch SSL pretrain → waypoint BC → RL refinement → CARLA ScenarioRunner eval**.
 
 ## Daily Cadence
 
+- ⏳ **Pipeline PR #3** (2026-03-17): BC+SSL Inference Script + Dataset Fix
 - ⏳ **Pipeline PR #2** (2026-03-17): Waymo SSL Dataset Image Loading Fix
 - ⏳ **Pipeline PR #1** (2026-03-17): BC-to-Kinematic Integration for RL-after-SFT
 - ⏳ **Pipeline PR #5** (2026-03-16): Kinematic Waypoint Follower Environment (Option B)
@@ -76,6 +77,33 @@ Driving-first pipeline: **Waymo episodes → PyTorch SSL pretrain → waypoint B
 
 **Branch:** `feature/daily-2026-03-17-a`
 **PR URL:** https://github.com/Capri2014/AIResearch/pull/new/feature/daily-2026-03-17-a
+
+---
+
+### Pipeline PR #3: BC+SSL Inference Script + Dataset Fix (2026-03-17)
+- **Fixed: `training/bc/train_waypoint_bc_ssl.py`**
+  - Removed invalid parameters (return_images, return_temporal) from WaymoEpisodeDatasetConfig
+  - Fixed image loading to use 'camera_paths' key from dataset
+  - Fixed numpy array/float conversion to tensors for waypoints and speed
+
+- **Created: `training/bc/infer_bc_ssl.py`**
+  - New inference script for BC+SSL waypoint model
+  - Loads trained BC checkpoint and runs inference on episodes
+  - Computes ADE/FDE metrics
+  - Optional visualization with waypoint plots
+
+**Testing:**
+- Inference test (10 frames): ✓
+- Mean ADE: 4.49 ± 1.40
+- Mean FDE: 6.79 ± 1.39
+
+**Key additions:**
+- Completes BC+SSL pipeline with inference capability
+- Enables evaluation of trained models on episodes
+- Provides visualization for debugging predictions
+
+**Branch:** `feature/daily-2026-03-17-c`
+**PR URL:** https://github.com/Capri2014/AIResearch/pull/new/feature/daily-2026-03-17-c
 
 ---
 
