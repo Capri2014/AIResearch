@@ -1,12 +1,13 @@
 # Status (ClawBot)
 
-_Last updated: 2026-03-17 (Pipeline PR #3)_
+_Last updated: 2026-03-17 (Pipeline PR #4)_
 
 ## Current focus
 Driving-first pipeline: **Waymo episodes → PyTorch SSL pretrain → waypoint BC → RL refinement → CARLA ScenarioRunner eval**.
 
 ## Daily Cadence
 
+- ⏳ **Pipeline PR #4** (2026-03-17): Multi-Scenario Evaluation Runner
 - ⏳ **Pipeline PR #3** (2026-03-17): BC+SSL Inference Script + Dataset Fix
 - ⏳ **Pipeline PR #2** (2026-03-17): Waymo SSL Dataset Image Loading Fix
 - ⏳ **Pipeline PR #1** (2026-03-17): BC-to-Kinematic Integration for RL-after-SFT
@@ -35,6 +36,33 @@ Driving-first pipeline: **Waymo episodes → PyTorch SSL pretrain → waypoint B
 - ⏳ **Pipeline PR #5** (2026-02-16): RL Refinement Stub for Residual Delta-Waypoint Learning - awaiting review
 
 ## Recent changes
+
+### Pipeline PR #4: Multi-Scenario Evaluation Runner (2026-03-17)
+- **Created: `training/eval/multi_scenario_eval.py`**
+  - MultiScenarioRunner: Orchestrates evaluation across scenario suites
+  - ScenarioEvaluator: Runs individual scenarios and collects metrics
+  - ModelLoader: Loads BC and RL checkpoints for evaluation
+  - Supports smoke, quick, full, adverse, night scenario suites
+  - Computes ADE, FDE, completion rate, infraction metrics
+  - Outputs aggregated summary with per-scenario breakdown
+  - Dry-run mode for testing without CARLA
+
+**Testing:**
+- Dry-run smoke suite (2 scenarios): ✓
+- Success Rate: 100%, Mean ADE: 7.01m, Mean FDE: 13.42m
+- Dry-run full suite (8 scenarios): ✓
+- Success Rate: 62.5%, Mean ADE: 4.92m, Mean FDE: 8.13m
+
+**Key additions:**
+- Comprehensive multi-scenario evaluation for driving pipeline
+- Bridges BC/RL training to CARLA scenario evaluation
+- Standardized metrics output compatible with schema
+- Supports multiple runs per scenario for statistical significance
+
+**Branch:** `feature/daily-2026-03-17-d`
+**PR URL:** https://github.com/Capri2014/AIResearch/pull/new/feature/daily-2026-03-17-d
+
+---
 
 ### Pipeline PR #2: Waymo SSL Dataset Image Loading Fix (2026-03-17)
 - **Updated: `training/pretrain/waymo_ssl_dataset.py`**
