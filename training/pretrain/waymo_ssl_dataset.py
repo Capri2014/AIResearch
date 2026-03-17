@@ -174,6 +174,55 @@ class WaymoTemporalPairDataset:
         return out
 
 
+def _load_image_from_path(path: str, size: Tuple[int, int] = (224, 224)):
+    """Load and preprocess an image from a file path.
+
+    Args:
+        path: Image file path
+        size: Target (H, W)
+
+    Returns:
+        Tensor of shape (C, H, W) or None if load fails
+    """
+    if not path:
+        return None
+
+    torch = _require_torch()
+
+    # Try to load from file
+    try:
+        import numpy as np
+        from PIL import Image
+        img = Image.open(path).convert("RGB")
+        img = img.resize((size[1], size[0]))  # PIL resize takes (W, H)
+        img_array = np.array(img, dtype=np.float32) / 255.0
+        # HWC -> CHW
+        img_tensor = torch.from_numpy(img_array).permute(2, 0, 1)
+        return img_tensor
+    except Exception:
+        pass
+
+    # Generate synthetic image for stub data (path contains "stub/")
+    if "stub/" in path:
+        # Use path hash to generate consistent but varied images
+        hash_val = hash(path)
+        h, w = size
+
+        # Create coordinate grids
+        y_coords = torch.arange(h, dtype=torch.float32).unsqueeze(1).expand(h, w)
+        x_coords = torch.arange(w, dtype=torch.float32).unsqueeze(0).expand(h, w)
+
+        # Create a simple gradient pattern
+        r = ((x_coords * 0.3 + y_coords * 0.2 + hash_val % 50) % 256) / 255.0
+        g = ((y_coords * 0.3 + x_coords * 0.1 + hash_val % 75 + 50) % 256) / 255.0
+        b = ((x_coords * 0.2 + hash_val % 100 + 100) % 256) / 255.0
+
+        img = torch.stack([r, g, b], dim=0)
+        return img
+
+    return None
+
+
 def collate_temporal_pairs(batch: List[Dict[str, Any]]) -> Dict[str, Any]:
     """Collate temporal pairs into a batch.
 
@@ -189,15 +238,54 @@ def collate_temporal_pairs(batch: List[Dict[str, Any]]) -> Dict[str, Any]:
     positives = [item["positive"] for item in batch]
     delta_ts = torch.tensor([item["delta_t"] for item in batch], dtype=torch.float32)
 
-    # Collate anchor images (if decoded) - WaymoEpisodeDataset uses camera_paths
-    anchor_images = None
-    positive_images = None
+    # Collate anchor images - check if images are already decoded or we have paths
+    anchor_images = {}
+    positive_images = {}
 
-    # Check for both possible keys (images_by_cam from other datasets, or camera_paths from Waymo)
-    if anchors[0].get("camera_paths") is not None:
-        # WaymoEpisodeDataset returns camera_paths dict, not decoded images by default
-        # For now, we'll handle the case where images aren't decoded
-        pass
+    # Check if images are already decoded (tensor format)
+    if "images_by_cam" in anchors[0]:
+        # Already decoded format from some datasets
+        for cam in anchors[0].get("images_by_cam", {}).keys():
+            anchor_imgs = []
+            positive_imgs = []
+            valid_mask = []
+            for a, p in zip(anchors, positives):
+                a_img = a.get("images_by_cam", {}).get(cam)
+                p_img = p.get("images_by_cam", {}).get(cam)
+                anchor_imgs.append(a_img)
+                positive_imgs.append(p_img)
+                valid_mask.append(a_img is not None and p_img is not None)
+
+            if anchor_imgs[0] is not None:
+                # Stack tensors
+                anchor_stack = torch.stack([x if x is not None else torch.zeros_like(anchor_imgs[0]) for x in anchor_imgs])
+                positive_stack = torch.stack([x if x is not None else torch.zeros_like(positive_imgs[0]) for x in positive_imgs])
+                valid_tensor = torch.tensor(valid_mask, dtype=torch.bool)
+
+                anchor_images[cam] = {"images": anchor_stack, "valid": valid_tensor}
+                positive_images[cam] = {"images": positive_stack, "valid": valid_tensor}
+    elif anchors[0].get("camera_paths") is not None:
+        # WaymoEpisodeDataset returns camera_paths dict - try to load images
+        for cam in anchors[0].get("camera_paths", {}).keys():
+            anchor_paths = [a.get("camera_paths", {}).get(cam, "") for a in anchors]
+            positive_paths = [p.get("camera_paths", {}).get(cam, "") for p in positives]
+
+            anchor_imgs = [_load_image_from_path(p) for p in anchor_paths]
+            positive_imgs = [_load_image_from_path(p) for p in positive_paths]
+
+            # Check which are valid
+            valid_mask = [a is not None and p is not None for a, p in zip(anchor_imgs, positive_imgs)]
+
+            if anchor_imgs[0] is not None:
+                # Stack tensors (use zeros for missing)
+                first_valid = next((x for x in anchor_imgs if x is not None), None)
+                if first_valid is not None:
+                    anchor_stack = torch.stack([x if x is not None else torch.zeros_like(first_valid) for x in anchor_imgs])
+                    positive_stack = torch.stack([x if x is not None else torch.zeros_like(first_valid) for x in positive_imgs])
+                    valid_tensor = torch.tensor(valid_mask, dtype=torch.bool)
+
+                    anchor_images[cam] = {"images": anchor_stack, "valid": valid_tensor}
+                    positive_images[cam] = {"images": positive_stack, "valid": valid_tensor}
 
     # Collate state (speed, yaw) - WaymoEpisodeDataset returns flat keys
     anchor_speed = torch.stack([torch.tensor(a.get("speed_mps", 0.0), dtype=torch.float32) for a in anchors], dim=0)
@@ -220,10 +308,12 @@ def collate_temporal_pairs(batch: List[Dict[str, Any]]) -> Dict[str, Any]:
     out: Dict[str, Any] = {
         "anchor": {
             "camera_paths": [a.get("camera_paths", {}) for a in anchors],
+            "images": anchor_images if anchor_images else None,
             "state": {"speed_mps": anchor_speed, "yaw_rad": anchor_yaw},
         },
         "positive": {
             "camera_paths": [p.get("camera_paths", {}) for p in positives],
+            "images": positive_images if positive_images else None,
             "state": {"speed_mps": positive_speed, "yaw_rad": positive_yaw},
         },
         "anchor_waypoints": anchor_waypoints,
