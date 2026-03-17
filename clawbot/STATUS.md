@@ -1,12 +1,14 @@
 # Status (ClawBot)
 
-_Last updated: 2026-03-16 (Pipeline PR #5)_
+_Last updated: 2026-03-17 (Pipeline PR #2)_
 
 ## Current focus
 Driving-first pipeline: **Waymo episodes → PyTorch SSL pretrain → waypoint BC → RL refinement → CARLA ScenarioRunner eval**.
 
 ## Daily Cadence
 
+- ⏳ **Pipeline PR #2** (2026-03-17): Waymo SSL Dataset Image Loading Fix
+- ⏳ **Pipeline PR #1** (2026-03-17): BC-to-Kinematic Integration for RL-after-SFT
 - ⏳ **Pipeline PR #5** (2026-03-16): Kinematic Waypoint Follower Environment (Option B)
 - ✅ **Pipeline PR #4** (2026-03-16): SSL Encoder Integration + Waypoint Visualizer
 - ✅ **Pipeline PR #3** (2026-03-16): BC+SSL Integration Tests + Smoke Test
@@ -32,6 +34,50 @@ Driving-first pipeline: **Waymo episodes → PyTorch SSL pretrain → waypoint B
 - ⏳ **Pipeline PR #5** (2026-02-16): RL Refinement Stub for Residual Delta-Waypoint Learning - awaiting review
 
 ## Recent changes
+
+### Pipeline PR #2: Waymo SSL Dataset Image Loading Fix (2026-03-17)
+- **Updated: `training/pretrain/waymo_ssl_dataset.py`**
+  - Added `_load_image_from_path()`: Load images from file or generate synthetic for stub data
+  - Fixed `collate_temporal_pairs()`: Properly outputs "images" dict for train_step compatibility
+  - Synthetic images: Gradient patterns based on path hash for consistent but varied stub images
+
+**Testing:**
+- Training test (10 steps): ✓
+- Stub data: 2970 temporal pairs from 250 frames
+- Loss: ~1.386 (InfoNCE with temperature=0.1)
+- Checkpoint saved: out/test_ssl/encoder_final.pt
+
+**Key additions:**
+- Fixes image loading to work with stub data for testing
+- Outputs batch format expected by train_step (with "images" key)
+- Generates synthetic gradient images when file paths don't exist
+
+**Branch:** `feature/daily-2026-03-17-b`
+**PR URL:** https://github.com/Capri2014/AIResearch/pull/new/feature/daily-2026-03-17-b
+
+---
+
+### Pipeline PR #1: BC-to-Kinematic Integration for RL-after-SFT (2026-03-17)
+- **Created: `training/rl/bc_kinematic_integration.py`**
+  - BCWaypointPredictor: Loads BC checkpoint and provides waypoint predictions
+  - DeltaWaypointModel: MLP that learns delta corrections to BC waypoints
+  - SimplePPOAgent: PPO agent for waypoint delta learning
+  - BCKinematicIntegration: Main integration class connecting BC → Kinematic Env
+
+**Testing:**
+- Smoke test: ✓
+- Training loop: ✓ (5 episodes)
+- Checkpoint saving: ✓
+
+**Key additions:**
+- Integrates BC model with kinematic waypoint environment
+- Enables RL-after-SFT training where BC provides base waypoints and RL learns delta corrections
+- Provides train_bc_kinematic() function for full training loop
+
+**Branch:** `feature/daily-2026-03-17-a`
+**PR URL:** https://github.com/Capri2014/AIResearch/pull/new/feature/daily-2026-03-17-a
+
+---
 
 ### Pipeline PR #4: SSL Encoder Integration + Waypoint Visualizer (2026-03-16)
 - **Updated: `training/bc/waypoint_bc_model.py`**
