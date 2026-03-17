@@ -80,9 +80,6 @@ class WaypointBCWithSSLDataset:
             split=split,
             cameras=["front", "front_left", "front_right", "rear_left", "rear_right"],
             future_waypoints=num_waypoints,
-            return_images=True,
-            return_temporal=True,
-            temporal_history=temporal_history,
         )
         self.episode_dataset = WaymoEpisodeDataset(config)
         
@@ -107,8 +104,17 @@ class WaypointBCWithSSLDataset:
         episode_data = self.episode_dataset[idx]
         
         # Extract camera images (use front camera for now)
-        # Shape: [C, H, W]
-        image = episode_data['image_front']
+        # Handle both 'camera_paths' (from new dataset) and 'image_front' (legacy)
+        if 'image_front' in episode_data:
+            image = episode_data['image_front']
+        elif 'camera_paths' in episode_data:
+            # Get image path and load image
+            from training.pretrain.waymo_ssl_dataset import _load_image_from_path
+            camera_paths = episode_data['camera_paths']
+            front_path = camera_paths.get('front', '')
+            image = _load_image_from_path(front_path)
+        else:
+            raise KeyError(f"Expected 'image_front' or 'camera_paths' in episode data, got {episode_data.keys()}")
         
         # Encode with SSL encoder
         # Shape: [1, C, H, W] -> [1, feature_dim]
@@ -120,9 +126,15 @@ class WaypointBCWithSSLDataset:
         
         # Get waypoints
         waypoints = episode_data['future_waypoints']  # [num_waypoints, 2]
+        if isinstance(waypoints, np.ndarray):
+            waypoints = torch.from_numpy(waypoints).float()
         
         # Get current speed
-        speed = episode_data['speed_mps'].unsqueeze(0)  # [1]
+        speed = episode_data['speed_mps']
+        if isinstance(speed, float):
+            speed = torch.tensor([speed], dtype=torch.float32)
+        elif isinstance(speed, np.ndarray):
+            speed = torch.from_numpy(speed).float().unsqueeze(0)
         
         # Compute target speeds (simple: constant acceleration assumption)
         # For now, use current speed as target
