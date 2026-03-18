@@ -1,13 +1,14 @@
 # Status (ClawBot)
 
-_Last updated: 2026-03-18 (Pipeline PR #1)_
+_Last updated: 2026-03-18 (Pipeline PR #2)_
 
 ## Current focus
 Driving-first pipeline: **Waymo episodes → PyTorch SSL pretrain → waypoint BC → RL refinement → CARLA ScenarioRunner eval**.
 
 ## Daily Cadence
 
-- ⏳ **Pipeline PR #1** (2026-03-18): Traffic-Aware Waypoint Environment
+- ⏳ **Pipeline PR #2** (2026-03-18): PyTorch SSL Pretraining Pipeline
+- ✅ **Pipeline PR #1** (2026-03-18): Traffic-Aware Waypoint Environment
 - ⏳ **Pipeline PR #6** (2026-03-17): RL Refinement Evaluation + Metrics Hardening
 - ✅ **Pipeline PR #5** (2026-03-17): RL Refinement Delta-Waypoint Training (Option B)
 - ✅ **Pipeline PR #4** (2026-03-17): Multi-Scenario Evaluation Runner
@@ -63,6 +64,45 @@ Driving-first pipeline: **Waymo episodes → PyTorch SSL pretrain → waypoint B
 
 **Branch:** `feature/daily-2026-03-18-a`
 **PR URL:** https://github.com/Capri2014/AIResearch/pull/new/feature/daily-2026-03-18-a
+
+---
+
+### Pipeline PR #2: PyTorch SSL Pretraining Pipeline (2026-03-18)
+- **Created: `training/pretrain/waymo_ssl_dataset.py`**
+  - `WaymoTemporalPairDataset`: Creates temporal frame pairs (anchor at t, positive at t+Δt)
+  - `collate_temporal_pairs()`: Batch collation with stacked tensors
+  - `create_waymo_ssl_dataloader()`: Factory function for common configurations
+  - Supports configurable delta_t_range (default: 0.5-2.0 seconds)
+  - Creates stub synthetic data when episode directory is unavailable
+
+- **Created: `training/pretrain/train_waymo_ssl.py`**
+  - `WaymoSSLConfig`: Configuration dataclass for all training parameters
+  - `SimpleEncoder`: CNN encoder with ResNet backbone (resnet34/50, efficientnet_b0)
+  - Projection head with 128-dim embedding output
+  - `temporal_info_nce_loss()`: Temporal contrastive loss
+  - Full training loop with checkpointing and metrics logging
+  - Added `--test` flag for easy smoke testing
+
+- **Modified: `training/episodes/waymo_episode_dataset.py`**
+  - Fixed `episode_dir` type to accept both str and Path
+  - Added `_create_stub_episodes()` for synthetic data generation
+
+- **Created: `training/pretrain/__init__.py`**: Module exports with lazy imports
+
+**Testing:**
+- Smoke test (5 steps, --test flag): ✓
+- Loss: ~2.08, Encoder saved to out/waymo_ssl_test/encoder_final.pt
+- Full test (10 steps): ✓
+- Stub data: 2970 temporal pairs from 250 frames
+
+**Key additions:**
+- Self-supervised pretraining on Waymo driving data
+- Temporal contrastive objective: align embeddings between frame t and t+Δt
+- Produces encoder checkpoints for downstream BC fine-tuning
+- Easy smoke testing with `--test` flag
+
+**Branch:** `feature/daily-2026-03-18-b`
+**PR URL:** https://github.com/Capri2014/AIResearch/pull/new/feature/daily-2026-03-18-b
 
 ---
 
