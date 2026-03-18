@@ -1,13 +1,14 @@
 # Status (ClawBot)
 
-_Last updated: 2026-03-18 (Pipeline PR #3)_
+_Last updated: 2026-03-18 (Pipeline PR #4)_
 
 ## Current focus
 Driving-first pipeline: **Waymo episodes → PyTorch SSL pretrain → waypoint BC → RL refinement → CARLA ScenarioRunner eval**.
 
 ## Daily Cadence
 
-- ⏳ **Pipeline PR #3** (2026-03-18): Waypoint BC + SSL Smoke Test Infrastructure
+- ⏳ **Pipeline PR #4** (2026-03-18): Traffic-Aware BC Evaluation
+- ✅ **Pipeline PR #3** (2026-03-18): Waypoint BC + SSL Smoke Test Infrastructure
 - ✅ **Pipeline PR #2** (2026-03-18): PyTorch SSL Pretraining Pipeline
 - ✅ **Pipeline PR #1** (2026-03-18): Traffic-Aware Waypoint Environment
 - ⏳ **Pipeline PR #6** (2026-03-17): RL Refinement Evaluation + Metrics Hardening
