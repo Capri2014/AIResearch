@@ -7,6 +7,7 @@ Driving-first pipeline: **Waymo episodes → PyTorch SSL pretrain → waypoint B
 
 ## Daily Cadence
 
+- ⏳ **Pipeline PR #5** (2026-03-18): PPO RL-after-SFT Waypoint Refinement Stub
 - ⏳ **Pipeline PR #4** (2026-03-18): Traffic-Aware BC Evaluation
 - ✅ **Pipeline PR #3** (2026-03-18): Waypoint BC + SSL Smoke Test Infrastructure
 - ✅ **Pipeline PR #2** (2026-03-18): PyTorch SSL Pretraining Pipeline
