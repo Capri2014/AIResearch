@@ -179,42 +179,80 @@ def main(args):
     device = torch.device(args.device if torch.cuda.is_available() else "cpu")
     print(f"Using device: {device}")
     
-    # Load or create SSL encoder
-    if args.ssl_checkpoint and Path(args.ssl_checkpoint).exists():
-        print(f"Loading SSL encoder from {args.ssl_checkpoint}")
-        ssl_config, ssl_encoder = load_ssl_encoder(args.ssl_checkpoint, device)
-    else:
-        print("No SSL checkpoint provided, using stub encoder")
+    # Handle test mode
+    if args.test:
+        print("Running in TEST mode with stub data")
         ssl_config = WaymoSSLConfig()
         ssl_encoder = create_stub_ssl_encoder(ssl_config)
-    
-    ssl_encoder = ssl_encoder.to(device)
-    
-    # Create dataset
-    print(f"Loading episodes from {args.episode_dir}")
-    dataset = WaypointBCWithSSLDataset(
-        episode_dir=args.episode_dir,
-        ssl_encoder=ssl_encoder,
-        ssl_config=ssl_config,
-        num_waypoints=args.num_waypoints,
-        temporal_history=args.temporal_history,
-        split=args.split,
-        device=device,
-    )
-    
-    # Create dataloader
-    dataloader = DataLoader(
-        dataset,
-        batch_size=args.batch_size,
-        shuffle=(args.split == "train"),
-        collate_fn=collate_bc_ssl,
-        num_workers=args.num_workers,
-        pin_memory=True,
-    )
+        ssl_encoder = ssl_encoder.to(device)
+        
+        # Create stub dataset
+        stub_data = create_stub_bc_ssl_dataset(
+            num_samples=100,
+            num_waypoints=args.num_waypoints,
+            feature_dim=ssl_config.embedding_dim,
+            device=device,
+        )
+        
+        # Convert to list of dicts for DataLoader
+        dataset = []
+        for i in range(len(stub_data['bev'])):
+            dataset.append({
+                'bev': stub_data['bev'][i],
+                'waypoints': stub_data['waypoints'][i],
+                'speed': stub_data['speed'][i],
+                'target_speed': stub_data['target_speed'][i],
+            })
+        
+        dataloader = DataLoader(
+            dataset,
+            batch_size=min(args.batch_size, 8),
+            shuffle=True,
+            collate_fn=collate_bc_ssl_stub,
+            num_workers=0,
+        )
+        
+        # Override num_steps for test
+        test_steps = min(args.num_steps, 10)
+        print(f"Test mode: running {test_steps} steps")
+    else:
+        # Load or create SSL encoder
+        if args.ssl_checkpoint and Path(args.ssl_checkpoint).exists():
+            print(f"Loading SSL encoder from {args.ssl_checkpoint}")
+            ssl_config, ssl_encoder = load_ssl_encoder(args.ssl_checkpoint, device)
+        else:
+            print("No SSL checkpoint provided, using stub encoder")
+            ssl_config = WaymoSSLConfig()
+            ssl_encoder = create_stub_ssl_encoder(ssl_config)
+        
+        ssl_encoder = ssl_encoder.to(device)
+        
+        # Create dataset
+        print(f"Loading episodes from {args.episode_dir}")
+        dataset = WaypointBCWithSSLDataset(
+            episode_dir=args.episode_dir,
+            ssl_encoder=ssl_encoder,
+            ssl_config=ssl_config,
+            num_waypoints=args.num_waypoints,
+            temporal_history=args.temporal_history,
+            split=args.split,
+            device=device,
+        )
+        
+        # Create dataloader
+        dataloader = DataLoader(
+            dataset,
+            batch_size=args.batch_size,
+            shuffle=(args.split == "train"),
+            collate_fn=collate_bc_ssl,
+            num_workers=args.num_workers,
+            pin_memory=True,
+        )
+        test_steps = args.num_steps
     
     # Create BC model
     bc_config = WaypointBCConfig(
-        bev_feature_dim=ssl_config.embed_dim,
+        bev_feature_dim=ssl_config.embedding_dim,
         num_waypoints=args.num_waypoints,
         predict_speed=True,
         use_temporal=False,  # SSL encoder handles temporal
@@ -253,20 +291,32 @@ def main(args):
     global_step = 0
     bc_model.train()
     
-    # Save config
+    # Save config (handle Path objects for JSON serialization)
+    def make_json_safe(d):
+        """Convert Path objects to strings for JSON serialization."""
+        result = {}
+        for k, v in d.items():
+            if isinstance(v, Path):
+                result[k] = str(v)
+            elif isinstance(v, dict):
+                result[k] = make_json_safe(v)
+            else:
+                result[k] = v
+        return result
+    
     config_dict = {
-        'args': vars(args),
-        'bc_config': bc_config.__dict__,
-        'ssl_config': ssl_config.__dict__ if hasattr(ssl_config, '__dict__') else {},
+        'args': make_json_safe(vars(args)),
+        'bc_config': make_json_safe(bc_config.__dict__),
+        'ssl_config': make_json_safe(ssl_config.__dict__) if hasattr(ssl_config, '__dict__') else {},
     }
     with open(output_dir / 'config.json', 'w') as f:
         json.dump(config_dict, f, indent=2)
     
     epoch = 0
-    while global_step < args.num_steps:
+    while global_step < test_steps:
         epoch += 1
         for batch in dataloader:
-            if global_step >= args.num_steps:
+            if global_step >= test_steps:
                 break
             
             # Move to device
@@ -279,12 +329,14 @@ def main(args):
             if scaler:
                 with autocast():
                     pred_waypoints, pred_speed = bc_model(bev)
-                    loss, loss_dict = compute_bc_loss(
+                    result_dict = compute_bc_loss(
                         pred_waypoints=pred_waypoints,
-                        pred_speed=pred_speed,
+                        pred_speeds=pred_speed,
                         target_waypoints=waypoints,
-                        target_speed=target_speed,
+                        target_speeds=target_speed,
                     )
+                    loss = result_dict['total_loss']
+                    loss_dict = result_dict
                 
                 # Backward
                 scaler.scale(loss).backward()
@@ -292,12 +344,14 @@ def main(args):
                 scaler.update()
             else:
                 pred_waypoints, pred_speed = bc_model(bev)
-                loss, loss_dict = compute_bc_loss(
+                result_dict = compute_bc_loss(
                     pred_waypoints=pred_waypoints,
-                    pred_speed=pred_speed,
+                    pred_speeds=pred_speed,
                     target_waypoints=waypoints,
-                    target_speed=target_speed,
+                    target_speeds=target_speed,
                 )
+                loss = result_dict['total_loss']
+                loss_dict = result_dict
                 loss.backward()
                 optimizer.step()
             
@@ -335,15 +389,53 @@ def main(args):
     print(f"Training complete! Final model: {final_path}")
 
 
+def create_stub_bc_ssl_dataset(
+    num_samples: int = 100,
+    num_waypoints: int = 8,
+    feature_dim: int = 128,
+    device: str = "cpu",
+) -> Dict[str, torch.Tensor]:
+    """
+    Create stub dataset for testing without real episodes.
+    
+    Returns:
+        dict with:
+            - bev: Random features [num_samples, feature_dim]
+            - waypoints: Random waypoints [num_samples, num_waypoints, 2]
+            - speed: Random speeds [num_samples, 1]
+            - target_speed: Target speed [num_samples, 1]
+    """
+    return {
+        'bev': torch.randn(num_samples, feature_dim, device=device),
+        'waypoints': torch.randn(num_samples, num_waypoints, 2, device=device),
+        'speed': torch.rand(num_samples, 1, device=device),
+        'target_speed': torch.rand(num_samples, 1, device=device),
+    }
+
+
+def collate_bc_ssl_stub(batch):
+    """Collate function for stub BC SSL data."""
+    return {
+        'bev': torch.stack([x['bev'] for x in batch]),
+        'waypoints': torch.stack([x['waypoints'] for x in batch]),
+        'speed': torch.stack([x['speed'] for x in batch]),
+        'target_speed': torch.stack([x['target_speed'] for x in batch]),
+    }
+
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Train Waypoint BC with SSL Encoder')
     
+    # Test mode
+    parser.add_argument('--test', action='store_true',
+                        help='Run smoke test with stub data')
+    
     # Data
-    parser.add_argument('--episode-dir', type=str, required=True,
+    parser.add_argument('--episode-dir', type=str, default=None,
                         help='Path to Waymo episode directory')
     parser.add_argument('--ssl-checkpoint', type=str, default=None,
                         help='Path to SSL encoder checkpoint')
-    parser.add_argument('--output-dir', type=str, required=True,
+    parser.add_argument('--output-dir', type=str, default='out/bc_ssl_test',
                         help='Output directory for checkpoints')
     parser.add_argument('--split', type=str, default='train',
                         choices=['train', 'val', 'test'],
