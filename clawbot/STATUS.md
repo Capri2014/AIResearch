@@ -1,12 +1,13 @@
 # Status (ClawBot)
 
-_Last updated: 2026-03-17 (Pipeline PR #6)_
+_Last updated: 2026-03-18 (Pipeline PR #1)_
 
 ## Current focus
 Driving-first pipeline: **Waymo episodes → PyTorch SSL pretrain → waypoint BC → RL refinement → CARLA ScenarioRunner eval**.
 
 ## Daily Cadence
 
+- ⏳ **Pipeline PR #1** (2026-03-18): Traffic-Aware Waypoint Environment
 - ⏳ **Pipeline PR #6** (2026-03-17): RL Refinement Evaluation + Metrics Hardening
 - ✅ **Pipeline PR #5** (2026-03-17): RL Refinement Delta-Waypoint Training (Option B)
 - ✅ **Pipeline PR #4** (2026-03-17): Multi-Scenario Evaluation Runner
@@ -38,6 +39,32 @@ Driving-first pipeline: **Waymo episodes → PyTorch SSL pretrain → waypoint B
 - ⏳ **Pipeline PR #5** (2026-02-16): RL Refinement Stub for Residual Delta-Waypoint Learning - awaiting review
 
 ## Recent changes
+
+### Pipeline PR #1: Traffic-Aware Waypoint Environment (2026-03-18)
+- **Created: `training/rl/traffic_aware_waypoint_env.py`**
+  - `TrafficVehicle`: Dynamic traffic vehicle with path-following behavior
+  - `TrafficAwareWaypointConfig`: Extended config with traffic density levels
+  - Traffic generators: straight, cross, turn scenarios
+  - Collision detection: static obstacles + dynamic traffic
+  - Traffic-aware rewards: collision penalty, near-collision penalty
+  - `train_traffic_aware()`: RL training loop with MLP policy
+
+**Testing:**
+- Smoke test (5 steps): ✓
+- State shape: (47,)
+- Training test (20 episodes, medium traffic): ✓
+- Mean reward: -36.29, Success rate: 0%, Collision rate: 10%
+
+**Key additions:**
+- Bridges gap between kinematic environment and real CARLA scenarios
+- Supports 4 traffic density levels: none, low, medium, high
+- Multiple traffic pattern types for diverse training
+- Integrates with existing kinematic waypoint environment
+
+**Branch:** `feature/daily-2026-03-18-a`
+**PR URL:** https://github.com/Capri2014/AIResearch/pull/new/feature/daily-2026-03-18-a
+
+---
 
 ### Pipeline PR #4: Multi-Scenario Evaluation Runner (2026-03-17)
 - **Created: `training/eval/multi_scenario_eval.py`**
