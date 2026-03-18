@@ -1,13 +1,14 @@
 # Status (ClawBot)
 
-_Last updated: 2026-03-18 (Pipeline PR #2)_
+_Last updated: 2026-03-18 (Pipeline PR #3)_
 
 ## Current focus
 Driving-first pipeline: **Waymo episodes → PyTorch SSL pretrain → waypoint BC → RL refinement → CARLA ScenarioRunner eval**.
 
 ## Daily Cadence
 
-- ⏳ **Pipeline PR #2** (2026-03-18): PyTorch SSL Pretraining Pipeline
+- ⏳ **Pipeline PR #3** (2026-03-18): Waypoint BC + SSL Smoke Test Infrastructure
+- ✅ **Pipeline PR #2** (2026-03-18): PyTorch SSL Pretraining Pipeline
 - ✅ **Pipeline PR #1** (2026-03-18): Traffic-Aware Waypoint Environment
 - ⏳ **Pipeline PR #6** (2026-03-17): RL Refinement Evaluation + Metrics Hardening
 - ✅ **Pipeline PR #5** (2026-03-17): RL Refinement Delta-Waypoint Training (Option B)
@@ -103,6 +104,31 @@ Driving-first pipeline: **Waymo episodes → PyTorch SSL pretrain → waypoint B
 
 **Branch:** `feature/daily-2026-03-18-b`
 **PR URL:** https://github.com/Capri2014/AIResearch/pull/new/feature/daily-2026-03-18-b
+
+---
+
+### Pipeline PR #3: Waypoint BC + SSL Smoke Test Infrastructure (2026-03-18)
+- **Modified: `training/bc/train_waypoint_bc_ssl.py`**
+  - Added `create_stub_bc_ssl_dataset()`: Creates synthetic test data with random BEV features, waypoints, and speeds
+  - Added `collate_bc_ssl_stub()`: Collate function for stub data batches
+  - Added `--test` flag: Enables smoke test mode without real episode directory
+  - Fixed `embed_dim` → `embedding_dim` attribute name (WaymoSSLConfig compatibility)
+  - Fixed `compute_bc_loss()` return value handling (returns dict, not tuple)
+  - Fixed keyword arguments: `pred_speed` → `pred_speeds`, `target_speed` → `target_speeds`
+  - Added JSON serialization helper for Path objects in config saving
+
+**Testing:**
+- Smoke test (10 steps, --test flag): ✓
+- Loss: 0.7281
+- Model saved to out/bc_ssl_test/waypoint_bc_ssl_final.pt
+
+**Key additions:**
+- Enables quick validation of BC training pipeline without real episode data
+- Complements SSL pretraining --test flag for end-to-end smoke testing
+- Fixes API compatibility issues between modules
+
+**Branch:** `feature/daily-2026-03-18-c`
+**PR URL:** https://github.com/Capri2014/AIResearch/pull/new/feature/daily-2026-03-18-c
 
 ---
 
