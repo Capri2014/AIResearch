@@ -473,7 +473,20 @@ def parse_args() -> WaymoSSLConfig:
     parser.add_argument("--device", type=str, default="auto")
     parser.add_argument("--seed", type=int, default=42)
 
+    # Testing
+    parser.add_argument("--test", action="store_true",
+                        help="Run smoke test: 5 steps, batch_size=8, num_workers=0, out-dir=out/waymo_ssl_test")
+
     args = parser.parse_args()
+
+    # Handle test mode
+    if args.test:
+        args.num_steps = 5
+        args.batch_size = 8
+        args.num_workers = 0
+        args.out_dir = Path("out/waymo_ssl_test")
+        args.log_every = 1
+        args.save_every = 999999  # Don't save intermediate checkpoints
 
     return WaymoSSLConfig(
         episode_dir=args.episode_dir,
