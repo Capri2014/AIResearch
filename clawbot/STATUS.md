@@ -1,18 +1,18 @@
 # Status (ClawBot)
 
-_Last updated: 2026-03-18 (Pipeline PR #4)_
+_Last updated: 2026-03-19 (Pipeline PR #1)_
 
 ## Current focus
 Driving-first pipeline: **Waymo episodes → PyTorch SSL pretrain → waypoint BC → RL refinement → CARLA ScenarioRunner eval**.
 
 ## Daily Cadence
 
-- ⏳ **Pipeline PR #5** (2026-03-18): PPO RL-after-SFT Waypoint Refinement Stub
-- ⏳ **Pipeline PR #4** (2026-03-18): Traffic-Aware BC Evaluation
+- ✅ **Pipeline PR #1** (2026-03-19): CARLA Route Manager
+- ✅ **Pipeline PR #5** (2026-03-18): PPO RL-after-SFT Waypoint Refinement Stub
+- ✅ **Pipeline PR #4** (2026-03-18): Traffic-Aware BC Evaluation
 - ✅ **Pipeline PR #3** (2026-03-18): Waypoint BC + SSL Smoke Test Infrastructure
 - ✅ **Pipeline PR #2** (2026-03-18): PyTorch SSL Pretraining Pipeline
 - ✅ **Pipeline PR #1** (2026-03-18): Traffic-Aware Waypoint Environment
-- ⏳ **Pipeline PR #6** (2026-03-17): RL Refinement Evaluation + Metrics Hardening
 - ✅ **Pipeline PR #5** (2026-03-17): RL Refinement Delta-Waypoint Training (Option B)
 - ✅ **Pipeline PR #4** (2026-03-17): Multi-Scenario Evaluation Runner
 - ⏳ **Pipeline PR #3** (2026-03-17): BC+SSL Inference Script + Dataset Fix
@@ -44,7 +44,67 @@ Driving-first pipeline: **Waymo episodes → PyTorch SSL pretrain → waypoint B
 
 ## Recent changes
 
-### Pipeline PR #1: Traffic-Aware Waypoint Environment (2026-03-18)
+### Pipeline PR #1: CARLA Route Manager (2026-03-19)
+- **Created: `training/rl/carla_route_manager.py`**
+  - RouteWaypoint: Single waypoint with position, heading, distance tracking
+  - DrivingRoute: Complete route with start/end/difficulty
+  - CARLARouteManager: Manages routes for CARLA towns (Town01, Town02, Town03)
+    - Predefined routes for each town (5 for Town01)
+    - Difficulty filtering (easy/medium/hard)
+    - JSON serialization/deserialization
+  - WaypointBCEvaluationRouteAdapter: Bridge to waypoint BC format
+
+**Testing:**
+- Route loading: 5 routes for Town01 ✅
+- Route retrieval by name: ✅
+- Waypoint generation: ✅
+- Difficulty filtering: ✅
+- BC format adapter: ✅
+- Custom route creation: ✅
+- JSON serialization: ✅
+
+**Usage:**
+```bash
+python -m training.rl.carla_route_manager --town Town01 --list
+python -m training.rl.carla_route_manager --town Town01 --list --difficulty easy
+python -m training.rl.carla_route_manager --test
+```
+
+**Branch:** `feature/daily-2026-03-19-a`
+**Commit:** `13fd7c9`
+
+---
+
+### Pipeline PR #6: RL Evaluation Metrics Loader (2026-03-18)
+- **Created: `training/rl/eval_metrics_loader.py`**
+  - Universal loader for all RL eval metric formats
+  - Schema validation against `data/schema/metrics.json`
+  - Comparison mode (`--compare`) for SFT vs RL side-by-side
+  - Auto-detection of latest eval directory (`--latest`)
+  - Compact 3-line summary (`--quiet`) for PR reports
+  - Handles NaN/Inf values in JSON output
+  - Supports: scenario-based eval, combined SFT+RL, RL training metrics
+
+**Testing:**
+- Scenario-based eval (SFT/RL): ✅
+- Combined SFT+RL format: ✅
+- RL training metrics: ✅
+- Schema validation: ✅
+- Comparison mode: ✅
+- --latest auto-detection: ✅
+
+**Usage:**
+```bash
+python -m training.rl.eval_metrics_loader out/eval/<run_id> --compare
+python -m training.rl.eval_metrics_loader --latest --quiet
+```
+
+**Branch:** `feature/daily-2026-03-10-f`
+**Commit:** `bcd97a2`
+
+---
+
+### Pipeline PR #5: Traffic-Aware Waypoint Environment (2026-03-18)
 - **Created: `training/rl/traffic_aware_waypoint_env.py`**
   - `TrafficVehicle`: Dynamic traffic vehicle with path-following behavior
   - `TrafficAwareWaypointConfig`: Extended config with traffic density levels
