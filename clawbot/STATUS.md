@@ -1,12 +1,13 @@
 # Status (ClawBot)
 
-_Last updated: 2026-03-19 (Pipeline PR #1)_
+_Last updated: 2026-03-19 (Pipeline PR #3)_
 
 ## Current focus
 Driving-first pipeline: **Waymo episodes → PyTorch SSL pretrain → waypoint BC → RL refinement → CARLA ScenarioRunner eval**.
 
 ## Daily Cadence
 
+- ✅ **Pipeline PR #3** (2026-03-19): Waypoint BC with SSL Encoder Transfer Learning
 - ✅ **Pipeline PR #1** (2026-03-19): CARLA Route Manager
 - ✅ **Pipeline PR #5** (2026-03-18): PPO RL-after-SFT Waypoint Refinement Stub
 - ✅ **Pipeline PR #4** (2026-03-18): Traffic-Aware BC Evaluation
@@ -43,6 +44,34 @@ Driving-first pipeline: **Waymo episodes → PyTorch SSL pretrain → waypoint B
 - ⏳ **Pipeline PR #5** (2026-02-16): RL Refinement Stub for Residual Delta-Waypoint Learning - awaiting review
 
 ## Recent changes
+
+### Pipeline PR #3: Waypoint BC with SSL Encoder (2026-03-19)
+- **Created: `training/bc/train_waypoint_bc_ssl.py`**
+  - WaypointBCWithSSLDataset: Dataset combining Waymo episodes with SSL encoder
+  - WaypointMLPHead: MLP for waypoint prediction (in_dim → 256 → 256 → horizon*2)
+  - create_stub_ssl_encoder(): Stub encoder for testing without pretrained weights
+  - load_ssl_encoder(): Load pretrained SSL encoder from checkpoint
+  - WaypointBCTraining: Full training loop with AMP, checkpointing, cosine LR
+
+**Testing:**
+- Stub encoder creation: ✅
+- Encoder forward pass: ✅ (2, 128) output
+- Dataset loading: ✅ (1000 stub samples)
+- Training step: ✅ (loss: 0.1983)
+
+**Branch:** `feature/daily-2026-03-19-c`
+**Commit:** `7aa9dae`
+
+**Usage:**
+```bash
+python -m training.bc.train_waypoint_bc_ssl --stub --test
+python -m training.bc.train_waypoint_bc_ssl \
+    --episode-dir data/waymo_episodes \
+    --ssl-checkpoint out/pretrain/ssl_model.pt \
+    --output-dir out/bc_ssl
+```
+
+---
 
 ### Pipeline PR #1: CARLA Route Manager (2026-03-19)
 - **Created: `training/rl/carla_route_manager.py`**
