@@ -1,12 +1,13 @@
 # Status (ClawBot)
 
-_Last updated: 2026-03-19 (Pipeline PR #4)_
+_Last updated: 2026-03-19 (Pipeline PR #5)_
 
 ## Current focus
 Driving-first pipeline: **Waymo episodes → PyTorch SSL pretrain → waypoint BC → RL refinement → CARLA ScenarioRunner eval**.
 
 ## Daily Cadence
 
+- ✅ **Pipeline PR #5** (2026-03-19): PPO Delta-Waypoint Training (Option B)
 - ✅ **Pipeline PR #4** (2026-03-19): BC+SSL to RL Refinement Integration
 - ✅ **Pipeline PR #3** (2026-03-19): Waypoint BC with SSL Encoder Transfer Learning
 - ✅ **Pipeline PR #1** (2026-03-19): CARLA Route Manager
@@ -45,6 +46,33 @@ Driving-first pipeline: **Waymo episodes → PyTorch SSL pretrain → waypoint B
 - ⏳ **Pipeline PR #5** (2026-02-16): RL Refinement Stub for Residual Delta-Waypoint Learning - awaiting review
 
 ## Recent changes
+
+### Pipeline PR #5: PPO Delta-Waypoint Training (Option B) (2026-03-19)
+- **Created: `training/rl/train_ppo_delta_waypoint.py`**
+  - PPOWaypointAgent: PPO agent for waypoint learning (policy + value networks)
+  - PPODeltaConfig: Training configuration (gamma=0.99, lambda=0.95, clip_eps=0.2)
+  - ADE/FDE metric tracking during training and evaluation
+  - Checkpoint saving (best.pt, final_checkpoint.pt)
+  - Metrics output (metrics.json, train_metrics.json)
+
+**Testing:**
+- Training run: 50 episodes ✅
+- Final eval reward: -0.04 ± 9.89
+- Final success rate: 10.0%
+- Artifacts saved to: out/rl_ppo_delta_waypoint_2026_03_19/run_20260319_193205/
+
+**Branch:** `feature/daily-2026-03-19-e`
+**Commit:** `6518ee0`
+
+**Usage:**
+```bash
+python -m training.rl.train_ppo_delta_waypoint --num_episodes 50
+python -m training.rl.train_ppo_delta_waypoint \
+    --num_episodes 100 \
+    --out_dir out/rl_ppo_delta_waypoint_2026_03_19
+```
+
+---
 
 ### Pipeline PR #3: Waypoint BC with SSL Encoder (2026-03-19)
 - **Created: `training/bc/train_waypoint_bc_ssl.py`**
