@@ -1,12 +1,13 @@
 # Status (ClawBot)
 
-_Last updated: 2026-03-19 (Pipeline PR #3)_
+_Last updated: 2026-03-19 (Pipeline PR #4)_
 
 ## Current focus
 Driving-first pipeline: **Waymo episodes → PyTorch SSL pretrain → waypoint BC → RL refinement → CARLA ScenarioRunner eval**.
 
 ## Daily Cadence
 
+- ✅ **Pipeline PR #4** (2026-03-19): BC+SSL to RL Refinement Integration
 - ✅ **Pipeline PR #3** (2026-03-19): Waypoint BC with SSL Encoder Transfer Learning
 - ✅ **Pipeline PR #1** (2026-03-19): CARLA Route Manager
 - ✅ **Pipeline PR #5** (2026-03-18): PPO RL-after-SFT Waypoint Refinement Stub
@@ -101,6 +102,34 @@ python -m training.rl.carla_route_manager --test
 
 **Branch:** `feature/daily-2026-03-19-a`
 **Commit:** `13fd7c9`
+
+---
+
+### Pipeline PR #4: BC+SSL to RL Refinement Integration (2026-03-19)
+- **Created: `training/rl/bc_ssl_rl_refinement.py`**
+  - BCWaypointPredictor: BC model for base waypoint predictions
+  - SSLEncoderWrapper: SSL encoder for feature extraction
+  - DeltaWaypointRefinement: PPO network for delta-waypoint refinement
+  - BCWaypointEnvWrapper: Environment with BC + delta waypoints
+  - BCSSLRefinementTrainer: Full training loop with GAE advantages
+  - Supports loading BC+SSL checkpoints for transfer learning
+
+**Testing:**
+- Smoke test (5 episodes): ✓
+- Episode reward: ~-91
+- Policy loss: 0.342
+
+**Usage:**
+```bash
+python -m training.rl.bc_ssl_rl_refinement \
+    --bc-ssl-checkpoint out/bc_ssl/final.pt \
+    --output-dir out/rl_refinement \
+    --episodes 500
+python -m training.rl.bc_ssl_rl_refinement --test
+```
+
+**Branch:** `feature/daily-2026-03-19-d`
+**Commit:** `3617740`
 
 ---
 
