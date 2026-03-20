@@ -1,12 +1,13 @@
 # Status (ClawBot)
 
-_Last updated: 2026-03-20 (Pipeline PR #1)_
+_Last updated: 2026-03-20 (Pipeline PR #4)_
 
 ## Current focus
 Driving-first pipeline: **Waymo episodes → PyTorch SSL pretrain → waypoint BC → RL refinement → CARLA ScenarioRunner eval**.
 
 ## Daily Cadence
 
+- ✅ **Pipeline PR #4** (2026-03-20): CARLA Waypoint Inference Script (closed-loop BC evaluation)
 - ✅ **Pipeline PR #3** (2026-03-20): Unified Pipeline Evaluation Script (BC + RL + CARLA)
 - ✅ **Pipeline PR #1** (2026-03-20): SSL Augmentations (MoCo/SimCLR/Light) for Waymo Pretraining
 - ✅ **Pipeline PR #4** (2026-03-19): BC+SSL to RL Refinement Integration
@@ -47,6 +48,32 @@ Driving-first pipeline: **Waymo episodes → PyTorch SSL pretrain → waypoint B
 - ⏳ **Pipeline PR #5** (2026-02-16): RL Refinement Stub for Residual Delta-Waypoint Learning - awaiting review
 
 ## Recent changes
+
+### Pipeline PR #4: CARLA Waypoint Inference Script (2026-03-20)
+- **Created: `training/bc/carla_waypoint_inference.py`**
+  - CarlaWaypointInferenceConfig: Configuration dataclass for inference
+  - InferenceResult: Results dataclass (ADE, FDE, success, collision)
+  - WaypointController: PID-based controller for waypoint following
+  - CarlaWaypointInference: Main class for real-time CARLA inference
+  - Loads BC checkpoint via bc_checkpoint_loader
+  - Camera and collision sensors for perception/safety
+  - Supports multiple scenarios, weather presets, and tuning
+
+**Testing:**
+- Script structure verified ✅
+- Ready for CARLA connection testing
+
+**Branch:** `feature/daily-2026-03-20-d`
+**Commit:** `9b82be0`
+
+**Usage:**
+```bash
+python -m training.bc.carla_waypoint_inference \
+    --bc-checkpoint out/bc_waypoint/model.pt \
+    --carla-town Town01
+```
+
+---
 
 ### Pipeline PR #5: PPO Delta-Waypoint Training (Option B) (2026-03-19)
 - **Created: `training/rl/train_ppo_delta_waypoint.py`**
