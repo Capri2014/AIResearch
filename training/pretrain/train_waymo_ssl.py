@@ -35,6 +35,13 @@ from training.pretrain.waymo_ssl_dataset import (
     collate_temporal_pairs,
     create_waymo_ssl_dataloader,
 )
+from training.pretrain.augmentations import (
+    build_ssl_augmentation,
+    build_moco_augmentation,
+    build_simclr_augmentation,
+    build_light_augmentation,
+    SSLAugmentationConfig,
+)
 from training.episodes.waymo_episode_dataset import WaymoEpisodeDatasetConfig
 
 
@@ -62,6 +69,10 @@ class WaymoSSLConfig:
 
     # Temporal pairs
     delta_t_range: Tuple[float, float] = (0.5, 2.0)
+
+    # Augmentation
+    augmentation_type: str = "moco"  # moco, simclr, light, none
+    augment: bool = True  # Whether to apply augmentation
 
     # Training
     batch_size: int = 32
@@ -285,6 +296,19 @@ def run_training(cfg: WaymoSSLConfig) -> Dict[str, Any]:
 
     print(f"[waymo-ssl] Using device: {device}")
 
+    # Create augmentation function
+    augmentation = None
+    if cfg.augment and cfg.augmentation_type != "none":
+        print(f"[waymo-ssl] Using {cfg.augmentation_type} augmentation")
+        if cfg.augmentation_type == "moco":
+            augmentation = build_moco_augmentation(cfg.image_size[0])
+        elif cfg.augmentation_type == "simclr":
+            augmentation = build_simclr_augmentation(cfg.image_size[0])
+        elif cfg.augmentation_type == "light":
+            augmentation = build_light_augmentation(cfg.image_size[0])
+    else:
+        print("[waymo-ssl] No augmentation enabled")
+
     # Create dataloader
     print(f"[waymo-ssl] Loading episodes from: {cfg.episode_dir}")
     loader = create_waymo_ssl_dataloader(
@@ -300,6 +324,7 @@ def run_training(cfg: WaymoSSLConfig) -> Dict[str, Any]:
         image_cache_size=cfg.image_cache_size,
         shuffle=cfg.shuffle,
         drop_last=cfg.drop_last,
+        augmentation=augmentation,
     )
 
     print(f"[waymo-ssl] Dataset size: {len(loader.dataset)} temporal pairs")
@@ -440,6 +465,13 @@ def parse_args() -> WaymoSSLConfig:
     # Temporal pairs
     parser.add_argument("--delta-t-min", type=float, default=0.5)
     parser.add_argument("--delta-t-max", type=float, default=2.0)
+
+    # Augmentation
+    parser.add_argument("--augmentation-type", type=str, default="moco",
+                        choices=["moco", "simclr", "light", "none"],
+                        help="Type of SSL augmentation to apply")
+    parser.add_argument("--no-augment", action="store_false", dest="augment",
+                        help="Disable data augmentation")
 
     # Training
     parser.add_argument("--batch-size", type=int, default=32)

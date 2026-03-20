@@ -16,7 +16,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Dict, Iterator, List, Optional, Tuple
+from typing import Any, Callable, Dict, Iterator, List, Optional, Tuple, Union
 
 
 def _require_torch():
@@ -73,6 +73,7 @@ class WaymoTemporalPairDataset:
         image_size: Tuple[int, int] = (224, 224),
         decode_images: bool = False,
         image_cache_size: int = 2048,
+        augmentation: Optional[Callable[[Any, Any], Tuple[Any, Any]]] = None,
     ):
         """Initialize the temporal pair dataset.
 
@@ -85,6 +86,9 @@ class WaymoTemporalPairDataset:
             image_size: (H, W) for image decoding
             decode_images: Whether to decode images in __getitem__
             image_cache_size: Max number of images to cache
+            augmentation: Optional augmentation function to apply to image pairs.
+                Should take (anchor_image, positive_image) and return
+                (augmented_anchor, augmented_positive). If None, no augmentation.
         """
         self._torch = _require_torch()
 
@@ -96,6 +100,7 @@ class WaymoTemporalPairDataset:
         self.image_size = image_size
         self.decode_images = decode_images
         self.image_cache_size = image_cache_size
+        self.augmentation = augmentation
 
         # Load the underlying Waymo episode dataset
         WaymoEpisodeDatasetConfig = _get_waymo_config()
@@ -157,6 +162,31 @@ class WaymoTemporalPairDataset:
         # Get anchor and positive frames
         anchor = self.dataset[pair.anchor_idx]
         positive = self.dataset[pair.positive_idx]
+
+        # Apply augmentation if provided (temporal consistency: same aug to both)
+        if self.augmentation is not None:
+            # Extract images from the frame dicts
+            # WaymoEpisodeDataset returns camera_paths dict
+            anchor_img = anchor.get("camera_paths", {})
+            positive_img = positive.get("camera_paths", {})
+
+            # Get first camera image path
+            cam_name = self.cameras[0] if self.cameras else "front"
+            anchor_path = anchor_img.get(cam_name, "")
+            positive_path = positive_img.get(cam_name, "")
+
+            # Load images
+            anchor_tensor = _load_image_from_path(anchor_path, self.image_size)
+            positive_tensor = _load_image_from_path(positive_path, self.image_size)
+
+            # Apply augmentation if images loaded successfully
+            if anchor_tensor is not None and positive_tensor is not None:
+                aug_anchor, aug_positive = self.augmentation(anchor_tensor, positive_tensor)
+                # Store augmented images in the output dict
+                anchor = dict(anchor)
+                positive = dict(positive)
+                anchor["_augmented_image"] = aug_anchor
+                positive["_augmented_image"] = aug_positive
 
         # WaymoEpisodeDataset returns flat dict with keys like episode_id, t, etc.
         out: Dict[str, Any] = {
@@ -363,6 +393,7 @@ def create_waymo_ssl_dataloader(
     image_cache_size: int = 2048,
     shuffle: bool = True,
     drop_last: bool = True,
+    augmentation: Optional[Callable[[Any, Any], Tuple[Any, Any]]] = None,
 ):
     """Factory function to create a DataLoader for Waymo SSL pretraining.
 
@@ -379,6 +410,7 @@ def create_waymo_ssl_dataloader(
         image_cache_size: Max images to cache per worker
         shuffle: Whether to shuffle
         drop_last: Whether to drop last incomplete batch
+        augmentation: Optional augmentation function to apply to temporal pairs
 
     Returns:
         DataLoader yielding batches from collate_temporal_pairs
@@ -395,6 +427,7 @@ def create_waymo_ssl_dataloader(
         image_size=image_size,
         decode_images=decode_images,
         image_cache_size=image_cache_size,
+        augmentation=augmentation,
     )
 
     loader = DataLoader(
