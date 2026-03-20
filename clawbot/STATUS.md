@@ -1,12 +1,13 @@
 # Status (ClawBot)
 
-_Last updated: 2026-03-20 (Pipeline PR #4)_
+_Last updated: 2026-03-20 (Pipeline PR #5)_
 
 ## Current focus
 Driving-first pipeline: **Waymo episodes → PyTorch SSL pretrain → waypoint BC → RL refinement → CARLA ScenarioRunner eval**.
 
 ## Daily Cadence
 
+- ✅ **Pipeline PR #5** (2026-03-20): RL-after-SFT Delta Waypoint Training (Option B)
 - ✅ **Pipeline PR #4** (2026-03-20): CARLA Waypoint Inference Script (closed-loop BC evaluation)
 - ✅ **Pipeline PR #3** (2026-03-20): Unified Pipeline Evaluation Script (BC + RL + CARLA)
 - ✅ **Pipeline PR #1** (2026-03-20): SSL Augmentations (MoCo/SimCLR/Light) for Waymo Pretraining
@@ -71,6 +72,39 @@ Driving-first pipeline: **Waymo episodes → PyTorch SSL pretrain → waypoint B
 python -m training.bc.carla_waypoint_inference \
     --bc-checkpoint out/bc_waypoint/model.pt \
     --carla-town Town01
+```
+
+---
+
+### Pipeline PR #5: RL-after-SFT Delta Waypoint Training (Option B) (2026-03-20)
+- **Created: `training/rl/train_rl_sft_delta.py`**
+  - RLSDeltaConfig: Configuration (state_dim=20, num_waypoints=8, hidden_dims=[128,64])
+  - SFTWaypointStub: Stub SFT model generating baseline waypoints from vehicle state
+  - DeltaWaypointHead: Residual delta prediction network with learned log_std
+  - KinematicWaypointEnv: Simplified kinematic environment with bicycle model
+  - PPO training with GAE advantages and clipped surrogate objective
+
+**Design Pattern (Option B):**
+```
+final_waypoints = sft_waypoints + delta_head(z)
+```
+- SFT model frozen, only delta head trained
+- Action space = waypoint deltas (16 dims for 8 waypoints)
+
+**Testing (50 episodes):**
+- Final reward: -8.16 ± 0.32
+- Final ADE: 7.85m, FDE: 36.08m
+- Artifacts: out/rl_sft_delta/run_20260320_193442/
+
+**Branch:** `feature/daily-2026-03-20-e`
+**Commit:** `1c9cd75`
+
+**Usage:**
+```bash
+python -m training.rl.train_rl_sft_delta --episodes 50
+python -m training.rl.train_rl_sft_delta \
+    --sft-checkpoint out/bc_waypoint/model.pt \
+    --episodes 100
 ```
 
 ---
