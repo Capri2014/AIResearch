@@ -7,6 +7,7 @@ Driving-first pipeline: **Waymo episodes → PyTorch SSL pretrain → waypoint B
 
 ## Daily Cadence
 
+- ✅ **Pipeline PR #3** (2026-03-20): Unified Pipeline Evaluation Script (BC + RL + CARLA)
 - ✅ **Pipeline PR #1** (2026-03-20): SSL Augmentations (MoCo/SimCLR/Light) for Waymo Pretraining
 - ✅ **Pipeline PR #4** (2026-03-19): BC+SSL to RL Refinement Integration
 - ✅ **Pipeline PR #3** (2026-03-19): Waypoint BC with SSL Encoder Transfer Learning
