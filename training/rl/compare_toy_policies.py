@@ -219,6 +219,11 @@ def main() -> None:
     p.add_argument("--seed-base", type=int, default=0)
     p.add_argument("--max-steps", type=int, default=50)
     p.add_argument("--step-scale", type=float, default=0.2)
+    p.add_argument(
+        "--unified-metrics",
+        action="store_true",
+        help="Also write a unified metrics.json combining both policies",
+    )
     a = p.parse_args()
 
     run_id = a.run_id or time.strftime("%Y%m%d-%H%M%S")
@@ -296,6 +301,51 @@ def main() -> None:
         },
     }
     (out_dir / "comparison.json").write_text(json.dumps(comparison, indent=2) + "\n")
+
+    # Write unified metrics.json if requested
+    if a.unified_metrics:
+        # Combine scenarios from both policies, tagging each with policy name
+        unified_scenarios = []
+        for s in sft_scenarios:
+            s_copy = dict(s)
+            s_copy["scenario_id"] = f"sft_{s['scenario_id']}"
+            s_copy["policy"] = "sft"
+            unified_scenarios.append(s_copy)
+        for s in rl_scenarios:
+            s_copy = dict(s)
+            s_copy["scenario_id"] = f"rl_{s['scenario_id']}"
+            s_copy["policy"] = "rl"
+            unified_scenarios.append(s_copy)
+
+        # Compute combined summary
+        combined_ades = [s.get("ade", float("nan")) for s in unified_scenarios]
+        combined_fdes = [s.get("fde", float("nan")) for s in unified_scenarios]
+        combined_successes = [1 if s.get("success") else 0 for s in unified_scenarios]
+
+        valid_ades = [a for a in combined_ades if not np.isnan(a)]
+        valid_fdes = [f for f in combined_fdes if not np.isnan(f)]
+
+        combined_summary = {
+            "ade_mean": float(np.mean(valid_ades)) if valid_ades else float("nan"),
+            "ade_std": float(np.std(valid_ades)) if len(valid_ades) > 1 else 0.0,
+            "fde_mean": float(np.mean(valid_fdes)) if valid_fdes else float("nan"),
+            "fde_std": float(np.std(valid_fdes)) if len(valid_fdes) > 1 else 0.0,
+            "success_rate": float(np.mean(combined_successes)) if combined_successes else 0.0,
+            "num_episodes": len(unified_scenarios),
+            "sft_summary": sft_summary,
+            "rl_summary": rl_summary,
+        }
+
+        unified_metrics = {
+            "run_id": run_id,
+            "domain": "rl",
+            "git": git,
+            "policy": {"name": "toy_waypoint_comparison"},
+            "scenarios": unified_scenarios,
+            "summary": combined_summary,
+        }
+        (out_dir / "metrics.json").write_text(json.dumps(unified_metrics, indent=2) + "\n")
+        print(f"  {out_dir / 'metrics.json'}")
 
     # Print 3-line report
     print(f"\n{'='*60}")

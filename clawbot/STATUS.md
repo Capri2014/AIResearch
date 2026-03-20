@@ -1,12 +1,13 @@
 # Status (ClawBot)
 
-_Last updated: 2026-03-16 (Pipeline PR #6 - today)_
+_Last updated: 2026-03-19 (Pipeline PR #6 - daily cadence)_
 
 ## Current focus
 Driving-first pipeline: **Waymo episodes → PyTorch SSL pretrain → waypoint BC → RL refinement → CARLA ScenarioRunner eval**.
 
 ## Daily Cadence
 
+- ✅ **Pipeline PR #6** (2026-03-19): Unified Metrics Output for SFT vs RL Comparison
 - ✅ **Pipeline PR #6** (2026-03-16): Toy Waypoint SFT vs RL Comparison
 - ✅ **Pipeline PR #3** (2026-03-10): Multi-Scenario Evaluation Framework
 - ✅ **Pipeline PR #2** (2026-03-07): Kinematic Waypoint Env Evaluation with ADE/FDE
@@ -17,6 +18,18 @@ Driving-first pipeline: **Waymo episodes → PyTorch SSL pretrain → waypoint B
 - ⏳ **Pipeline PR #5** (2026-02-16): RL Refinement Stub for Residual Delta-Waypoint Learning - awaiting review
 
 ## Recent changes
+
+### Pipeline PR #6: Unified Metrics Output for SFT vs RL Comparison (2026-03-19)
+- **Updated: `training/rl/compare_toy_policies.py`**
+  - Added `--unified-metrics` flag to write a combined `metrics.json` file
+  - The unified output includes both SFT and RL scenarios in a single file
+  - Each scenario tagged with policy name ("sft" or "rl")
+  - Summary includes both per-policy and combined statistics
+  - Ran 50 episodes with seed base 0:
+    - SFT: ADE=14.87m, FDE=41.09m, Success=0.0%
+    - RL: ADE=14.82m, FDE=40.81m, Success=0.0%
+    - Delta: ADE=-0.06m (0.4% improvement), FDE=-0.27m (0.7% improvement)
+- Output: `out/eval/20260319-213427/metrics.json` (100 scenarios, unified)
 
 ### Pipeline PR #6: Toy Waypoint SFT vs RL Comparison (2026-03-16)
 - **Created: `training/rl/compare_toy_policies.py`**
@@ -97,6 +110,6 @@ final_waypoints = sft_waypoints + delta_head(z)
 - Metrics: ADE/FDE, route_completion, collisions
 
 ## Links
-- Daily notes: `clawbot/daily/2026-03-16.md`
-- Branch: `feature/daily-2026-03-10-f`
-- PR: https://github.com/Capri2014/AIResearch/pull/new/feature/daily-2026-03-10-f
+- Daily notes: `clawbot/daily/2026-03-19.md`
+- Branch: `feature/daily-2026-03-19-c`
+- PR: https://github.com/Capri2014/AIResearch/pull/new/feature/daily-2026-03-19-c
