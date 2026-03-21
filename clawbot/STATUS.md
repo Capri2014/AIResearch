@@ -1,12 +1,15 @@
 # Status (ClawBot)
 
-_Last updated: 2026-03-21 (Pipeline PR #1)_
+_Last updated: 2026-03-21 (Pipeline PR #3)_
 
 ## Current focus
 Driving-first pipeline: **Waymo episodes → PyTorch SSL pretrain → waypoint BC → RL refinement → CARLA ScenarioRunner eval**.
 
 ## Daily Cadence
 
+- ✅ **Pipeline PR #2** (2026-03-21): SimCLR SSL Pretraining for Waymo Data
+- ✅ **Pipeline PR #3** (2026-03-21): Full Driving Pipeline Orchestrator
+- ✅ **Pipeline PR #2** (2026-03-21): SimCLR SSL Pretraining for Waymo Data
 - ✅ **Pipeline PR #1** (2026-03-21): MoCo SSL Pretraining + Unified Inference Pipeline
 - ✅ **Pipeline PR #6** (2026-03-20): RL Refinement Evaluation + Metrics Hardening
 - ✅ **Pipeline PR #5** (2026-03-20): RL-after-SFT Delta Waypoint Training (Option B)
@@ -51,6 +54,61 @@ Driving-first pipeline: **Waymo episodes → PyTorch SSL pretrain → waypoint B
 - ⏳ **Pipeline PR #5** (2026-02-16): RL Refinement Stub for Residual Delta-Waypoint Learning - awaiting review
 
 ## Recent changes
+
+### Pipeline PR #2: SimCLR SSL Pretraining for Waymo Data (2026-03-21)
+- **Created: `training/pretrain/simclr_waymo_ssl.py`**
+  - SimCLRModel: Encoder + projection head (resnet34/50 or simple CNN)
+  - SimCLRAugmentation: Crop, flip, color jitter (works with/without torchvision)
+  - simclr_loss: NT-Xent contrastive loss with temperature
+  - simclr_training_loop(): Full training with warmup + cosine LR
+
+- **Architecture comparison:**
+  - MoCo: Queue-based negatives (65K), smaller batch
+  - SimCLR: Batch-based negatives, larger batch needed
+
+**Testing:**
+- Model creation: ✅ (159,616 params)
+- Forward pass: ✅ (4, 128) embeddings
+- Augmentation: ✅ (3, 256, 256) × 2 views
+- Loss computation: ✅
+- Checkpoint save/load: ✅
+
+**Branch:** `feature/daily-2026-03-21-b`
+**Commit:** `235fca1`
+
+**Usage:**
+```bash
+python -m training.pretrain.simclr_waymo_ssl \
+    --episode-dir data/waymo_episodes \
+    --batch-size 64 \
+    --num-steps 10000
+
+# Smoke test
+python -m training.pretrain.simclr_waymo_ssl --test
+```
+
+---
+
+### Pipeline PR #1: MoCo SSL Pretraining + Unified Inference Pipeline (2026-03-21)
+- **Created: `training/pretrain/moco_waymo_ssl.py`**
+  - MoCoEncoder: Momentum contrastive encoder with query/key encoders
+  - MoCoQueue: Queue management for negative sample storage (65K default)
+  - moco_training_loop(): Full MoCo training with momentum update (m=0.999)
+
+- **Created: `training/inference/pipeline_inference.py`**
+  - InferenceConfig: BC, RL, SSL checkpoint paths and settings
+  - InferenceResult: bc_waypoints, final_waypoints, rl_delta, confidence scores
+  - PipelineInference: Unified BC+RL inference (BC-only or BC+RL modes)
+
+**Testing:**
+- MoCo encoder instantiation: ✅
+- Queue operations (enqueue/dequeue): ✅
+- Inference pipeline initialization: ✅
+
+**Branch:** `feature/daily-2026-03-21-a`
+**Commit:** `a15ffb4`
+
+---
 
 ### Pipeline PR #4: CARLA Waypoint Inference Script (2026-03-20)
 - **Created: `training/bc/carla_waypoint_inference.py`**
