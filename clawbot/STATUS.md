@@ -1,12 +1,13 @@
 # Status (ClawBot)
 
-_Last updated: 2026-03-21 (Pipeline PR #4)_
+_Last updated: 2026-03-21 (Pipeline PR #5)_
 
 ## Current focus
 Driving-first pipeline: **Waymo episodes → PyTorch SSL pretrain → waypoint BC → RL refinement → CARLA ScenarioRunner eval**.
 
 ## Daily Cadence
 
+- ✅ **Pipeline PR #5** (2026-03-21): GRPO Waypoint Refinement After SFT
 - ✅ **Pipeline PR #4** (2026-03-21): CARLA ScenarioRunner Multi-Scenario Framework
 - ✅ **Pipeline PR #3** (2026-03-21): Full Driving Pipeline Orchestrator
 - ✅ **Pipeline PR #2** (2026-03-21): SimCLR SSL Pretraining for Waymo Data
@@ -54,6 +55,32 @@ Driving-first pipeline: **Waymo episodes → PyTorch SSL pretrain → waypoint B
 - ⏳ **Pipeline PR #5** (2026-02-16): RL Refinement Stub for Residual Delta-Waypoint Learning - awaiting review
 
 ## Recent changes
+
+### Pipeline PR #5: GRPO Waypoint Refinement After SFT (2026-03-21)
+- **Created: `training/rl/grpo_waypoint_refinement.py`**
+  - GRPOWaypointConfig: Configuration for GRPO delta-waypoint training
+  - DeltaWaypointNetwork: 8-waypoint delta prediction network (21,648 params)
+  - train_grpo_waypoint(): GRPO training loop with group-relative advantage
+  - SFT model loading for initialization
+  - Integrates with ToyWaypointEnv for waypoint-based RL
+
+**Testing:**
+- Module import: ✅
+- Model forward pass: ✅
+- Training run (30 episodes): ✅
+
+**Metrics:**
+- Mean reward (last 10): 3.28
+- Mean length: 16.6 steps
+
+**Artifacts:**
+- `out/grpo_waypoint_daily_2026_03_21/final.pt`
+- `out/grpo_waypoint_daily_2026_03_21/metrics.json`
+- `out/grpo_waypoint_daily_2026_03_21/train_metrics.json`
+
+**Branch:** `feature/daily-2026-03-21-e`
+
+---
 
 ### Pipeline PR #4: CARLA ScenarioRunner Multi-Scenario Framework (2026-03-21)
 - **Created: `sim/driving/carla_srunner/scenario_factory.py`**

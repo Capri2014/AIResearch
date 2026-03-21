@@ -8,6 +8,12 @@ from .ppo_residual_waypoint import (
     PPOResidualWaypointAgent,
     train_ppo_residual
 )
+from .grpo_waypoint_refinement import (
+    GRPOWaypointConfig,
+    DeltaWaypointNetwork,
+    load_sft_waypoint_model,
+    train_grpo_waypoint,
+)
 
 __all__ = [
     'WaypointEnv',
@@ -15,5 +21,9 @@ __all__ = [
     'DeltaWaypointHead',
     'SFTWaypointModel',
     'PPOResidualWaypointAgent',
-    'train_ppo_residual'
+    'train_ppo_residual',
+    'GRPOWaypointConfig',
+    'DeltaWaypointNetwork',
+    'load_sft_waypoint_model',
+    'train_grpo_waypoint',
 ]
