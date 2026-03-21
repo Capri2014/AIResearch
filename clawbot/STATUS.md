@@ -1,13 +1,13 @@
 # Status (ClawBot)
 
-_Last updated: 2026-03-21 (Pipeline PR #3)_
+_Last updated: 2026-03-21 (Pipeline PR #4)_
 
 ## Current focus
 Driving-first pipeline: **Waymo episodes → PyTorch SSL pretrain → waypoint BC → RL refinement → CARLA ScenarioRunner eval**.
 
 ## Daily Cadence
 
-- ✅ **Pipeline PR #2** (2026-03-21): SimCLR SSL Pretraining for Waymo Data
+- ✅ **Pipeline PR #4** (2026-03-21): CARLA ScenarioRunner Multi-Scenario Framework
 - ✅ **Pipeline PR #3** (2026-03-21): Full Driving Pipeline Orchestrator
 - ✅ **Pipeline PR #2** (2026-03-21): SimCLR SSL Pretraining for Waymo Data
 - ✅ **Pipeline PR #1** (2026-03-21): MoCo SSL Pretraining + Unified Inference Pipeline
@@ -54,6 +54,32 @@ Driving-first pipeline: **Waymo episodes → PyTorch SSL pretrain → waypoint B
 - ⏳ **Pipeline PR #5** (2026-02-16): RL Refinement Stub for Residual Delta-Waypoint Learning - awaiting review
 
 ## Recent changes
+
+### Pipeline PR #4: CARLA ScenarioRunner Multi-Scenario Framework (2026-03-21)
+- **Created: `sim/driving/carla_srunner/scenario_factory.py`**
+  - ScenarioFactory: Create driving scenarios (cut-in, follow, lane change, pedestrian, emergency brake)
+  - ScenarioConfig/Result: Full configuration and result tracking with metrics
+  - MultiScenarioRunner: Execute multiple scenarios with result aggregation
+  - Scenario types: CUT_IN, FOLLOW, LANE_CHANGE, MERGE, INTERSECTION, PEDESTRIAN, EMERGENCY_BRAKE
+  - Weather presets: ClearNoon, ClearSunset, CloudyNoon, RainyNoon, FoggyNoon
+
+- **Created: `sim/driving/carla_srunner/test_scenario_factory.py`**
+  - Test coverage for all major components
+  - Mock execution when CARLA not available
+
+**Testing:**
+- Module import: ✅
+- Factory creation: ✅
+- Scenario creation: ✅
+- Spawn point retrieval: ✅
+- Weather preset retrieval: ✅
+- Multi-scenario runner: ✅
+- Standard scenario suite: ✅ (7 scenarios)
+
+**Branch:** `feature/daily-2026-03-21-d`
+**Commit:** `171a10f`
+
+---
 
 ### Pipeline PR #2: SimCLR SSL Pretraining for Waymo Data (2026-03-21)
 - **Created: `training/pretrain/simclr_waymo_ssl.py`**
