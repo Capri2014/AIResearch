@@ -6,6 +6,7 @@ Key components:
 - Waymo SSL dataset: training/pretrain/waymo_ssl_dataset.py
 - Temporal contrastive training: training/pretrain/train_waymo_ssl.py
 - MoCo SSL training: training/pretrain/moco_waymo_ssl.py
+- SimCLR SSL training: training/pretrain/simclr_waymo_ssl.py
 
 Usage:
     # Run SSL pretraining (vanilla temporal contrastive)
@@ -21,6 +22,13 @@ Usage:
         --num-steps 10000 \
         --moco-m 0.999 \
         --queue-size 65536
+
+    # Run SimCLR SSL pretraining (simple contrastive)
+    python -m training.pretrain.simclr_waymo_ssl \
+        --episode-dir /path/to/episodes \
+        --batch-size 64 \
+        --num-steps 10000 \
+        --temperature 0.07
 """
 
 # Import lazily to avoid circular imports
@@ -43,6 +51,15 @@ def __getattr__(name):
     elif name == "load_moco_checkpoint":
         from training.pretrain.moco_waymo_ssl import load_moco_checkpoint
         return load_moco_checkpoint
+    elif name == "SimCLRModel":
+        from training.pretrain.simclr_waymo_ssl import SimCLRModel
+        return SimCLRModel
+    elif name == "SimCLRConfig":
+        from training.pretrain.simclr_waymo_ssl import SimCLRConfig
+        return SimCLRConfig
+    elif name == "simclr_loss":
+        from training.pretrain.simclr_waymo_ssl import simclr_loss
+        return simclr_loss
     raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
 
 
@@ -53,4 +70,7 @@ __all__ = [
     "MoCoEncoder",
     "MoCoQueue",
     "load_moco_checkpoint",
+    "SimCLRModel",
+    "SimCLRConfig",
+    "simclr_loss",
 ]
