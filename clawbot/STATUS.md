@@ -1,12 +1,13 @@
 # Status (ClawBot)
 
-_Last updated: 2026-03-20 (Pipeline PR #5)_
+_Last updated: 2026-03-20 (Pipeline PR #6)_
 
 ## Current focus
 Driving-first pipeline: **Waymo episodes → PyTorch SSL pretrain → waypoint BC → RL refinement → CARLA ScenarioRunner eval**.
 
 ## Daily Cadence
 
+- ✅ **Pipeline PR #6** (2026-03-20): RL Refinement Evaluation + Metrics Hardening
 - ✅ **Pipeline PR #5** (2026-03-20): RL-after-SFT Delta Waypoint Training (Option B)
 - ✅ **Pipeline PR #4** (2026-03-20): CARLA Waypoint Inference Script (closed-loop BC evaluation)
 - ✅ **Pipeline PR #3** (2026-03-20): Unified Pipeline Evaluation Script (BC + RL + CARLA)
@@ -105,6 +106,41 @@ python -m training.rl.train_rl_sft_delta --episodes 50
 python -m training.rl.train_rl_sft_delta \
     --sft-checkpoint out/bc_waypoint/model.pt \
     --episodes 100
+```
+
+---
+
+### Pipeline PR #6: RL Refinement Evaluation + Metrics Hardening (2026-03-20)
+- **Fixed: `training/rl/eval_toy_waypoint_env.py`**
+  - Fixed bug: `avg_return` → `return_mean` in summary output
+
+- **Created: `data/schema/rl_metrics.json`**
+  - JSON Schema for RL training metrics (toy waypoint env, PPO, GRPO)
+  - Supports per-episode metrics, eval intervals, update metrics
+
+- **Created: `training/rl/eval_metrics_loader.py`**
+  - Universal CLI tool for loading/printing evaluation metrics
+  - Comparison mode (`--compare`) for SFT vs RL
+  - Schema validation against `data/schema/metrics.json`
+
+**Testing (10 episodes, seeds 42-51):**
+- SFT: ADE=14.12m, FDE=41.92m, Success=0%
+- RL: ADE=13.70m, FDE=41.16m, Success=0%
+- Improvement: ADE +3%, FDE +2%
+
+**Branch:** `feature/daily-2026-03-20-e`
+**Commit:** `27a5854`
+
+**Usage:**
+```bash
+# Run comparison
+python -m training.rl.compare_sft_vs_rl --episodes 20 --seed-base 42
+
+# Load metrics
+python -m training.rl.eval_metrics_loader out/eval/<run_id>
+
+# Compare runs
+python -m training.rl.eval_metrics_loader out/eval/<sft> out/eval/<rl> --compare
 ```
 
 ---
