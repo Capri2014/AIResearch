@@ -37,8 +37,8 @@ import torch.nn as nn
 
 from training.bc.waypoint_bc_model import WaypointBCConfig, create_waypoint_bc_model
 from training.rl.bc_checkpoint_loader import load_bc_waypoint_model
-from training.rl.eval_metrics import compute_ade, compute_fde
-from sim.driving.carla_srunner.policy_wrapper import WAYPOINT_BC_AVAILABLE, WaypointBCPolicy
+from training.rl.eval_metrics import compute_displacement_error
+from sim.driving.carla_srunner.policy_wrapper import WAYPOINT_BC_AVAILABLE, WaypointPolicyWrapper
 
 
 # ============================================================================
