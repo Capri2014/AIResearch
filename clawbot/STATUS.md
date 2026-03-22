@@ -7,6 +7,7 @@ Driving-first pipeline: **Waymo episodes → PyTorch SSL pretrain → waypoint B
 
 ## Daily Cadence
 
+- ✅ **Pipeline PR #6** (2026-03-21): RL Refinement Evaluation + Metrics Hardening
 - ✅ **Pipeline PR #5** (2026-03-21): GRPO Waypoint Refinement After SFT
 - ✅ **Pipeline PR #4** (2026-03-21): CARLA ScenarioRunner Multi-Scenario Framework
 - ✅ **Pipeline PR #3** (2026-03-21): Full Driving Pipeline Orchestrator
@@ -55,6 +56,28 @@ Driving-first pipeline: **Waymo episodes → PyTorch SSL pretrain → waypoint B
 - ⏳ **Pipeline PR #5** (2026-02-16): RL Refinement Stub for Residual Delta-Waypoint Learning - awaiting review
 
 ## Recent changes
+
+### Pipeline PR #6: RL Refinement Evaluation + Metrics Hardening (2026-03-21)
+- **Fixed: `training/rl/eval_waypoint_rl.py`**
+  - Fixed bug: `avg_return` → `return_mean` and `std_return` → `return_std`
+  - Ensures compatibility with `eval_metrics_loader.py` which expects `return_mean`
+
+- **Fixed: `training/rl/compare_toy_waypoint_eval.py`**
+  - Updated output field names from `avg_return` to `return_mean`
+
+**Testing:**
+- compare_sft_vs_rl: ✅ (3 episodes)
+- compare_toy_waypoint_eval: ✅
+- eval_metrics_loader: ✅
+
+**Results (3 episodes):**
+- SFT: ADE=17.20m, FDE=41.51m, Success=0%
+- RL: ADE=17.07m, FDE=41.07m, Success=0%
+- Improvement: ADE +1%, FDE +1%
+
+**Branch:** `feature/daily-2026-03-21-e`
+
+---
 
 ### Pipeline PR #5: GRPO Waypoint Refinement After SFT (2026-03-21)
 - **Created: `training/rl/grpo_waypoint_refinement.py`**

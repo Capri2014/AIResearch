@@ -258,16 +258,16 @@ def run_evaluation(
         'sft': {
             'ade': sft_stats['ade'],
             'fde': sft_stats['fde'],
-            'avg_return': sft_stats['return']['mean'],
-            'std_return': sft_stats['return']['std'],
+            'return_mean': sft_stats['return']['mean'],
+            'return_std': sft_stats['return']['std'],
             'success_rate': sft_stats['success_rate'],
             'policy': 'sft'
         },
         'rl': {
             'ade': rl_stats['ade'],
             'fde': rl_stats['fde'],
-            'avg_return': rl_stats['return']['mean'],
-            'std_return': rl_stats['return']['std'],
+            'return_mean': rl_stats['return']['mean'],
+            'return_std': rl_stats['return']['std'],
             'success_rate': rl_stats['success_rate'],
             'policy': 'rl'
         },

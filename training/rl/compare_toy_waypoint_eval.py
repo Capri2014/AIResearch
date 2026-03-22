@@ -44,9 +44,9 @@ def main() -> None:
     na = str(ma.get("policy", {}).get("name", "A"))
     nb = str(mb.get("policy", {}).get("name", "B"))
 
-    print(f"A {na}: success={sa:.2f} avg_return={ra:.3f} avg_steps={ta:.1f}")
-    print(f"B {nb}: success={sb:.2f} avg_return={rb:.3f} avg_steps={tb:.1f}")
-    print(f"Δ (B-A): success={sb-sa:+.2f} avg_return={rb-ra:+.3f} avg_steps={tb-ta:+.1f}")
+    print(f"A {na}: success={sa:.2f} return_mean={ra:.3f} avg_steps={ta:.1f}")
+    print(f"B {nb}: success={sb:.2f} return_mean={rb:.3f} avg_steps={tb:.1f}")
+    print(f"Δ (B-A): success={sb-sa:+.2f} return_mean={rb-ra:+.3f} avg_steps={tb-ta:+.1f}")
 
 
 if __name__ == "__main__":
