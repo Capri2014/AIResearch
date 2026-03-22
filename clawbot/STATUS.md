@@ -1,12 +1,13 @@
 # Status (ClawBot)
 
-_Last updated: 2026-03-22 (Pipeline PR #2)_
+_Last updated: 2026-03-22 (Pipeline PR #3)_
 
 ## Current focus
 Driving-first pipeline: **Waymo episodes → PyTorch SSL pretrain → waypoint BC → RL refinement → CARLA ScenarioRunner eval**.
 
 ## Daily Cadence
 
+- ✅ **Pipeline PR #3** (2026-03-22): BEV SSL GRPO Refinement
 - ✅ **Pipeline PR #2** (2026-03-22): Waypoint BC with BEV SSL Encoder Transfer Learning
 - ✅ **Pipeline PR #1** (2026-03-22): BEV SSL Pretraining for Waymo Data
 - ✅ **Pipeline PR #6** (2026-03-21): RL Refinement Evaluation + Metrics Hardening
@@ -87,6 +88,34 @@ Driving-first pipeline: **Waymo episodes → PyTorch SSL pretrain → waypoint B
 - Training step: ✅
 
 **Branch:** `feature/daily-2026-03-22-b`
+
+---
+
+### Pipeline PR #3: BEV SSL GRPO Refinement (2026-03-22)
+- **Created: `training/rl/bev_ssl_grpo_refinement.py`**
+  - BEVSSLGRPOConfig: Configuration dataclass for BEV SSL GRPO
+  - BEVSSLDeltaWaypointHead: Small delta prediction head for RL refinement
+  - BEVSSLGRPOAgent: Combined BC + delta model for GRPO training
+  - WaypointRefinementEnv: Environment wrapper for waypoint RL training
+  - BEVSSLGRPOTrainer: Complete training loop with GRPO optimization
+
+- **Key features:**
+  - Keeps BC model frozen, trains delta head only
+  - Three fusion methods: concat, attention, add
+  - GRPO loss with group-relative advantage scoring
+  - KL penalty for stable training
+  - Checkpointing and metrics logging
+
+- **Created: `training/rl/test_bev_ssl_grpo_refinement.py`**
+  - Smoke test for BEV SSL GRPO refinement module
+
+**Testing:**
+- Config creation: ✅
+- Delta head creation (29,584 params): ✅
+- Forward pass: ✅
+- Agent params (463,184): ✅
+
+**Branch:** `feature/daily-2026-03-22-c`
 
 ---
 
