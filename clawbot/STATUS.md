@@ -1,12 +1,14 @@
 # Status (ClawBot)
 
-_Last updated: 2026-03-21 (Pipeline PR #5)_
+_Last updated: 2026-03-22 (Pipeline PR #2)_
 
 ## Current focus
 Driving-first pipeline: **Waymo episodes → PyTorch SSL pretrain → waypoint BC → RL refinement → CARLA ScenarioRunner eval**.
 
 ## Daily Cadence
 
+- ✅ **Pipeline PR #2** (2026-03-22): Waypoint BC with BEV SSL Encoder Transfer Learning
+- ✅ **Pipeline PR #1** (2026-03-22): BEV SSL Pretraining for Waymo Data
 - ✅ **Pipeline PR #6** (2026-03-21): RL Refinement Evaluation + Metrics Hardening
 - ✅ **Pipeline PR #5** (2026-03-21): GRPO Waypoint Refinement After SFT
 - ✅ **Pipeline PR #4** (2026-03-21): CARLA ScenarioRunner Multi-Scenario Framework
@@ -56,6 +58,57 @@ Driving-first pipeline: **Waymo episodes → PyTorch SSL pretrain → waypoint B
 - ⏳ **Pipeline PR #5** (2026-02-16): RL Refinement Stub for Residual Delta-Waypoint Learning - awaiting review
 
 ## Recent changes
+
+### Pipeline PR #2: Waypoint BC with BEV SSL Encoder Transfer Learning (2026-03-22)
+- **Created: `training/bc/bev_ssl_waypoint_bc.py`**
+  - WaypointBCWithBEVSSLDataset: Dataset wrapper with BEV SSL encoder integration
+  - WaypointBCWithBEVSSLTrainer: Complete training loop with mixed precision
+  - create_bev_ssl_waypoint_bc_model(): Factory for BC model with BEV encoder
+  - bev_ssl_waypoint_bc_training_loop(): End-to-end training with CLI
+
+- **Key features:**
+  - Three fusion methods: concat, attention, add
+  - Transfer learning from BEV SSL checkpoint (optional)
+  - Freeze BEV encoder or fine-tune (configurable)
+  - Mixed precision training (AMP)
+  - Checkpointing and metrics logging
+
+- **Updated: `training/bc/__init__.py`**
+  - Added exports for new BEV SSL BC components
+
+- **Created: `training/bc/test_bev_ssl_waypoint_bc.py`**
+  - Smoke test for module
+
+**Testing:**
+- Module imports: ✅
+- BEV encoder creation (454,336 params): ✅
+- BC model creation (1,627,032 params): ✅
+- Forward pass (waypoints [4,8,2], speeds [4,8]): ✅
+- Training step: ✅
+
+**Branch:** `feature/daily-2026-03-22-b`
+
+---
+
+### Pipeline PR #1: BEV SSL Pretraining for Waymo Data (2026-03-22)
+- **Created: `training/pretrain/bev_encoder.py`**
+  - BEVConfig, ConvBlock, CameraEncoder, LidarEncoder
+  - CrossViewAttention: Attention-based camera-LiDAR fusion
+  - BEVEncoder: Complete encoder with concat/attention/add fusion
+
+- **Created: `training/pretrain/bev_ssl_pretrain.py`**
+  - BEVSSLConfig, bevQueue, TemporalContrastiveLoss
+  - CrossModalAlignmentLoss, WaymoBEVDataset, BEVSSLTrainer
+
+**Testing:**
+- BEV encoder instantiation: ✅
+- Forward pass (all fusion methods): ✅
+- Temporal contrastive loss: ✅
+- Cross-modal alignment loss: ✅
+
+**Branch:** `feature/daily-2026-03-22-a`
+
+---
 
 ### Pipeline PR #6: RL Refinement Evaluation + Metrics Hardening (2026-03-21)
 - **Fixed: `training/rl/eval_waypoint_rl.py`**

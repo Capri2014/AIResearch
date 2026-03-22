@@ -27,6 +27,13 @@ from .waypoint_visualizer import (
     create_waypoint_visualizer,
 )
 
+from .bev_ssl_waypoint_bc import (
+    WaypointBCWithBEVSSLDataset,
+    WaypointBCWithBEVSSLTrainer,
+    create_bev_ssl_waypoint_bc_model,
+    bev_ssl_waypoint_bc_training_loop,
+)
+
 __all__ = [
     'WaypointBCModel',
     'WaypointBCConfig', 
@@ -40,4 +47,8 @@ __all__ = [
     'WaypointVisualizer',
     'WaypointVisConfig',
     'create_waypoint_visualizer',
+    'WaypointBCWithBEVSSLDataset',
+    'WaypointBCWithBEVSSLTrainer',
+    'create_bev_ssl_waypoint_bc_model',
+    'bev_ssl_waypoint_bc_training_loop',
 ]
