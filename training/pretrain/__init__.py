@@ -7,6 +7,7 @@ Key components:
 - Temporal contrastive training: training/pretrain/train_waymo_ssl.py
 - MoCo SSL training: training/pretrain/moco_waymo_ssl.py
 - SimCLR SSL training: training/pretrain/simclr_waymo_ssl.py
+- BEV SSL training: training/pretrain/bev_ssl_pretrain.py (temporal + cross-modal)
 
 Usage:
     # Run SSL pretraining (vanilla temporal contrastive)
@@ -29,6 +30,13 @@ Usage:
         --batch-size 64 \
         --num-steps 10000 \
         --temperature 0.07
+
+    # Run BEV SSL pretraining (temporal + cross-modal alignment)
+    python -m training.pretrain.bev_ssl_pretrain \
+        --episode-dir /path/to/episodes \
+        --batch-size 32 \
+        --num-epochs 100 \
+        --output-dir out/bev_ssl
 """
 
 # Import lazily to avoid circular imports
@@ -60,6 +68,24 @@ def __getattr__(name):
     elif name == "simclr_loss":
         from training.pretrain.simclr_waymo_ssl import simclr_loss
         return simclr_loss
+    elif name == "BEVEncoder":
+        from training.pretrain.bev_encoder import BEVEncoder
+        return BEVEncoder
+    elif name == "BEVConfig":
+        from training.pretrain.bev_encoder import BEVConfig
+        return BEVConfig
+    elif name == "create_bev_encoder":
+        from training.pretrain.bev_encoder import create_bev_encoder
+        return create_bev_encoder
+    elif name == "BEVSSLConfig":
+        from training.pretrain.bev_ssl_pretrain import BEVSSLConfig
+        return BEVSSLConfig
+    elif name == "BEVSSLTrainer":
+        from training.pretrain.bev_ssl_pretrain import BEVSSLTrainer
+        return BEVSSLTrainer
+    elif name == "bev_ssl_training_loop":
+        from training.pretrain.bev_ssl_pretrain import bev_ssl_training_loop
+        return bev_ssl_training_loop
     raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
 
 
@@ -73,4 +99,10 @@ __all__ = [
     "SimCLRModel",
     "SimCLRConfig",
     "simclr_loss",
+    "BEVEncoder",
+    "BEVConfig",
+    "create_bev_encoder",
+    "BEVSSLConfig",
+    "BEVSSLTrainer",
+    "bev_ssl_training_loop",
 ]
