@@ -1,6 +1,6 @@
 # Status (ClawBot)
 
-_Last updated: 2026-03-23 (Pipeline PR #1)_
+_Last updated: 2026-03-23 (Pipeline PR #2)_
 
 ## Current focus
 Driving-first pipeline: **Waymo episodes → PyTorch SSL pretrain → waypoint BC → RL refinement → CARLA ScenarioRunner eval**.
@@ -8,6 +8,7 @@ Driving-first pipeline: **Waymo episodes → PyTorch SSL pretrain → waypoint B
 ## Daily Cadence
 
 - ✅ **Pipeline PR #1** (2026-03-23): BEV SSL Augmentations for Waymo Pretraining
+- ✅ **Pipeline PR #2** (2026-03-23): BEV SSL Pretraining with Integrated Augmentations
 - ✅ **Pipeline PR #6** (2026-03-22): Deterministic Evaluation Runner for RL after SFT
 - ✅ **Pipeline PR #5** (2026-03-22): PPO Delta-Waypoint Training for RL After SFT
 - ✅ **Pipeline PR #4** (2026-03-22): CARLA Waypoint Inference Tests + Bug Fixes
@@ -63,6 +64,59 @@ Driving-first pipeline: **Waymo episodes → PyTorch SSL pretrain → waypoint B
 - ⏳ **Pipeline PR #5** (2026-02-16): RL Refinement Stub for Residual Delta-Waypoint Learning - awaiting review
 
 ## Recent changes
+
+### Pipeline PR #2: BEV SSL Pretraining with Integrated Augmentations (2026-03-23)
+- **Created: `training/pretrain/bev_ssl_pretrain_aug.py`**
+  - AugmentationPipeline: Combined augmentation pipeline for BEV SSL training
+  - Supports both image augmentations (for camera inputs) and BEV augmentations
+  - Configurable via BEVSSLConfig with `use_image_augmentations` and `use_bev_augmentations` flags
+  - Handles cold start case when queue is empty (uses query features with noise as negatives)
+
+- **Updated BEVSSLConfig**:
+  - Added `use_image_augmentations: bool = True`
+  - Added `use_bev_augmentations: bool = True`
+  - Added `image_aug_config: Optional[Dict]` for custom image augmentation settings
+  - Added `bev_aug_config: Optional[Dict]` for custom BEV augmentation settings
+
+- **Updated BEVSSLTrainer**:
+  - Integrated AugmentationPipeline into training loop
+  - Applies augmentations to both query and key (positive) pairs
+  - Handles empty queue gracefully (cold start scenario)
+  - Enhanced metrics tracking with loss history
+
+- **Created: `training/pretrain/test_bev_ssl_pretrain_aug.py`**
+  - Comprehensive test suite for the augmentation pipeline
+  - Tests: import, config, pipeline creation, image augmentation, BEV augmentation, full pipeline, trainer creation, training step
+
+- **Updated: `training/pretrain/__init__.py`**
+  - Updated exports to include AugmentationPipeline
+  - Updated documentation to reference bev_ssl_pretrain_aug.py
+
+**Testing:**
+- All 8 tests passed
+- Module imports: ✅
+- Configuration creation: ✅
+- Augmentation pipeline creation: ✅
+- Image augmentation: ✅
+- BEV augmentation: ✅
+- Full pipeline: ✅
+- Trainer creation (396,608 params): ✅
+- Training step (loss=6.53, pos_sim=1.17): ✅
+
+**Usage:**
+```bash
+python -m training.pretrain.bev_ssl_pretrain_aug \
+    --episode-dir data/waymo_episodes \
+    --batch-size 32 \
+    --num-epochs 100 \
+    --output-dir out/bev_ssl_aug \
+    --use-bev-augmentations
+```
+
+**Branch:** `feature/daily-2026-03-23-b`
+**Commit:** `f7a0197`
+
+---
 
 ### Pipeline PR #6: Deterministic Evaluation Runner for RL after SFT (2026-03-22)
 - **Created: `training/rl/run_deterministic_eval.py`**
