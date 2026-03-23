@@ -1,12 +1,13 @@
 # Status (ClawBot)
 
-_Last updated: 2026-03-22 (Pipeline PR #5)_
+_Last updated: 2026-03-22 (Pipeline PR #6)_
 
 ## Current focus
 Driving-first pipeline: **Waymo episodes → PyTorch SSL pretrain → waypoint BC → RL refinement → CARLA ScenarioRunner eval**.
 
 ## Daily Cadence
 
+- ✅ **Pipeline PR #6** (2026-03-22): Deterministic Evaluation Runner for RL after SFT
 - ✅ **Pipeline PR #5** (2026-03-22): PPO Delta-Waypoint Training for RL After SFT
 - ✅ **Pipeline PR #4** (2026-03-22): CARLA Waypoint Inference Tests + Bug Fixes
 - ✅ **Pipeline PR #3** (2026-03-22): BEV SSL GRPO Refinement
@@ -61,6 +62,34 @@ Driving-first pipeline: **Waymo episodes → PyTorch SSL pretrain → waypoint B
 - ⏳ **Pipeline PR #5** (2026-02-16): RL Refinement Stub for Residual Delta-Waypoint Learning - awaiting review
 
 ## Recent changes
+
+### Pipeline PR #6: Deterministic Evaluation Runner for RL after SFT (2026-03-22)
+- **Created: `training/rl/run_deterministic_eval.py`**
+  - Deterministic evaluation runner for toy waypoint RL environment
+  - Outputs to `out/eval/<run_id>/metrics.json` following the standard schema
+  - Includes git metadata, policy info, per-scenario and summary metrics
+  - Validates output against `data/schema/metrics.json`
+
+- **Key features:**
+  - Run N episodes with specified seeds for reproducibility
+  - Outputs metrics following exact schema (return_mean, return_std, ade_mean, etc.)
+  - Built-in schema validation
+  - Git metadata included for reproducibility
+
+- **Testing:**
+  - Ran deterministic eval (5 episodes): ✅
+  - Schema validation: PASSED
+  - Output format verified against data/schema/metrics.json
+
+- **Results (5 episodes, seeds 0-4):**
+  - return_mean: -55760.66 ± 905.41
+  - ade_mean: 275.88m ± 4.50m
+  - fde_mean: 554.87m ± 5.26m
+  - success_rate: 0%
+
+**Branch:** `feature/daily-2026-03-22-e`
+
+---
 
 ### Pipeline PR #2: Waypoint BC with BEV SSL Encoder Transfer Learning (2026-03-22)
 - **Created: `training/bc/bev_ssl_waypoint_bc.py`**
