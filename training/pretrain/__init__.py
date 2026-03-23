@@ -86,6 +86,15 @@ def __getattr__(name):
     elif name == "bev_ssl_training_loop":
         from training.pretrain.bev_ssl_pretrain import bev_ssl_training_loop
         return bev_ssl_training_loop
+    elif name == "BEVAugmentationConfig":
+        from training.pretrain.bev_augmentations import BEVAugmentationConfig
+        return BEVAugmentationConfig
+    elif name == "BEVAugmentation":
+        from training.pretrain.bev_augmentations import BEVAugmentation
+        return BEVAugmentation
+    elif name == "build_bev_augmentation":
+        from training.pretrain.bev_augmentations import build_bev_augmentation
+        return build_bev_augmentation
     raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
 
 
@@ -105,4 +114,7 @@ __all__ = [
     "BEVSSLConfig",
     "BEVSSLTrainer",
     "bev_ssl_training_loop",
+    "BEVAugmentationConfig",
+    "BEVAugmentation",
+    "build_bev_augmentation",
 ]
