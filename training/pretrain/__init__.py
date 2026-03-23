@@ -32,11 +32,12 @@ Usage:
         --temperature 0.07
 
     # Run BEV SSL pretraining (temporal + cross-modal alignment)
-    python -m training.pretrain.bev_ssl_pretrain \
+    python -m training.pretrain.bev_ssl_pretrain_aug \
         --episode-dir /path/to/episodes \
         --batch-size 32 \
         --num-epochs 100 \
-        --output-dir out/bev_ssl
+        --output-dir out/bev_ssl \
+        --use-bev-augmentations
 """
 
 # Import lazily to avoid circular imports
@@ -78,14 +79,17 @@ def __getattr__(name):
         from training.pretrain.bev_encoder import create_bev_encoder
         return create_bev_encoder
     elif name == "BEVSSLConfig":
-        from training.pretrain.bev_ssl_pretrain import BEVSSLConfig
+        from training.pretrain.bev_ssl_pretrain_aug import BEVSSLConfig
         return BEVSSLConfig
     elif name == "BEVSSLTrainer":
-        from training.pretrain.bev_ssl_pretrain import BEVSSLTrainer
+        from training.pretrain.bev_ssl_pretrain_aug import BEVSSLTrainer
         return BEVSSLTrainer
     elif name == "bev_ssl_training_loop":
-        from training.pretrain.bev_ssl_pretrain import bev_ssl_training_loop
+        from training.pretrain.bev_ssl_pretrain_aug import bev_ssl_training_loop
         return bev_ssl_training_loop
+    elif name == "AugmentationPipeline":
+        from training.pretrain.bev_ssl_pretrain_aug import AugmentationPipeline
+        return AugmentationPipeline
     elif name == "BEVAugmentationConfig":
         from training.pretrain.bev_augmentations import BEVAugmentationConfig
         return BEVAugmentationConfig
@@ -114,6 +118,7 @@ __all__ = [
     "BEVSSLConfig",
     "BEVSSLTrainer",
     "bev_ssl_training_loop",
+    "AugmentationPipeline",
     "BEVAugmentationConfig",
     "BEVAugmentation",
     "build_bev_augmentation",
