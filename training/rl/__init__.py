@@ -23,6 +23,14 @@ from .bev_ssl_ppo_refinement import (
     PPORefineAgent,
     train_bev_ssl_ppo_refinement,
 )
+from .ppo_waypoint_delta_rl import (
+    DeltaWaypointRLConfig,
+    KinematicToyWaypointEnv,
+    DeltaWaypointActor,
+    DeltaWaypointCritic,
+    DeltaWaypointPPO,
+    train_delta_waypoint_rl,
+)
 
 __all__ = [
     'WaypointEnv',
@@ -42,4 +50,10 @@ __all__ = [
     'KinematicWaypointEnv',
     'PPORefineAgent',
     'train_bev_ssl_ppo_refinement',
+    'DeltaWaypointRLConfig',
+    'KinematicToyWaypointEnv',
+    'DeltaWaypointActor',
+    'DeltaWaypointCritic',
+    'DeltaWaypointPPO',
+    'train_delta_waypoint_rl',
 ]
