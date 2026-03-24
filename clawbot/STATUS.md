@@ -1,12 +1,13 @@
 # Status (ClawBot)
 
-_Last updated: 2026-03-24 (Pipeline PR #2)_
+_Last updated: 2026-03-24 (Pipeline PR #3)_
 
 ## Current focus
 Driving-first pipeline: **Waymo episodes → PyTorch SSL pretrain → waypoint BC → RL refinement → CARLA ScenarioRunner eval**.
 
 ## Daily Cadence
 
+- ✅ **Pipeline PR #3** (2026-03-24): PPO Refinement Training for BEV SSL Waypoint Predictor
 - ✅ **Pipeline PR #2** (2026-03-24): Waypoint Prediction Head for BEV SSL Encoder
 - ✅ **Pipeline PR #1** (2026-03-24): BEV SSL Pretraining with LR Scheduling & Checkpointing
 - ✅ **Pipeline PR #1** (2026-03-23): BEV SSL Augmentations for Waymo Pretraining
@@ -119,6 +120,53 @@ python -m training.pretrain.bev_ssl_pretrain_aug \
 
 **Branch:** `feature/daily-2026-03-24-a`
 **Commit:** `c188207`
+
+---
+
+### Pipeline PR #3: PPO Refinement Training for BEV SSL Waypoint Predictor (2026-03-24)
+- **Created: `training/rl/bev_ssl_ppo_refinement.py`**
+  - BEVSSLPPORefineConfig: Configuration dataclass for PPO refinement
+  - WaypointPolicyHead: Policy network outputting steer/throttle actions
+  - ValueNetwork: Value estimation network for state values
+  - KinematicWaypointEnv: Bicycle model environment for waypoint following
+  - PPORefineAgent: Complete PPO agent with GAE advantages
+  - train_bev_ssl_ppo_refinement(): Full training loop with evaluation
+
+- **Created: `training/rl/test_bev_ssl_ppo_refinement.py`**
+  - Smoke tests for all components
+  - Full training loop test (10 episodes)
+
+- **Updated: `training/rl/__init__.py`**
+  - Added exports for new components
+
+**Testing:**
+- Config creation: ✅
+- Stub predictor: ✅ (8 waypoints)
+- Policy head: ✅ (3,555 params)
+- Value network: ✅ (11,137 params)
+- Environment: ✅ (ADE=3.41m)
+- Agent: ✅ (22,340 params)
+- Training loop: ✅ (10 episodes)
+
+**Results (10 episodes):**
+- Final eval reward: -2,343.02
+- Final eval ADE: 8.89m
+- Final eval FDE: 31.28m
+
+**Usage:**
+```bash
+# Run PPO refinement with BC checkpoint
+python -m training.rl.bev_ssl_ppo_refinement \
+    --bc-checkpoint out/bev_ssl_waypoint_predictor/final.pt \
+    --output-dir out/bev_ssl_ppo_refine \
+    --episodes 200
+
+# Or use stub model for testing
+python -m training.rl.bev_ssl_ppo_refinement --test
+```
+
+**Branch:** `feature/daily-2026-03-24-b`
+**Commit:** `38c182b`
 
 ---
 
