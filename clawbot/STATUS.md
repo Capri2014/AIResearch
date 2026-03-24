@@ -1,12 +1,13 @@
 # Status (ClawBot)
 
-_Last updated: 2026-03-23 (Pipeline PR #2)_
+_Last updated: 2026-03-24 (Pipeline PR #1)_
 
 ## Current focus
 Driving-first pipeline: **Waymo episodes → PyTorch SSL pretrain → waypoint BC → RL refinement → CARLA ScenarioRunner eval**.
 
 ## Daily Cadence
 
+- ✅ **Pipeline PR #1** (2026-03-24): BEV SSL Pretraining with LR Scheduling & Checkpointing
 - ✅ **Pipeline PR #1** (2026-03-23): BEV SSL Augmentations for Waymo Pretraining
 - ✅ **Pipeline PR #2** (2026-03-23): BEV SSL Pretraining with Integrated Augmentations
 - ✅ **Pipeline PR #6** (2026-03-22): Deterministic Evaluation Runner for RL after SFT
@@ -64,6 +65,61 @@ Driving-first pipeline: **Waymo episodes → PyTorch SSL pretrain → waypoint B
 - ⏳ **Pipeline PR #5** (2026-02-16): RL Refinement Stub for Residual Delta-Waypoint Learning - awaiting review
 
 ## Recent changes
+
+### Pipeline PR #1: BEV SSL Pretraining with LR Scheduling & Checkpointing (2026-03-24)
+- **Updated: `training/pretrain/bev_ssl_pretrain_aug.py`**
+  - **Enhanced BEVSSLConfig**:
+    - Added `scheduler` - Choose between "cosine", "step", or "none"
+    - Added `lr_warmup_epochs` - Warmup epochs before main scheduler
+    - Added `lr_decay_factor` - Decay factor for step scheduler
+    - Added `lr_decay_epochs` - Milestones for step scheduler
+    - Added `min_learning_rate` - Minimum LR for cosine scheduler
+    - Added `grad_clip` - Gradient clipping value for training stability
+    - Added `save_interval` - Save checkpoint every N epochs
+    - Added `keep_last_n_checkpoints` - Number of recent checkpoints to keep
+    - Added `resume_from` - Resume training from checkpoint path
+
+  - **Enhanced BEVSSLTrainer**:
+    - Added `_create_scheduler()` - Creates LR scheduler based on config
+    - Added `_save_checkpoint()` - Saves model, optimizer, scheduler, queue state
+    - Added `_cleanup_old_checkpoints()` - Removes old checkpoints, keeps only N most recent
+    - Added `_load_checkpoint()` - Loads checkpoint to resume training
+    - Added `get_current_lr()` - Returns current learning rate
+    - Added gradient clipping in `train_step()`
+    - Updated `train()` with scheduler step, checkpointing, and metrics logging
+
+  - **Updated CLI**:
+    - Added `--scheduler` argument
+    - Added `--warmup-epochs` argument
+    - Added `--grad-clip` argument
+    - Added `--save-interval` argument
+    - Added `--keep-checkpoints` argument
+    - Added `--resume` argument
+
+**Testing:**
+- Module imports: ✅
+- Config with new options: ✅
+- Smoke test (training step): ✅ (loss=5.99)
+
+**Usage:**
+```bash
+# Run BEV SSL with cosine annealing (default)
+python -m training.pretrain.bev_ssl_pretrain_aug \
+    --episode-dir data/waymo_episodes \
+    --scheduler cosine \
+    --warmup-epochs 5 \
+    --grad-clip 1.0 \
+    --save-interval 10
+
+# Resume training from checkpoint
+python -m training.pretrain.bev_ssl_pretrain_aug \
+    --resume out/bev_ssl/checkpoints/latest.pt
+```
+
+**Branch:** `feature/daily-2026-03-24-a`
+**Commit:** `c188207`
+
+---
 
 ### Pipeline PR #2: BEV SSL Pretraining with Integrated Augmentations (2026-03-23)
 - **Created: `training/pretrain/bev_ssl_pretrain_aug.py`**
