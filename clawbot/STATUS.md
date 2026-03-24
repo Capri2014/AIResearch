@@ -1,12 +1,13 @@
 # Status (ClawBot)
 
-_Last updated: 2026-03-24 (Pipeline PR #1)_
+_Last updated: 2026-03-24 (Pipeline PR #2)_
 
 ## Current focus
 Driving-first pipeline: **Waymo episodes → PyTorch SSL pretrain → waypoint BC → RL refinement → CARLA ScenarioRunner eval**.
 
 ## Daily Cadence
 
+- ✅ **Pipeline PR #2** (2026-03-24): Waypoint Prediction Head for BEV SSL Encoder
 - ✅ **Pipeline PR #1** (2026-03-24): BEV SSL Pretraining with LR Scheduling & Checkpointing
 - ✅ **Pipeline PR #1** (2026-03-23): BEV SSL Augmentations for Waymo Pretraining
 - ✅ **Pipeline PR #2** (2026-03-23): BEV SSL Pretraining with Integrated Augmentations
