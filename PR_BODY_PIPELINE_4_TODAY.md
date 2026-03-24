@@ -1,94 +1,113 @@
 ## Summary
 
-Added comprehensive tests for the CARLA waypoint inference module and fixed import bugs that prevented the module from loading.
+Added CARLA ScenarioRunner integration for evaluating RL-refined waypoint predictors, completing the final step in the driving-first pipeline. Enables closed-loop evaluation of RL checkpoints against diverse driving scenarios.
 
 ## Changes
 
-### Created: `training/bc/test_carla_waypoint_inference.py`
+### Created: `sim/driving/carla_srunner/rl_srunner_eval.py`
 
-Standalone test file with 19 tests covering core components:
+- **RLEvalConfig**: Configuration dataclass for RL checkpoint evaluation
+  - Checkpoint paths (single or multiple for comparison)
+  - Evaluation suite selection (smoke/standard/full/hard)
+  - CARLA connection settings
+  - Metrics collection options
 
-- **CarlaWaypointInferenceConfig tests**:
-  - `test_config_defaults`: Default configuration values
-  - `test_config_custom`: Custom configuration values
-  - `test_config_post_init`: Post-init default scenarios
+- **RLScenarioMetrics**: Per-scenario evaluation metrics
+  - Waypoint tracking: ADE, FDE, MSE
+  - Safety: collisions, red light violations, stop sign violations
+  - Comfort: max acceleration/deceleration/lateral acceleration, jerk
+  - Efficiency: distance traveled, average speed, travel time
 
-- **InferenceResult tests**:
-  - `test_inference_result_creation`: Result dataclass creation
-  - `test_inference_result_to_dict`: Serialization to dict
+- **RLCheckpointResult**: Aggregate results for single checkpoint
+  - Success rate, completion rate
+  - Averaged metrics across scenarios
+  - Overall score computation
 
-- **WaypointController tests**:
-  - `test_waypoint_controller_defaults`: Default PID parameters
-  - `test_waypoint_controller_custom`: Custom parameters
-  - `test_speed_control_acceleration`: PID acceleration response
-  - `test_speed_control_deceleration`: PID deceleration response
-  - `test_speed_control_clamping`: Output clamping
-  - `test_steering_control_straight`: Straight-ahead target
-  - `test_steering_control_left_turn`: Left turn target
-  - `test_steering_control_right_turn`: Right turn target
-  - `test_steering_control_clamping`: Steering clamping
-  - `test_control_with_waypoints`: Full control with waypoints
-  - `test_control_empty_waypoints`: Empty waypoints handling
-  - `test_control_with_yaw_rotation`: Rotated heading handling
-  - `test_controller_persistence`: State persistence across calls
-  - `test_config_serialization`: Config field access
+- **RLScenarioEvaluator**: Main evaluation class
+  - Scenario suite management (smoke/standard/full/hard)
+  - Checkpoint step parsing from filenames
+  - Comfort/efficiency score computation
+  - Single checkpoint evaluation
+  - Multi-checkpoint comparison
 
-### Bug Fixes in `training/bc/carla_waypoint_inference.py`
+- **MultiCheckpointComparison**: Compare multiple RL checkpoints
+  - Rankings by success rate, ADE, and overall score
+  - Best checkpoint identification
 
-- Fixed import: `compute_ade, compute_fde` → `compute_displacement_error`
-  - The eval_metrics module exports `compute_displacement_error` instead
+- **run_evaluation()**: High-level function for evaluation
+- Support for dry-run mode (stub metrics without CARLA)
 
-- Fixed import: `WaypointBCPolicy` → `WaypointPolicyWrapper`
-  - The policy_wrapper module exports `WaypointPolicyWrapper`
+### Created: `sim/driving/carla_srunner/test_rl_srunner_eval.py`
+
+Comprehensive test suite with 15+ tests:
+- Config tests (defaults, custom, checkpoint list conversion)
+- Metrics tests (creation, serialization)
+- Result tests (creation, serialization)
+- Evaluator tests (suites, parsing, evaluation, aggregation)
+- Comparison tests (rankings)
+- Function tests (single/multiple checkpoint evaluation)
 
 ## Testing
 
-All 19 tests pass:
-```
-Running CARLA Waypoint Inference Tests...
-============================================================
-✅ test_config_defaults
-✅ test_config_custom
-✅ test_config_post_init
-✅ test_inference_result_creation
-✅ test_inference_result_to_dict
-✅ test_waypoint_controller_defaults
-✅ test_waypoint_controller_custom
-✅ test_speed_control_acceleration
-✅ test_speed_control_deceleration
-✅ test_speed_control_clamping
-✅ test_steering_control_straight
-✅ test_steering_control_left_turn
-✅ test_steering_control_right_turn
-✅ test_steering_control_clamping
-✅ test_control_with_waypoints
-✅ test_control_empty_waypoints
-✅ test_control_with_yaw_rotation
-✅ test_controller_persistence
-✅ test_config_serialization
-============================================================
-Results: 19 passed, 0 failed
+All tests pass:
+- Config creation: ✅
+- Smoke suite: ✅ (2 scenarios)
+- Standard suite: ✅ (5 scenarios)
+- Full suite: ✅ (10+ scenarios)
+- Step parsing: ✅
+- Single checkpoint eval: ✅
+- Comparison creation: ✅
+
+## Usage
+
+```bash
+# Evaluate single RL checkpoint
+python -m sim.driving.carla_srunner.rl_srunner_eval \
+    --checkpoint out/bev_ssl_ppo_refine/checkpoint_050.pt \
+    --suite smoke \
+    --output-dir out/eval/rl_srunner
+
+# Compare multiple checkpoints
+python -m sim.driving.carla_srunner.rl_srunner_eval \
+    --checkpoints out/bev_ssl_ppo_refine/checkpoint_050.pt \
+                 out/bev_ssl_ppo_refine/checkpoint_100.pt \
+    --suite standard \
+    --output-dir out/eval/rl_comparison
+
+# Dry-run (no CARLA required)
+python -m sim.driving.carla_srunner.rl_srunner_eval \
+    --checkpoint out/bev_ssl_ppo_refine/final.pt \
+    --dry-run
 ```
 
 ## Architecture
 
-The tests use standalone implementations of the classes under test to avoid requiring the CARLA library during testing. This enables:
-- Fast test execution without CARLA server
-- Unit testing of control logic independently
-- Validation of PID controller behavior
+```
+RL Checkpoint → RLScenarioEvaluator → CARLA ScenarioRunner
+                                    ↓
+                              RLScenarioMetrics
+                                    ↓
+                              RLCheckpointResult
+                                    ↓
+                              MultiCheckpointComparison
+```
 
 ## Pipeline Context
 
 Driving-first pipeline: Waymo episodes → PyTorch SSL pretrain → waypoint BC → RL refinement → CARLA ScenarioRunner eval
 
-This PR enables closed-loop evaluation testing:
-- Validates waypoint controller logic
-- Tests PID speed and steering control
-- Ensures correct transformation between world and vehicle frames
+This PR completes the final evaluation step:
+- Integrates with existing ScenarioRunner framework
+- Provides comprehensive metrics collection
+- Enables multi-checkpoint comparison
+- Supports dry-run testing without CARLA
 
 ## Branch
-- `feature/daily-2026-03-22-d`
+- `feature/daily-2026-03-24-d`
+
+## Commit
+- `57c5e96`
 
 ## Files Changed
-- `training/bc/test_carla_waypoint_inference.py` (new)
-- `training/bc/carla_waypoint_inference.py` (modified - import fixes)
+- `sim/driving/carla_srunner/rl_srunner_eval.py` (new)
+- `sim/driving/carla_srunner/test_rl_srunner_eval.py` (new)
