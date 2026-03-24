@@ -14,6 +14,15 @@ from .grpo_waypoint_refinement import (
     load_sft_waypoint_model,
     train_grpo_waypoint,
 )
+from .bev_ssl_ppo_refinement import (
+    BEVSSLPPORefineConfig,
+    StubWaypointPredictor,
+    WaypointPolicyHead,
+    ValueNetwork,
+    KinematicWaypointEnv,
+    PPORefineAgent,
+    train_bev_ssl_ppo_refinement,
+)
 
 __all__ = [
     'WaypointEnv',
@@ -26,4 +35,11 @@ __all__ = [
     'DeltaWaypointNetwork',
     'load_sft_waypoint_model',
     'train_grpo_waypoint',
+    'BEVSSLPPORefineConfig',
+    'StubWaypointPredictor',
+    'WaypointPolicyHead',
+    'ValueNetwork',
+    'KinematicWaypointEnv',
+    'PPORefineAgent',
+    'train_bev_ssl_ppo_refinement',
 ]
