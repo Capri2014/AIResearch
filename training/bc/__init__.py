@@ -34,6 +34,16 @@ from .bev_ssl_waypoint_bc import (
     bev_ssl_waypoint_bc_training_loop,
 )
 
+from .bev_ssl_waypoint_predictor import (
+    WaypointPredictionHead,
+    WaypointHeadConfig,
+    BEVSSLWaypointPredictor,
+    WaypointBCLoss,
+    WaypointPredictorTrainer,
+    create_waypoint_predictor,
+    load_bev_encoder_from_checkpoint,
+)
+
 __all__ = [
     'WaypointBCModel',
     'WaypointBCConfig', 
@@ -51,4 +61,12 @@ __all__ = [
     'WaypointBCWithBEVSSLTrainer',
     'create_bev_ssl_waypoint_bc_model',
     'bev_ssl_waypoint_bc_training_loop',
+    # Waypoint predictor (SSL to BC transfer)
+    'WaypointPredictionHead',
+    'WaypointHeadConfig',
+    'BEVSSLWaypointPredictor',
+    'WaypointBCLoss',
+    'WaypointPredictorTrainer',
+    'create_waypoint_predictor',
+    'load_bev_encoder_from_checkpoint',
 ]
