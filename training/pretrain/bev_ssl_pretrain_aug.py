@@ -56,6 +56,20 @@ class BEVSSLConfig:
     weight_decay: float = 1e-4
     temperature: float = 0.1
     
+    # Learning rate scheduler
+    scheduler: str = "cosine"  # "cosine", "step", or "none"
+    lr_warmup_epochs: int = 5
+    lr_decay_factor: float = 0.1  # For step scheduler
+    lr_decay_epochs: List[int] = field(default_factory=lambda: [30, 60, 90])
+    min_learning_rate: float = 1e-6  # For cosine scheduler
+    
+    # Gradient clipping
+    grad_clip: Optional[float] = 1.0
+    
+    # Checkpointing
+    save_interval: int = 10  # Save every N epochs
+    keep_last_n_checkpoints: int = 3
+    
     # Contrastive
     queue_size: int = 16384
     momentum: float = 0.999
@@ -79,6 +93,9 @@ class BEVSSLConfig:
     
     # Output
     output_dir: str = "out/bev_ssl"
+    
+    # Resume training
+    resume_from: Optional[str] = None  # Checkpoint path to resume from
 
 
 class bevQueue:
@@ -466,6 +483,9 @@ class BEVSSLTrainer:
             weight_decay=config.weight_decay
         )
         
+        # Learning rate scheduler
+        self.scheduler = self._create_scheduler()
+        
         # Dataset
         self.dataset = WaymoBEVDataset(
             episode_dir=config.episode_dir,
@@ -479,11 +499,124 @@ class BEVSSLTrainer:
         self.output_dir = Path(config.output_dir)
         self.output_dir.mkdir(parents=True, exist_ok=True)
         
+        # Checkpoint dir
+        self.checkpoint_dir = self.output_dir / "checkpoints"
+        self.checkpoint_dir.mkdir(parents=True, exist_ok=True)
+        
         self.step = 0
         self.epoch = 0
         
         # Metrics tracking
         self.metrics_history = []
+        self.best_loss = float('inf')
+        
+        # Resume from checkpoint if specified
+        if config.resume_from and Path(config.resume_from).exists():
+            self._load_checkpoint(config.resume_from)
+    
+    def _create_scheduler(self):
+        """Create learning rate scheduler based on config."""
+        if self.config.scheduler == "cosine":
+            # Cosine annealing with warm restarts
+            return torch.optim.lr_scheduler.CosineAnnealingWarmRestarts(
+                self.optimizer,
+                T_0=self.config.lr_warmup_epochs,
+                T_mult=2,
+                eta_min=self.config.min_learning_rate
+            )
+        elif self.config.scheduler == "step":
+            # Step decay
+            return torch.optim.lr_scheduler.MultiStepLR(
+                self.optimizer,
+                milestones=self.config.lr_decay_epochs,
+                gamma=self.config.lr_decay_factor
+            )
+        else:
+            # No scheduler
+            return None
+    
+    def _save_checkpoint(self, epoch: int, is_best: bool = False):
+        """Save training checkpoint."""
+        checkpoint = {
+            "epoch": epoch,
+            "step": self.step,
+            "query_encoder_state_dict": self.query_encoder.state_dict(),
+            "key_encoder_state_dict": self.key_encoder.state_dict(),
+            "optimizer_state_dict": self.optimizer.state_dict(),
+            "scheduler_state_dict": self.scheduler.state_dict() if self.scheduler else None,
+            "queue_state": {
+                "queue": self.queue.queue.cpu(),
+                "queue_ptr": self.queue.queue_ptr,
+                "queue_full": self.queue.queue_full,
+            },
+            "metrics_history": self.metrics_history,
+            "best_loss": self.best_loss,
+            "config": self.config.__dict__,
+        }
+        
+        # Save latest checkpoint
+        latest_path = self.checkpoint_dir / "latest.pt"
+        torch.save(checkpoint, latest_path)
+        
+        # Save epoch checkpoint
+        epoch_path = self.checkpoint_dir / f"epoch_{epoch:03d}.pt"
+        torch.save(checkpoint, epoch_path)
+        
+        # Save best checkpoint
+        if is_best:
+            best_path = self.checkpoint_dir / "best.pt"
+            torch.save(checkpoint, best_path)
+        
+        # Clean up old checkpoints (keep only last N)
+        self._cleanup_old_checkpoints()
+    
+    def _cleanup_old_checkpoints(self):
+        """Remove old checkpoints, keeping only the last N."""
+        if self.config.keep_last_n_checkpoints <= 0:
+            return
+            
+        # Get all epoch checkpoints
+        epoch_checkpoints = sorted(self.checkpoint_dir.glob("epoch_*.pt"))
+        
+        # Remove old ones
+        if len(epoch_checkpoints) > self.config.keep_last_n_checkpoints:
+            for ckpt in epoch_checkpoints[:-self.config.keep_last_n_checkpoints]:
+                ckpt.unlink()
+    
+    def _load_checkpoint(self, checkpoint_path: str):
+        """Load training checkpoint to resume training."""
+        print(f"Loading checkpoint from {checkpoint_path}")
+        checkpoint = torch.load(checkpoint_path, map_location=self.device)
+        
+        # Restore model state
+        self.query_encoder.load_state_dict(checkpoint["query_encoder_state_dict"])
+        self.key_encoder.load_state_dict(checkpoint["key_encoder_state_dict"])
+        
+        # Restore optimizer and scheduler
+        self.optimizer.load_state_dict(checkpoint["optimizer_state_dict"])
+        if self.scheduler and checkpoint.get("scheduler_state_dict"):
+            self.scheduler.load_state_dict(checkpoint["scheduler_state_dict"])
+        
+        # Restore queue
+        queue_state = checkpoint.get("queue_state", {})
+        if "queue" in queue_state:
+            self.queue.queue = queue_state["queue"].to(self.device)
+            self.queue.queue_ptr = queue_state.get("queue_ptr", 0)
+            self.queue.queue_full = queue_state.get("queue_full", False)
+        
+        # Restore metrics
+        self.metrics_history = checkpoint.get("metrics_history", [])
+        self.best_loss = checkpoint.get("best_loss", float('inf'))
+        
+        # Restore epoch/step
+        self.epoch = checkpoint.get("epoch", 0)
+        self.step = checkpoint.get("step", 0)
+        
+        print(f"Resumed from epoch {self.epoch}, step {self.step}")
+    
+    def get_current_lr(self) -> float:
+        """Get current learning rate."""
+        return self.optimizer.param_groups[0]['lr']
     
     @torch.no_grad()
     def _update_key_encoder(self):
@@ -558,6 +691,14 @@ class BEVSSLTrainer:
         # Backward
         self.optimizer.zero_grad()
         loss.backward()
+        
+        # Gradient clipping
+        if self.config.grad_clip is not None and self.config.grad_clip > 0:
+            torch.nn.utils.clip_grad_norm_(
+                self.query_encoder.parameters(),
+                self.config.grad_clip
+            )
+        
         self.optimizer.step()
         
         # Update key encoder
@@ -571,6 +712,7 @@ class BEVSSLTrainer:
         metrics = {
             "step": self.step,
             "epoch": self.epoch,
+            "lr": self.get_current_lr(),
             **temporal_metrics,
             **align_metrics,
             "total_loss": loss.item()
@@ -582,7 +724,7 @@ class BEVSSLTrainer:
         return metrics
     
     def train(self):
-        """Full training loop."""
+        """Full training loop with scheduler and checkpointing."""
         dataloader = DataLoader(
             self.dataset,
             batch_size=self.config.batch_size,
@@ -596,12 +738,28 @@ class BEVSSLTrainer:
         print(f"Episodes: {len(self.dataset)}")
         print(f"Image augmentations: {IMAGE_AUG_AVAILABLE and self.config.use_image_augmentations}")
         print(f"BEV augmentations: {BEV_AUG_AVAILABLE and self.config.use_bev_augmentations}")
+        print(f"Scheduler: {self.config.scheduler}")
+        print(f"Gradient clipping: {self.config.grad_clip}")
         
-        for epoch in range(self.config.num_epochs):
+        # Adjust start epoch for resumed training
+        start_epoch = self.epoch
+        for epoch in range(start_epoch, self.config.num_epochs):
             self.epoch = epoch
+            
+            # Warmup: linear LR increase for first few epochs
+            if epoch < self.config.lr_warmup_epochs and self.scheduler is None:
+                # Manual warmup
+                lr = self.config.learning_rate * (epoch + 1) / self.config.lr_warmup_epochs
+                for param_group in self.optimizer.param_groups:
+                    param_group['lr'] = lr
+            
+            epoch_loss = 0.0
+            num_batches = 0
             
             for batch in dataloader:
                 metrics = self.train_step(batch)
+                epoch_loss += metrics['total_loss']
+                num_batches += 1
                 
                 if self.step % 100 == 0:
                     aug_info = ""
@@ -610,31 +768,40 @@ class BEVSSLTrainer:
                     if BEV_AUG_AVAILABLE and self.config.use_bev_augmentations:
                         aug_info += " bev"
                     print(f"Step {self.step}: loss={metrics['total_loss']:.4f}, "
-                          f"pos_sim={metrics['pos_sim']:.4f}, align={metrics.get('alignment', 0):.4f}"
+                          f"lr={metrics['lr']:.2e}, pos_sim={metrics['pos_sim']:.4f}, "
+                          f"align={metrics.get('alignment', 0):.4f}"
                           f"{aug_info}")
             
-            # Save checkpoint
-            if (epoch + 1) % 10 == 0:
-                self.save_checkpoint(f"checkpoint_epoch_{epoch+1}.pt")
+            # Update scheduler after each epoch
+            if self.scheduler is not None:
+                self.scheduler.step()
+            
+            # Calculate average epoch loss
+            avg_epoch_loss = epoch_loss / max(num_batches, 1)
+            is_best = avg_epoch_loss < self.best_loss
+            if is_best:
+                self.best_loss = avg_epoch_loss
+            
+            print(f"Epoch {epoch+1}/{self.config.num_epochs}: "
+                  f"avg_loss={avg_epoch_loss:.4f}, "
+                  f"lr={self.get_current_lr():.2e}, "
+                  f"best={self.best_loss:.4f}")
+            
+            # Save checkpoint at interval
+            if (epoch + 1) % self.config.save_interval == 0:
+                self._save_checkpoint(epoch + 1, is_best=is_best)
+                print(f"  -> Checkpoint saved (epoch {epoch+1})")
         
-        # Save final
-        self.save_checkpoint("final.pt")
+        # Save final checkpoint
+        self._save_checkpoint(self.config.num_epochs, is_best=False)
+        
+        # Save metrics to JSON
+        metrics_path = self.output_dir / "training_metrics.json"
+        with open(metrics_path, 'w') as f:
+            json.dump(self.metrics_history, f, indent=2)
+        
         print(f"Training complete. Saved to {self.output_dir}")
-    
-    def save_checkpoint(self, filename: str):
-        """Save model checkpoint."""
-        checkpoint = {
-            "step": self.step,
-            "epoch": self.epoch,
-            "config": self.config.__dict__,
-            "query_encoder": self.query_encoder.state_dict(),
-            "optimizer": self.optimizer.state_dict(),
-            "metrics_history": self.metrics_history[-1000:] if self.metrics_history else [],
-        }
-        
-        save_path = self.output_dir / filename
-        torch.save(checkpoint, save_path)
-        print(f"Saved checkpoint: {save_path}")
+        print(f"Best loss: {self.best_loss:.4f}")
 
 
 def bev_ssl_training_loop(
@@ -734,6 +901,20 @@ if __name__ == "__main__":
     parser.add_argument("--momentum", type=float, default=0.999)
     parser.add_argument("--no-image-aug", action="store_true", help="Disable image augmentations")
     parser.add_argument("--no-bev-aug", action="store_true", help="Disable BEV augmentations")
+    # New: scheduler and checkpointing options
+    parser.add_argument("--scheduler", type=str, default="cosine", 
+                        choices=["cosine", "step", "none"],
+                        help="Learning rate scheduler")
+    parser.add_argument("--warmup-epochs", type=int, default=5,
+                        help="Number of warmup epochs")
+    parser.add_argument("--grad-clip", type=float, default=1.0,
+                        help="Gradient clipping value (0 to disable)")
+    parser.add_argument("--save-interval", type=int, default=10,
+                        help="Save checkpoint every N epochs")
+    parser.add_argument("--keep-checkpoints", type=int, default=3,
+                        help="Number of recent checkpoints to keep")
+    parser.add_argument("--resume", type=str, default=None,
+                        help="Resume from checkpoint path")
     parser.add_argument("--test", action="store_true", help="Run smoke test")
     
     args = parser.parse_args()
@@ -752,4 +933,10 @@ if __name__ == "__main__":
             momentum=args.momentum,
             use_image_augmentations=not args.no_image_aug,
             use_bev_augmentations=not args.no_bev_aug,
+            scheduler=args.scheduler,
+            lr_warmup_epochs=args.warmup_epochs,
+            grad_clip=args.grad_clip if args.grad_clip > 0 else None,
+            save_interval=args.save_interval,
+            keep_last_n_checkpoints=args.keep_checkpoints,
+            resume_from=args.resume,
         )
