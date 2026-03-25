@@ -25,6 +25,11 @@ from .waypoint_visualizer import (
     WaypointVisualizer,
     WaypointVisConfig,
     create_waypoint_visualizer,
+    compute_metrics,
+    visualize_prediction,
+    waypoints_to_image,
+    visualize_trajectory,
+    create_waypoint_summary,
 )
 
 from .bev_ssl_waypoint_bc import (
@@ -57,6 +62,11 @@ __all__ = [
     'WaypointVisualizer',
     'WaypointVisConfig',
     'create_waypoint_visualizer',
+    'compute_metrics',
+    'visualize_prediction',
+    'waypoints_to_image',
+    'visualize_trajectory',
+    'create_waypoint_summary',
     'WaypointBCWithBEVSSLDataset',
     'WaypointBCWithBEVSSLTrainer',
     'create_bev_ssl_waypoint_bc_model',

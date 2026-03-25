@@ -1,113 +1,133 @@
 ## Summary
 
-Added CARLA ScenarioRunner integration for evaluating RL-refined waypoint predictors, completing the final step in the driving-first pipeline. Enables closed-loop evaluation of RL checkpoints against diverse driving scenarios.
+Added WaypointVisualizer for debugging and analyzing waypoint predictions in the driving-first pipeline. Provides comprehensive visualization utilities for BC model development and evaluation.
 
 ## Changes
 
-### Created: `sim/driving/carla_srunner/rl_srunner_eval.py`
+### Created: `training/bc/waypoint_visualizer.py`
 
-- **RLEvalConfig**: Configuration dataclass for RL checkpoint evaluation
-  - Checkpoint paths (single or multiple for comparison)
-  - Evaluation suite selection (smoke/standard/full/hard)
-  - CARLA connection settings
-  - Metrics collection options
+- **WaypointVisConfig**: Configuration dataclass for visualization
+  - image_size, waypoint_scale, num_waypoints
+  - Colors for predicted (green) vs target (red) waypoints
+  - Line width settings
 
-- **RLScenarioMetrics**: Per-scenario evaluation metrics
-  - Waypoint tracking: ADE, FDE, MSE
-  - Safety: collisions, red light violations, stop sign violations
-  - Comfort: max acceleration/deceleration/lateral acceleration, jerk
-  - Efficiency: distance traveled, average speed, travel time
+- **waypoints_to_image()**: Render waypoints as overhead BEV view
+  - Handles both [num_waypoints, 2] and [B, num_waypoints, 2] tensors
+  - Automatic coordinate scaling and centering
 
-- **RLCheckpointResult**: Aggregate results for single checkpoint
-  - Success rate, completion rate
-  - Averaged metrics across scenarios
-  - Overall score computation
+- **visualize_prediction()**: Side-by-side comparison
+  - Predicted vs target waypoints
+  - Combined image output
 
-- **RLScenarioEvaluator**: Main evaluation class
-  - Scenario suite management (smoke/standard/full/hard)
-  - Checkpoint step parsing from filenames
-  - Comfort/efficiency score computation
-  - Single checkpoint evaluation
-  - Multi-checkpoint comparison
+- **compute_metrics()**: Error metrics computation
+  - ADE (Average Displacement Error)
+  - FDE (Final Displacement Error)
+  - Per-waypoint errors
+  - Max/min error tracking
 
-- **MultiCheckpointComparison**: Compare multiple RL checkpoints
-  - Rankings by success rate, ADE, and overall score
-  - Best checkpoint identification
+- **visualize_bev_features()**: BEV feature heatmap
+  - Average across channels
+  - Blue-red colormap
 
-- **run_evaluation()**: High-level function for evaluation
-- Support for dry-run mode (stub metrics without CARLA)
+- **visualize_trajectory()**: Vehicle trajectory visualization
+  - Position history with waypoints overlay
+  - Current position highlighting
 
-### Created: `sim/driving/carla_srunner/test_rl_srunner_eval.py`
+- **create_waypoint_summary()**: Text summary generation
+  - Formatted metrics output
+  - Per-waypoint error breakdown
 
-Comprehensive test suite with 15+ tests:
-- Config tests (defaults, custom, checkpoint list conversion)
-- Metrics tests (creation, serialization)
-- Result tests (creation, serialization)
-- Evaluator tests (suites, parsing, evaluation, aggregation)
-- Comparison tests (rankings)
-- Function tests (single/multiple checkpoint evaluation)
+- **WaypointVisualizer**: Unified class wrapper
+  - High-level interface for all visualizations
+  - Metrics computation and summary generation
+
+- **create_waypoint_visualizer()**: Factory function
+
+### Created: `training/bc/test_waypoint_visualizer.py`
+
+Comprehensive test suite with 7 tests:
+- Import test
+- Config test
+- Metrics test
+- Waypoints to image test
+- Visualize prediction test
+- Visualize trajectory test
+- Summary test
 
 ## Testing
 
-All tests pass:
-- Config creation: ✅
-- Smoke suite: ✅ (2 scenarios)
-- Standard suite: ✅ (5 scenarios)
-- Full suite: ✅ (10+ scenarios)
-- Step parsing: ✅
-- Single checkpoint eval: ✅
-- Comparison creation: ✅
+All 7/7 tests passed:
+- ✓ Import test passed
+- ✓ Config test passed
+- ✓ Metrics test passed (ADE: 0.0943m, FDE: 0.1414m)
+- ✓ Waypoints to image test passed
+- ✓ Visualize prediction test passed
+- ✓ Visualize trajectory test passed
+- ✓ Summary test passed
 
 ## Usage
 
-```bash
-# Evaluate single RL checkpoint
-python -m sim.driving.carla_srunner.rl_srunner_eval \
-    --checkpoint out/bev_ssl_ppo_refine/checkpoint_050.pt \
-    --suite smoke \
-    --output-dir out/eval/rl_srunner
+```python
+from training.bc.waypoint_visualizer import (
+    WaypointVisualizer,
+    WaypointVisConfig,
+    create_waypoint_visualizer,
+    compute_metrics,
+    visualize_prediction,
+)
 
-# Compare multiple checkpoints
-python -m sim.driving.carla_srunner.rl_srunner_eval \
-    --checkpoints out/bev_ssl_ppo_refine/checkpoint_050.pt \
-                 out/bev_ssl_ppo_refine/checkpoint_100.pt \
-    --suite standard \
-    --output-dir out/eval/rl_comparison
+# Create visualizer
+vis = create_waypoint_visualizer(image_size=256, waypoint_scale=10.0)
 
-# Dry-run (no CARLA required)
-python -m sim.driving.carla_srunner.rl_srunner_eval \
-    --checkpoint out/bev_ssl_ppo_refine/final.pt \
-    --dry-run
+# Compute metrics
+metrics = vis.compute_metrics(pred_waypoints, target_waypoints)
+print(f"ADE: {metrics['ade']:.3f}m, FDE: {metrics['fde']:.3f}m")
+
+# Visualize predictions
+img = vis.visualize(pred_waypoints, target_waypoints)
+
+# Create text summary
+summary = vis.summary(pred_waypoints, target_waypoints, prefix="> ")
+print(summary)
 ```
 
 ## Architecture
 
 ```
-RL Checkpoint → RLScenarioEvaluator → CARLA ScenarioRunner
-                                    ↓
-                              RLScenarioMetrics
-                                    ↓
-                              RLCheckpointResult
-                                    ↓
-                              MultiCheckpointComparison
+Waypoint Predictions [B, num_waypoints, 2]
+        ↓
+    WaypointVisualizer
+        ↓
+    ├── visualize() → Combined image
+    ├── compute_metrics() → ADE, FDE, per-waypoint
+    ├── render_waypoints() → BEV view
+    ├── render_trajectory() → Trajectory image
+    └── summary() → Text report
 ```
 
 ## Pipeline Context
 
 Driving-first pipeline: Waymo episodes → PyTorch SSL pretrain → waypoint BC → RL refinement → CARLA ScenarioRunner eval
 
-This PR completes the final evaluation step:
-- Integrates with existing ScenarioRunner framework
-- Provides comprehensive metrics collection
-- Enables multi-checkpoint comparison
-- Supports dry-run testing without CARLA
+This PR adds visualization/diagnostic capabilities for waypoint BC development:
+- Debug BC model predictions
+- Compare predicted vs ground truth waypoints
+- Analyze BEV feature activations
+- Track trajectory following quality
+- Generate comprehensive metrics reports
 
 ## Branch
-- `feature/daily-2026-03-24-d`
+- `feature/daily-2026-03-25-d`
 
 ## Commit
-- `57c5e96`
+- `6c7e7d1`
 
 ## Files Changed
-- `sim/driving/carla_srunner/rl_srunner_eval.py` (new)
-- `sim/driving/carla_srunner/test_rl_srunner_eval.py` (new)
+- `training/bc/waypoint_visualizer.py` (new)
+- `training/bc/test_waypoint_visualizer.py` (new)
+
+## Notes
+
+- No external dependencies (cv2-free implementation using pure numpy)
+- Compatible with existing waypoint_bc_model exports
+- Can be extended with actual image rendering (PIL/OpenCV) in future
