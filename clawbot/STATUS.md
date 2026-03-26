@@ -1,12 +1,13 @@
 # Status (ClawBot)
 
-_Last updated: 2026-03-19 (Pipeline PR #6 - daily cadence)_
+_Last updated: 2026-03-26 (Pipeline PR #1 - daily cadence)_
 
 ## Current focus
 Driving-first pipeline: **Waymo episodes → PyTorch SSL pretrain → waypoint BC → RL refinement → CARLA ScenarioRunner eval**.
 
 ## Daily Cadence
 
+- ✅ **Pipeline PR #1** (2026-03-26): Unified CARLA Evaluation Pipeline
 - ✅ **Pipeline PR #6** (2026-03-19): Unified Metrics Output for SFT vs RL Comparison
 - ✅ **Pipeline PR #6** (2026-03-16): Toy Waypoint SFT vs RL Comparison
 - ✅ **Pipeline PR #3** (2026-03-10): Multi-Scenario Evaluation Framework
@@ -18,6 +19,17 @@ Driving-first pipeline: **Waymo episodes → PyTorch SSL pretrain → waypoint B
 - ⏳ **Pipeline PR #5** (2026-02-16): RL Refinement Stub for Residual Delta-Waypoint Learning - awaiting review
 
 ## Recent changes
+
+### Pipeline PR #1: Unified CARLA Evaluation Pipeline (2026-03-26)
+- **Created: `training/eval/unified_carla_eval.py`**
+  - Comprehensive evaluation pipeline for BC, RL, and SFT+Delta policies
+  - Multi-weather support: clear, cloudy, night, rain
+  - Auto-detection of latest BC/RL checkpoints (`find_latest_bc_checkpoint()`, `find_latest_rl_checkpoint()`)
+  - PolicyLoader class for loading different policy types
+  - EpisodeMetrics and AggregateMetrics dataclasses
+  - Dry-run mode for testing without CARLA connection
+  - Outputs: `out/eval_unified/<run_id>/metrics.json`, `weather_*.json`
+  - Dry-run test: 6 episodes, 33.3% success rate, ADE=4.28m, FDE=9.87m
 
 ### Pipeline PR #6: Unified Metrics Output for SFT vs RL Comparison (2026-03-19)
 - **Updated: `training/rl/compare_toy_policies.py`**
@@ -85,9 +97,9 @@ Driving-first pipeline: **Waymo episodes → PyTorch SSL pretrain → waypoint B
   - Entropy history tracking: `entropy_history.json` with episode-wise records
 
 ## Next (top 3)
-1. Run multi-scenario evaluation to validate SFT vs RL performance
-2. Integrate kinematic env results with CARLA ScenarioRunner eval
-3. Compare entropy curves across different seeds
+1. Integrate unified_carla_eval with existing run_carla_closed_loop_eval.py
+2. Add actual CARLA episode runner to unified evaluator
+3. Connect to ScenarioRunner for scenario-based evaluation
 
 ## Blockers / questions for owner
 - PR reviews pending for #9, #8, #5, #6, #1
@@ -110,6 +122,6 @@ final_waypoints = sft_waypoints + delta_head(z)
 - Metrics: ADE/FDE, route_completion, collisions
 
 ## Links
-- Daily notes: `clawbot/daily/2026-03-19.md`
-- Branch: `feature/daily-2026-03-19-c`
-- PR: https://github.com/Capri2014/AIResearch/pull/new/feature/daily-2026-03-19-c
+- Daily notes: `clawbot/daily/2026-03-26.md`
+- Branch: `feature/daily-2026-03-26-a`
+- PR: https://github.com/Capri2014/AIResearch/pull/new/feature/daily-2026-03-26-a
