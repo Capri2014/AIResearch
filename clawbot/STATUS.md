@@ -1,12 +1,13 @@
 # Status (ClawBot)
 
-_Last updated: 2026-03-19 (Pipeline PR #6 - daily cadence)_
+_Last updated: 2026-03-25 (Pipeline PR #6 - daily cadence)_
 
 ## Current focus
 Driving-first pipeline: **Waymo episodes → PyTorch SSL pretrain → waypoint BC → RL refinement → CARLA ScenarioRunner eval**.
 
 ## Daily Cadence
 
+- ✅ **Pipeline PR #6** (2026-03-25): SFT vs RL Policy Comparison + Documentation
 - ✅ **Pipeline PR #6** (2026-03-19): Unified Metrics Output for SFT vs RL Comparison
 - ✅ **Pipeline PR #6** (2026-03-16): Toy Waypoint SFT vs RL Comparison
 - ✅ **Pipeline PR #3** (2026-03-10): Multi-Scenario Evaluation Framework
@@ -18,6 +19,17 @@ Driving-first pipeline: **Waymo episodes → PyTorch SSL pretrain → waypoint B
 - ⏳ **Pipeline PR #5** (2026-02-16): RL Refinement Stub for Residual Delta-Waypoint Learning - awaiting review
 
 ## Recent changes
+
+### Pipeline PR #6: SFT vs RL Policy Comparison + Documentation (2026-03-25)
+- **Ran: `training/rl/compare_toy_policies.py`**
+  - Deterministic evaluation: 20 episodes, seed base 42
+  - SFT: ADE=13.31m, FDE=37.17m, Success=0.0%
+  - RL: ADE=13.03m, FDE=36.60m, Success=0.0%
+  - Delta: ADE=-0.28m (2.1% improvement), FDE=-0.57m (1.5% improvement)
+- **Updated: `compare_toy_policies.py`**
+  - Added docstring documentation for `--unified-metrics` flag
+- **Output: `out/eval/20260325-213537/`**
+  - metrics_sft.json, metrics_rl.json, comparison.json, metrics.json
 
 ### Pipeline PR #6: Unified Metrics Output for SFT vs RL Comparison (2026-03-19)
 - **Updated: `training/rl/compare_toy_policies.py`**
@@ -110,6 +122,6 @@ final_waypoints = sft_waypoints + delta_head(z)
 - Metrics: ADE/FDE, route_completion, collisions
 
 ## Links
-- Daily notes: `clawbot/daily/2026-03-19.md`
-- Branch: `feature/daily-2026-03-19-c`
-- PR: https://github.com/Capri2014/AIResearch/pull/new/feature/daily-2026-03-19-c
+- Daily notes: `clawbot/daily/2026-03-25.md`
+- Branch: `feature/daily-2026-03-21-c`
+- PR: https://github.com/Capri2014/AIResearch/pull/new/feature/daily-2026-03-21-c
