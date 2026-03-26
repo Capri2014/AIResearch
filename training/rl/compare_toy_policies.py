@@ -6,6 +6,7 @@ Writes:
   out/eval/<run_id>/metrics_sft.json
   out/eval/<run_id>/metrics_rl.json
   out/eval/<run_id>/comparison.json
+  out/eval/<run_id>/metrics.json (if --unified-metrics is passed)
 
 Prints a 3-line comparison report:
   SFT:  ADE=<x.xx>m  FDE=<x.xx>m  Success=<x.x%>
