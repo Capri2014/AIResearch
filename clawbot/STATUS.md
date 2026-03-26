@@ -3,10 +3,11 @@
 _Last updated: 2026-03-26 (Pipeline PR #2 - daily cadence)_
 
 ## Current focus
-Driving-first pipeline: **Waymo episodes → PyTorch SSL pretrain → waypoint BC → RL refinement → CARLA ScenarioRunner eval**.
+Driving-first pipeline: **Waymo episodes → PyTorch SSL pretrain → waypoint BC → waypoint BC → RL refinement → CARLA ScenarioRunner eval**.
 
 ## Daily Cadence
 
+- ✅ **Pipeline PR #3** (2026-03-26): Unified CARLA Evaluation - Camera Sensor Integration
 - ✅ **Pipeline PR #2** (2026-03-26): Unified CARLA Evaluation - Real Episode Runner
 - ✅ **Pipeline PR #1** (2026-03-26): Unified CARLA Evaluation Pipeline
 - ✅ **Pipeline PR #6** (2026-03-19): Unified Metrics Output for SFT vs RL Comparison
@@ -20,6 +21,16 @@ Driving-first pipeline: **Waymo episodes → PyTorch SSL pretrain → waypoint B
 - ⏳ **Pipeline PR #5** (2026-02-16): RL Refinement Stub for Residual Delta-Waypoint Learning - awaiting review
 
 ## Recent changes
+
+### Pipeline PR #3: Unified CARLA Evaluation - Camera Sensor Integration (2026-03-26)
+- **Updated: `training/eval/unified_carla_eval.py`**
+  - Added camera sensor integration for policy input
+  - `_setup_camera_sensor()`: RGB camera setup (640x360, 110° FOV) attached to ego vehicle
+  - `_cleanup_camera_sensor()`: Proper cleanup of camera resources
+  - `_get_camera_observation()`: Convert CARLA image to RGB numpy array
+  - Modified `_run_carla_episode()` to setup/cleanup camera sensor
+  - Modified `_execute_episode_loop()` to use camera observations for policy inference
+  - Policy now receives camera images as input for waypoint prediction
 
 ### Pipeline PR #2: Unified CARLA Evaluation - Real Episode Runner (2026-03-26)
 - **Updated: `training/eval/unified_carla_eval.py`**
@@ -132,5 +143,5 @@ final_waypoints = sft_waypoints + delta_head(z)
 
 ## Links
 - Daily notes: `clawbot/daily/2026-03-26.md`
-- Branch: `feature/daily-2026-03-26-b`
-- PR: https://github.com/Capri2014/AIResearch/pull/new/feature/daily-2026-03-26-b
+- Branch: `feature/daily-2026-03-26-c`
+- PR: https://github.com/Capri2014/AIResearch/pull/new/feature/daily-2026-03-26-c

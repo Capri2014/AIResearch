@@ -365,6 +365,11 @@ class UnifiedCARLAEval:
         self.client = None
         self.world = None
         
+        # Camera sensor for policy input
+        self.camera_sensor = None
+        self.latest_camera_data = None
+        self.camera_image_queue = None
+        
         # Results storage
         self.all_episodes: List[EpisodeMetrics] = []
         self.weather_results: Dict[str, List[EpisodeMetrics]] = {}
@@ -507,6 +512,7 @@ class UnifiedCARLAEval:
             
             # Setup sensors
             collision_sensor = self._setup_collision_sensor(ego_vehicle)
+            camera_sensor = self._setup_camera_sensor(ego_vehicle)
             
             # Run episode loop
             episode_metrics = self._execute_episode_loop(
@@ -514,6 +520,9 @@ class UnifiedCARLAEval:
             )
             
             # Cleanup
+            self._cleanup_camera_sensor()
+            if camera_sensor and camera_sensor.is_alive:
+                camera_sensor.destroy()
             if ego_vehicle.is_alive:
                 ego_vehicle.destroy()
             if collision_sensor and collision_sensor.is_alive:
@@ -539,6 +548,75 @@ class UnifiedCARLAEval:
             return sensor
         except Exception as e:
             logger.warning(f"Failed to setup collision sensor: {e}")
+            return None
+    
+    def _setup_camera_sensor(self, vehicle):
+        """Setup RGB camera sensor for policy input."""
+        carla = _get_carla()
+        if not self.world:
+            return None
+        
+        try:
+            # Find RGB camera blueprint
+            camera_bp = self.world.get_blueprint_library().find("sensor.camera.rgb")
+            camera_bp.set_attribute("image_size_x", "640")
+            camera_bp.set_attribute("image_size_y", "360")
+            camera_bp.set_attribute("fov", "110")
+            
+            # Attach to vehicle with forward-facing transform
+            camera_transform = carla.Transform(
+                carla.Location(x=1.5, y=0.0, z=1.4),  # Front windshield position
+                carla.Rotation(pitch=0, yaw=0, roll=0)
+            )
+            
+            self.camera_sensor = self.world.spawn_actor(
+                camera_bp, camera_transform, attach_to=vehicle
+            )
+            
+            # Setup image queue for receiving frames
+            self.camera_image_queue = []
+            
+            # Register callback to receive images
+            def _on_camera_image(image):
+                self.latest_camera_data = image
+                self.camera_image_queue.append(image)
+            
+            self.camera_sensor.listen(_on_camera_image)
+            
+            logger.info("Camera sensor setup complete")
+            return self.camera_sensor
+            
+        except Exception as e:
+            logger.warning(f"Failed to setup camera sensor: {e}")
+            return None
+    
+    def _cleanup_camera_sensor(self):
+        """Cleanup camera sensor."""
+        if self.camera_sensor and self.camera_sensor.is_alive:
+            self.camera_sensor.stop()
+            self.camera_sensor.destroy()
+            self.camera_sensor = None
+            self.latest_camera_data = None
+            self.camera_image_queue = None
+    
+    def _get_camera_observation(self) -> Optional[np.ndarray]:
+        """Get camera observation for policy input."""
+        if self.latest_camera_data is None:
+            return None
+        
+        try:
+            # Convert CARLA image to numpy array
+            image = self.latest_camera_data
+            # Get raw image data (RGBA format)
+            image_data = np.frombuffer(image.raw_data, dtype=np.uint8)
+            # Reshape to image dimensions (height, width, 4 channels)
+            image_array = image_data.reshape(
+                image.height, image.width, 4
+            )
+            # Convert RGBA to RGB (drop alpha channel)
+            return image_array[:, :, :3]
+        except Exception as e:
+            logger.warning(f"Failed to convert camera data: {e}")
             return None
     
     def _execute_episode_loop(
@@ -582,17 +660,35 @@ class UnifiedCARLAEval:
             dist_to_target = current_loc.distance(target_loc)
             route_completion = 1.0 - (dist_to_target / total_route_dist)
             
-            # Get camera image (simulated for now)
-            # In real implementation, would capture from sensor
+            # Get camera observation for policy input
+            camera_obs = self._get_camera_observation()
             
-            # Get waypoint prediction from policy
-            if self.policy_loader and self.policy_loader.predict:
-                # Placeholder: would use actual camera image
-                # predicted_waypoints = self.policy_loader.predict(observation)
-                pass
+            # Get waypoint prediction from policy using camera input
+            predicted_waypoints = None
+            if self.policy_loader and self.policy_loader.predict and camera_obs is not None:
+                # Run policy inference with camera observation
+                observation = {
+                    "camera": camera_obs,
+                    "location": (current_loc.x, current_loc.y, current_loc.z),
+                    "rotation": (transform.rotation.pitch, transform.rotation.yaw, transform.rotation.roll)
+                }
+                predicted_waypoints = self.policy_loader.predict(observation)
+            elif self.policy_loader and self.policy_loader.predict:
+                # Fallback: use random baseline when no camera data
+                predicted_waypoints = self.policy_loader.predict({})
             
-            # Apply control (simple waypoint following)
-            self._apply_vehicle_control(ego_vehicle, target_loc)
+            # Apply control (using predicted waypoints or fallback to target)
+            control_target = target_loc
+            if predicted_waypoints is not None and len(predicted_waypoints) > 0:
+                # Use first predicted waypoint as immediate target
+                wp = predicted_waypoints[0]
+                control_target = carla.Location(
+                    x=float(wp[0]) + current_loc.x,
+                    y=float(wp[1]) + current_loc.y,
+                    z=current_loc.z
+                )
+            
+            self._apply_vehicle_control(ego_vehicle, control_target)
             
             # Tick simulation
             self.world.tick()
