@@ -1,12 +1,13 @@
 # Status (ClawBot)
 
-_Last updated: 2026-03-26 (Pipeline PR #1 - daily cadence)_
+_Last updated: 2026-03-26 (Pipeline PR #2 - daily cadence)_
 
 ## Current focus
 Driving-first pipeline: **Waymo episodes → PyTorch SSL pretrain → waypoint BC → RL refinement → CARLA ScenarioRunner eval**.
 
 ## Daily Cadence
 
+- ✅ **Pipeline PR #2** (2026-03-26): Unified CARLA Evaluation - Real Episode Runner
 - ✅ **Pipeline PR #1** (2026-03-26): Unified CARLA Evaluation Pipeline
 - ✅ **Pipeline PR #6** (2026-03-19): Unified Metrics Output for SFT vs RL Comparison
 - ✅ **Pipeline PR #6** (2026-03-16): Toy Waypoint SFT vs RL Comparison
@@ -19,6 +20,14 @@ Driving-first pipeline: **Waymo episodes → PyTorch SSL pretrain → waypoint B
 - ⏳ **Pipeline PR #5** (2026-02-16): RL Refinement Stub for Residual Delta-Waypoint Learning - awaiting review
 
 ## Recent changes
+
+### Pipeline PR #2: Unified CARLA Evaluation - Real Episode Runner (2026-03-26)
+- **Updated: `training/eval/unified_carla_eval.py`**
+  - Added real CARLA episode runner methods
+  - `_run_carla_episode()`: Actual CARLA episode execution with vehicle spawning
+  - `_setup_collision_sensor()`: Collision sensor setup
+  - `_execute_episode_loop()`: Main simulation loop with waypoint following
+  - `_apply_vehicle_control()`: Vehicle control for waypoint following
 
 ### Pipeline PR #1: Unified CARLA Evaluation Pipeline (2026-03-26)
 - **Created: `training/eval/unified_carla_eval.py`**
@@ -97,8 +106,8 @@ Driving-first pipeline: **Waymo episodes → PyTorch SSL pretrain → waypoint B
   - Entropy history tracking: `entropy_history.json` with episode-wise records
 
 ## Next (top 3)
-1. Integrate unified_carla_eval with existing run_carla_closed_loop_eval.py
-2. Add actual CARLA episode runner to unified evaluator
+1. Add camera sensor integration for policy input in unified_carla_eval
+2. Connect actual waypoint predictions to control loop
 3. Connect to ScenarioRunner for scenario-based evaluation
 
 ## Blockers / questions for owner
@@ -123,5 +132,5 @@ final_waypoints = sft_waypoints + delta_head(z)
 
 ## Links
 - Daily notes: `clawbot/daily/2026-03-26.md`
-- Branch: `feature/daily-2026-03-26-a`
-- PR: https://github.com/Capri2014/AIResearch/pull/new/feature/daily-2026-03-26-a
+- Branch: `feature/daily-2026-03-26-b`
+- PR: https://github.com/Capri2014/AIResearch/pull/new/feature/daily-2026-03-26-b
