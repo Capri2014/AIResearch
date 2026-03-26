@@ -1,6 +1,6 @@
 # Status (ClawBot)
 
-_Last updated: 2026-03-26 (Pipeline PR #2 - daily cadence)_
+_Last updated: 2026-03-26 (Pipeline PR #5 - daily cadence)_
 
 ## Current focus
 Driving-first pipeline: **Waymo episodes → PyTorch SSL pretrain → waypoint BC → waypoint BC → RL refinement → CARLA ScenarioRunner eval**.
@@ -8,6 +8,8 @@ Driving-first pipeline: **Waymo episodes → PyTorch SSL pretrain → waypoint B
 ## Daily Cadence
 
 - ✅ **Pipeline PR #3** (2026-03-26): Unified CARLA Evaluation - Camera Sensor Integration
+- ✅ **Pipeline PR #4** (2026-03-26): Waypoint Policy Integration with Unified CARLA Eval
+- ✅ **Pipeline PR #5** (2026-03-26): RL Refinement After SFT - Delta Waypoint Learning
 - ✅ **Pipeline PR #2** (2026-03-26): Unified CARLA Evaluation - Real Episode Runner
 - ✅ **Pipeline PR #1** (2026-03-26): Unified CARLA Evaluation Pipeline
 - ✅ **Pipeline PR #6** (2026-03-19): Unified Metrics Output for SFT vs RL Comparison
@@ -31,6 +33,31 @@ Driving-first pipeline: **Waymo episodes → PyTorch SSL pretrain → waypoint B
   - Modified `_run_carla_episode()` to setup/cleanup camera sensor
   - Modified `_execute_episode_loop()` to use camera observations for policy inference
   - Policy now receives camera images as input for waypoint prediction
+
+### Pipeline PR #5: RL Refinement After SFT - Delta Waypoint Learning (2026-03-26)
+- **Created: `training/rl/ppo_delta_waypoint_learning.py`**
+  - RL after SFT implementation with residual delta-waypoint learning (Option B)
+  - `SFTWaypointModel`: SFT model for base waypoint predictions (can load from BC checkpoint)
+  - `ResidualDeltaHead`: Small delta head that learns corrections to SFT base
+  - `RLAfterSFTActor`: Combined actor = SFT_base + delta (SFT frozen during RL)
+  - `ToyKinematicWaypointEnv`: 2D kinematic car environment consuming predicted waypoints
+  - `PPOAgent`: Standard PPO for delta-waypoint learning
+
+- **Architecture (Option B):** `final_waypoints = sft_base + delta_head(state)`
+  - Action space = waypoint deltas (8 waypoints × 2 coordinates)
+  - SFT model stays frozen; only delta head is trained
+  - Can initialize from trained BC checkpoint
+
+- **Training Results (50 episodes):**
+  - Episode 10: avg_reward=206.31, success=100%
+  - Episode 30: avg_reward=338.93, success=100%
+  - Episode 50: avg_reward=139.79, success=50%
+  - Final success rate (last 10): 50%
+
+- **Artifacts:** `out/rl_after_sft_20260326_193548/`
+  - `metrics.json` - Full training metrics with eval intervals
+  - `train_metrics.json` - Training summary
+  - `checkpoint_final.pt` - Model checkpoint
 
 ### Pipeline PR #2: Unified CARLA Evaluation - Real Episode Runner (2026-03-26)
 - **Updated: `training/eval/unified_carla_eval.py`**
