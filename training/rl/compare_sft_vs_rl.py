@@ -60,6 +60,7 @@ def run_policy_on_env(
     """Run a policy on the toy environment for multiple seeds.
     
     Returns scenario results compatible with data/schema/metrics.json.
+    Includes comfort metrics (max_accel, max_jerk) for metrics hardening.
     """
     # Create config with desired max steps
     config = WaypointEnvConfig(max_episode_steps=max_episode_steps)
@@ -72,8 +73,12 @@ def run_policy_on_env(
         # Use the info dict waypoints for ADE/FDE calculation
         obs, info = env.reset()
         
-        # Get full observation with embedded waypoints
-        full_obs = env.get_observation()
+        # Track comfort metrics: acceleration and jerk per step
+        prev_speed = float(env.state[3])
+        prev_accel = 0.0
+        accelerations = []
+        jerks = []
+        dt = 0.1  # Fixed timestep from environment
         
         done = False
         total_reward = 0.0
@@ -84,6 +89,18 @@ def run_policy_on_env(
             # Pass (state, info) tuple to policy
             action = policy_fn((obs, info))
             obs, reward, terminated, truncated, info = env.step(action)
+            
+            # Compute acceleration and jerk for comfort metrics
+            current_speed = float(env.state[3])
+            accel = (current_speed - prev_speed) / dt
+            jerk = (accel - prev_accel) / dt
+            
+            accelerations.append(abs(accel))
+            jerks.append(abs(jerk))
+            
+            prev_speed = current_speed
+            prev_accel = accel
+            
             total_reward += float(reward)
             steps += 1
             done = terminated or truncated
@@ -109,6 +126,10 @@ def run_policy_on_env(
         ade = float(sum(dists) / len(dists)) if dists else float("nan")
         fde = float(dists[-1]) if dists else float("nan")
         
+        # Compute comfort metrics
+        max_accel = float(max(accelerations)) if accelerations else float("nan")
+        max_jerk = float(max(jerks)) if jerks else float("nan")
+        
         scenarios.append({
             "scenario_id": f"seed:{seed}",
             "success": success,
@@ -118,13 +139,20 @@ def run_policy_on_env(
             "steps": int(steps),
             "num_waypoints_reached": int(num_reached),
             "final_dist": final_dist,
+            "comfort": {
+                "max_accel": max_accel,
+                "max_jerk": max_jerk,
+            },
         })
     
     return scenarios
 
 
 def compute_summary_metrics(scenarios: list[dict]) -> dict:
-    """Compute aggregate metrics from scenario results."""
+    """Compute aggregate metrics from scenario results.
+    
+    Includes comfort metrics (max_accel, max_jerk) for full schema compliance.
+    """
     if not scenarios:
         return {"ade_mean": float("nan"), "fde_mean": float("nan"), "success_rate": 0.0}
     
@@ -132,10 +160,16 @@ def compute_summary_metrics(scenarios: list[dict]) -> dict:
     fdes = [s.get("fde", float("nan")) for s in scenarios]
     successes = [1 if s.get("success") else 0 for s in scenarios]
     
+    # Collect comfort metrics
+    max_accels = [s.get("comfort", {}).get("max_accel", float("nan")) for s in scenarios]
+    max_jerks = [s.get("comfort", {}).get("max_jerk", float("nan")) for s in scenarios]
+    
     valid_ades = [a for a in ades if not np.isnan(a)]
     valid_fdes = [f for f in fdes if not np.isnan(f)]
+    valid_accels = [a for a in max_accels if not np.isnan(a)]
+    valid_jerks = [j for j in max_jerks if not np.isnan(j)]
     
-    return {
+    summary = {
         "ade_mean": float(np.mean(valid_ades)) if valid_ades else float("nan"),
         "ade_std": float(np.std(valid_ades)) if len(valid_ades) > 1 else 0.0,
         "fde_mean": float(np.mean(valid_fdes)) if valid_fdes else float("nan"),
@@ -145,6 +179,17 @@ def compute_summary_metrics(scenarios: list[dict]) -> dict:
         "avg_return": float(np.mean([s.get("return", 0) for s in scenarios])),
         "avg_steps": float(np.mean([s.get("steps", 0) for s in scenarios])),
     }
+    
+    # Add comfort metrics to summary
+    if valid_accels:
+        summary["max_accel_mean"] = float(np.mean(valid_accels))
+        summary["max_accel_std"] = float(np.std(valid_accels)) if len(valid_accels) > 1 else 0.0
+    
+    if valid_jerks:
+        summary["max_jerk_mean"] = float(np.mean(valid_jerks))
+        summary["max_jerk_std"] = float(np.std(valid_jerks)) if len(valid_jerks) > 1 else 0.0
+    
+    return summary
 
 
 def main() -> None:
@@ -210,12 +255,21 @@ def main() -> None:
     print("COMPARISON REPORT: SFT vs RL-Refined Policy")
     print("=" * 60)
     
+    # Comfort metrics (may be missing for older runs)
+    sft_max_accel = sft_summary.get("max_accel_mean", float("nan"))
+    sft_max_jerk = sft_summary.get("max_jerk_mean", float("nan"))
+    rl_max_accel = rl_summary.get("max_accel_mean", float("nan"))
+    rl_max_jerk = rl_summary.get("max_jerk_mean", float("nan"))
+    
     print(f"\nSFT Policy:")
     print(f"  ADE: {sft_summary['ade_mean']:.4f} ± {sft_summary['ade_std']:.4f}m")
     print(f"  FDE: {sft_summary['fde_mean']:.4f} ± {sft_summary['fde_std']:.4f}m")
     print(f"  Success Rate: {sft_summary['success_rate']:.1%}")
     print(f"  Avg Return: {sft_summary['avg_return']:.3f}")
     print(f"  Avg Steps: {sft_summary['avg_steps']:.1f}")
+    if not np.isnan(sft_max_accel):
+        print(f"  Max Accel: {sft_max_accel:.4f} ± {sft_summary.get('max_accel_std', 0):.4f}m/s²")
+        print(f"  Max Jerk: {sft_max_jerk:.4f} ± {sft_summary.get('max_jerk_std', 0):.4f}m/s³")
     
     print(f"\nRL-Refined Policy:")
     print(f"  ADE: {rl_summary['ade_mean']:.4f} ± {rl_summary['ade_std']:.4f}m")
@@ -223,6 +277,9 @@ def main() -> None:
     print(f"  Success Rate: {rl_summary['success_rate']:.1%}")
     print(f"  Avg Return: {rl_summary['avg_return']:.3f}")
     print(f"  Avg Steps: {rl_summary['avg_steps']:.1f}")
+    if not np.isnan(rl_max_accel):
+        print(f"  Max Accel: {rl_max_accel:.4f} ± {rl_summary.get('max_accel_std', 0):.4f}m/s²")
+        print(f"  Max Jerk: {rl_max_jerk:.4f} ± {rl_summary.get('max_jerk_std', 0):.4f}m/s³")
     
     # Compute improvements
     ade_improvement = sft_summary['ade_mean'] - rl_summary['ade_mean']
@@ -240,6 +297,13 @@ def main() -> None:
     print(f"ADE: {sft_summary['ade_mean']:.2f}m (SFT) → {rl_summary['ade_mean']:.2f}m (RL) [{ade_improvement/sft_summary['ade_mean']*100:+.0f}%]")
     print(f"FDE: {sft_summary['fde_mean']:.2f}m (SFT) → {rl_summary['fde_mean']:.2f}m (RL) [{fde_improvement/sft_summary['fde_mean']*100:+.0f}%]")
     print(f"Success: {sft_summary['success_rate']:.0%} (SFT) → {rl_summary['success_rate']:.0%} (RL) [{success_improvement:+.0%}]")
+    
+    # Comfort improvement in 3-line summary
+    if not np.isnan(sft_max_accel) and not np.isnan(rl_max_accel):
+        accel_improvement = sft_max_accel - rl_max_accel
+        jerk_improvement = sft_max_jerk - rl_max_jerk
+        print(f"Comfort: MaxAccel {sft_max_accel:.2f} → {rl_max_accel:.2f} [{accel_improvement/sft_max_accel*100:+.0f}%], MaxJerk {sft_max_jerk:.2f} → {rl_max_jerk:.2f} [{jerk_improvement/sft_max_jerk*100:+.0f}%]")
+    
     print("=" * 60)
     
     print(f"\nOutput directories:")
