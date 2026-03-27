@@ -1,12 +1,13 @@
 # Status (ClawBot)
 
-_Last updated: 2026-03-26 (Pipeline PR #6 - daily cadence)_
+_Last updated: 2026-03-27 (Pipeline PR #1 - daily cadence)_
 
 ## Current focus
 Driving-first pipeline: **Waymo episodes → PyTorch SSL pretrain → waypoint BC → waypoint BC → RL refinement → CARLA ScenarioRunner eval**.
 
 ## Daily Cadence
 
+- ✅ **Pipeline PR #1** (2026-03-27): ScenarioRunner Integration for Unified CARLA Eval
 - ✅ **Pipeline PR #3** (2026-03-26): Unified CARLA Evaluation - Camera Sensor Integration
 - ✅ **Pipeline PR #4** (2026-03-26): Waypoint Policy Integration with Unified CARLA Eval
 - ✅ **Pipeline PR #6** (2026-03-26): RL Refinement Evaluation - Comfort Metrics Hardening
@@ -24,6 +25,25 @@ Driving-first pipeline: **Waymo episodes → PyTorch SSL pretrain → waypoint B
 - ⏳ **Pipeline PR #5** (2026-02-16): RL Refinement Stub for Residual Delta-Waypoint Learning - awaiting review
 
 ## Recent changes
+
+### Pipeline PR #1: ScenarioRunner Integration for Unified CARLA Eval (2026-03-27)
+- **Updated: `training/eval/unified_carla_eval.py`**
+  - Added `ScenarioRunnerIntegration` class with 10 standard scenarios
+  - Supports: pedestrian_crossing, vehicle_merge, vehicle_overtaking
+  - intersection_left_turn, intersection_right_turn, highway_entry/exit
+  - emergency_stop, parking_scenario, urban_drive
+  - Added `--use-srunner` and `--srunner-root` CLI flags
+  - Added `_run_srunner_episode()` for scenario-based episodes
+  - Integrated with `UnifiedCARLAEval.setup()` method
+
+- **Updated: `models/waypoint_policy.py`**
+  - Enhanced WaypointPolicy class with BC/RL/SFT+Delta support
+  - Added `predict()` method with camera/state observations
+  - Better fallback handling when checkpoints unavailable
+
+- **Testing:** Dry-run: 8 episodes, 0% success (expected in dry-run mode)
+
+- **Commit:** `4e7bad1` - Branch pushed to `feature/daily-2026-03-27-a`
 
 ### Pipeline PR #3: Unified CARLA Evaluation - Camera Sensor Integration (2026-03-26)
 - **Updated: `training/eval/unified_carla_eval.py`**
@@ -161,9 +181,9 @@ Driving-first pipeline: **Waymo episodes → PyTorch SSL pretrain → waypoint B
   - Entropy history tracking: `entropy_history.json` with episode-wise records
 
 ## Next (top 3)
-1. Add camera sensor integration for policy input in unified_carla_eval
-2. Connect actual waypoint predictions to control loop
-3. Connect to ScenarioRunner for scenario-based evaluation
+1. Connect actual waypoint predictions to control loop (in progress)
+2. Connect trained BC/RL checkpoints to unified eval pipeline
+3. Refine ScenarioRunner subprocess execution for real metrics
 
 ## Blockers / questions for owner
 - PR reviews pending for #9, #8, #5, #6, #1
