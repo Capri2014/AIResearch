@@ -1,6 +1,6 @@
 # Status (ClawBot)
 
-_Last updated: 2026-03-26 (Pipeline PR #5 - daily cadence)_
+_Last updated: 2026-03-26 (Pipeline PR #6 - daily cadence)_
 
 ## Current focus
 Driving-first pipeline: **Waymo episodes → PyTorch SSL pretrain → waypoint BC → waypoint BC → RL refinement → CARLA ScenarioRunner eval**.
@@ -9,6 +9,7 @@ Driving-first pipeline: **Waymo episodes → PyTorch SSL pretrain → waypoint B
 
 - ✅ **Pipeline PR #3** (2026-03-26): Unified CARLA Evaluation - Camera Sensor Integration
 - ✅ **Pipeline PR #4** (2026-03-26): Waypoint Policy Integration with Unified CARLA Eval
+- ✅ **Pipeline PR #6** (2026-03-26): RL Refinement Evaluation - Comfort Metrics Hardening
 - ✅ **Pipeline PR #5** (2026-03-26): RL Refinement After SFT - Delta Waypoint Learning
 - ✅ **Pipeline PR #2** (2026-03-26): Unified CARLA Evaluation - Real Episode Runner
 - ✅ **Pipeline PR #1** (2026-03-26): Unified CARLA Evaluation Pipeline
@@ -58,6 +59,22 @@ Driving-first pipeline: **Waymo episodes → PyTorch SSL pretrain → waypoint B
   - `metrics.json` - Full training metrics with eval intervals
   - `train_metrics.json` - Training summary
   - `checkpoint_final.pt` - Model checkpoint
+
+### Pipeline PR #6: RL Refinement Evaluation - Comfort Metrics Hardening (2026-03-26)
+- **Updated: `training/rl/compare_sft_vs_rl.py`**
+  - Added comfort metrics (max_accel, max_jerk) tracking per episode
+  - Added comfort to scenario output (per-episode)
+  - Added comfort summary (mean/std) to aggregate metrics
+  - Added comfort to 3-line summary report
+
+- **Evaluation Results (10 episodes, seed 42-51):**
+  - SFT: ADE=14.12m, FDE=41.92m, MaxAccel=4.23m/s², MaxJerk=37.50m/s³
+  - RL: ADE=13.70m, FDE=41.16m, MaxAccel=3.97m/s², MaxJerk=36.63m/s³
+  - Improvement: ADE +3%, FDE +1.8%, MaxAccel +6% (smoother), MaxJerk +2%
+
+- **Schema Alignment:** Aligns with `data/schema/metrics.json` (domain="rl", comfort object)
+- **Artifacts:** `out/eval/20260326-213705_sft/metrics.json`, `out/eval/20260326-213705_rl/metrics.json`
+- **Commit:** `9d4bfd1` - Branch pushed to `feature/daily-2026-03-21-c`
 
 ### Pipeline PR #2: Unified CARLA Evaluation - Real Episode Runner (2026-03-26)
 - **Updated: `training/eval/unified_carla_eval.py`**
