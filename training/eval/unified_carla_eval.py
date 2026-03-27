@@ -295,8 +295,122 @@ class EpisodeMetrics:
     max_acceleration: float = 0.0
     max_jerk: float = 0.0
     
+    # Enhanced violation tracking
+    stop_sign_violations: int = 0
+    collision_severity: float = 0.0  # Max impact severity (0-1 scale)
+    lane_violations: int = 0
+    
+    # Per-step metrics (stored as trajectory)
+    step_rewards: Optional[List[float]] = None
+    step_speeds: Optional[List[float]] = None
+    
+    def __post_init__(self):
+        # Initialize optional trajectory arrays
+        if self.step_rewards is None:
+            object.__setattr__(self, 'step_rewards', [])
+        if self.step_speeds is None:
+            object.__setattr__(self, 'step_speeds', [])
+    
+    def to_dict(self) -> Dict[str, Any]:
+        result = asdict(self)
+        # Convert numpy arrays to lists for JSON serialization
+        if self.step_rewards is not None:
+            result["step_rewards"] = list(self.step_rewards)
+        if self.step_speeds is not None:
+            result["step_speeds"] = list(self.step_speeds)
+        return result
+
+
+@dataclass
+class StepMetrics:
+    """Per-step metrics for trajectory analysis."""
+    step: int
+    speed: float = 0.0
+    acceleration: float = 0.0
+    jerk: float = 0.0
+    distance_to_goal: float = 0.0
+    reward: float = 0.0
+    
+    # Violation flags
+    collision: bool = False
+    red_light: bool = False
+    stop_sign: bool = False
+    offroad: bool = False
+    lane_violation: bool = False
+    
     def to_dict(self) -> Dict[str, Any]:
         return asdict(self)
+
+
+class EpisodeTracker:
+    """Track per-step metrics during episode execution."""
+    
+    def __init__(self):
+        self.steps: List[StepMetrics] = []
+        self._prev_speed: Optional[float] = None
+        self._prev_accel: Optional[float] = None
+        
+    def add_step(self, step: int, speed: float, position: np.ndarray, goal: np.ndarray) -> StepMetrics:
+        """Add a new step's metrics."""
+        distance_to_goal = float(np.linalg.norm(position - goal))
+        
+        # Compute acceleration/jerk if we have previous data
+        accel = 0.0
+        jerk = 0.0
+        if self._prev_speed is not None:
+            dt = 0.1  # Assume 10Hz
+            accel = (speed - self._prev_speed) / dt
+            if self._prev_accel is not None:
+                jerk = (accel - self._prev_accel) / dt
+        
+        step_metric = StepMetrics(
+            step=step,
+            speed=speed,
+            acceleration=accel,
+            jerk=jerk,
+            distance_to_goal=distance_to_goal,
+        )
+        self.steps.append(step_metric)
+        
+        self._prev_speed = speed
+        self._prev_accel = accel
+        return step_metric
+    
+    def mark_violation(self, violation_type: str):
+        """Mark a violation at the current step."""
+        if self.steps:
+            last_step = self.steps[-1]
+            if violation_type == "collision":
+                last_step.collision = True
+            elif violation_type == "red_light":
+                last_step.red_light = True
+            elif violation_type == "stop_sign":
+                last_step.stop_sign = True
+            elif violation_type == "offroad":
+                last_step.offroad = True
+            elif violation_type == "lane":
+                last_step.lane_violation = True
+    
+    def get_max_acceleration(self) -> float:
+        """Get max acceleration magnitude."""
+        if not self.steps:
+            return 0.0
+        return max(abs(s.acceleration) for s in self.steps)
+    
+    def get_max_jerk(self) -> float:
+        """Get max jerk magnitude."""
+        if not self.steps:
+            return 0.0
+        return max(abs(s.jerk) for s in self.steps)
+    
+    def compute_ade_fde(self, waypoints: np.ndarray) -> Tuple[float, float]:
+        """Compute ADE/FDE from stored positions."""
+        # Simplified: just return stored distances
+        if not self.steps:
+            return 0.0, 0.0
+        final_dist = self.steps[-1].distance_to_goal
+        avg_dist = np.mean([s.distance_to_goal for s in self.steps])
+        return avg_dist, final_dist
 
 
 @dataclass
@@ -311,6 +425,16 @@ class AggregateMetrics:
     mean_ade: float
     mean_fde: float
     mean_duration: float
+    
+    # Enhanced violation aggregates
+    mean_red_light_violations: float = 0.0
+    mean_stop_sign_violations: float = 0.0
+    mean_lane_violations: float = 0.0
+    mean_collision_severity: float = 0.0
+    
+    # Comfort metrics
+    mean_max_acceleration: float = 0.0
+    mean_max_jerk: float = 0.0
     
     def to_dict(self) -> Dict[str, Any]:
         return asdict(self)
@@ -348,6 +472,14 @@ def compute_aggregate_metrics(episodes: List[EpisodeMetrics]) -> AggregateMetric
         mean_ade=np.mean([e.ade for e in episodes]),
         mean_fde=np.mean([e.fde for e in episodes]),
         mean_duration=np.mean([e.duration for e in episodes]),
+        # Enhanced violation aggregates
+        mean_red_light_violations=np.mean([e.red_light_violations for e in episodes]),
+        mean_stop_sign_violations=np.mean([e.stop_sign_violations for e in episodes]),
+        mean_lane_violations=np.mean([e.lane_violations for e in episodes]),
+        mean_collision_severity=np.mean([e.collision_severity for e in episodes]),
+        # Comfort metrics
+        mean_max_acceleration=np.mean([e.max_acceleration for e in episodes]),
+        mean_max_jerk=np.mean([e.max_jerk for e in episodes]),
     )
 
 
@@ -815,6 +947,11 @@ class UnifiedCARLAEval:
         ade = np.random.uniform(1.0, 10.0)
         fde = np.random.uniform(2.0, 20.0)
         
+        # Enhanced violations
+        stop_sign_violations = np.random.poisson(0.05)
+        lane_violations = np.random.poisson(0.2)
+        collision_severity = np.random.uniform(0, 0.5) if collisions > 0 else 0.0
+        
         return EpisodeMetrics(
             episode_id=f"{weather}_ep{episode_idx}",
             weather=weather,
@@ -830,6 +967,10 @@ class UnifiedCARLAEval:
             speed_error=np.random.uniform(0.5, 3.0),
             max_acceleration=np.random.uniform(2.0, 5.0),
             max_jerk=np.random.uniform(1.0, 3.0),
+            # Enhanced violation tracking
+            stop_sign_violations=stop_sign_violations,
+            collision_severity=collision_severity,
+            lane_violations=lane_violations,
         )
     
     def _save_weather_results(self, path: Path, weather: str, episodes: List[EpisodeMetrics]):
@@ -856,6 +997,18 @@ class UnifiedCARLAEval:
         logger.info(f"ADE: {aggregate.mean_ade:.2f}m")
         logger.info(f"FDE: {aggregate.mean_fde:.2f}m")
         logger.info(f"Duration: {aggregate.mean_duration:.1f}s")
+        # Violation metrics
+        logger.info("-" * 40)
+        logger.info("Violations:")
+        logger.info(f"  Red light: {aggregate.mean_red_light_violations:.2f}")
+        logger.info(f"  Stop sign: {aggregate.mean_stop_sign_violations:.2f}")
+        logger.info(f"  Lane: {aggregate.mean_lane_violations:.2f}")
+        logger.info(f"  Collision severity: {aggregate.mean_collision_severity:.2f}")
+        # Comfort metrics
+        logger.info("-" * 40)
+        logger.info("Comfort:")
+        logger.info(f"  Max acceleration: {aggregate.mean_max_acceleration:.2f}m/s²")
+        logger.info(f"  Max jerk: {aggregate.mean_max_jerk:.2f}m/s³")
         logger.info("=" * 60)
 
 
