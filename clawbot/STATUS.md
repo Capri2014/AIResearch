@@ -7,6 +7,7 @@ Driving-first pipeline: **Waymo episodes → PyTorch SSL pretrain → waypoint B
 
 ## Daily Cadence
 
+- ✅ **Pipeline PR #2** (2026-03-27): Enhanced Metric Tracking - Per-Step Trajectory & Violation Tracking
 - ✅ **Pipeline PR #1** (2026-03-27): ScenarioRunner Integration for Unified CARLA Eval
 - ✅ **Pipeline PR #3** (2026-03-26): Unified CARLA Evaluation - Camera Sensor Integration
 - ✅ **Pipeline PR #4** (2026-03-26): Waypoint Policy Integration with Unified CARLA Eval
@@ -25,6 +26,30 @@ Driving-first pipeline: **Waymo episodes → PyTorch SSL pretrain → waypoint B
 - ⏳ **Pipeline PR #5** (2026-02-16): RL Refinement Stub for Residual Delta-Waypoint Learning - awaiting review
 
 ## Recent changes
+
+### Pipeline PR #3: Waymo Episode Loader for SSL Pretraining (2026-03-27)
+- **Created: `AIResearch/training/episodes/waymo_episode_loader.py`**
+  - Data classes: Pose, Waypoint, CameraFrame, WaymoRoute, WaymoEpisode
+  - WaymoEpisodeLoader class supporting stub, synthetic, and Waymo formats
+  - `to_ssl_dataset()`: Convert episodes to SSL pretraining format
+  - `get_statistics()`: Dataset statistics (locations, weathers)
+  - CLI for listing and loading episodes
+  - Found 5 stub episodes for testing
+
+- **Commit:** `35163b0` - Branch pushed to `feature/vadv2-digest-survey` (AIResearch repo)
+- **PR:** https://github.com/Capri2014/AIResearch/pull/new/feature/vadv2-digest-survey
+
+### Pipeline PR #2: Enhanced Metric Tracking - Per-Step Trajectory & Violation Tracking (2026-03-27)
+- **Updated: `training/eval/unified_carla_eval.py`**
+  - Enhanced EpisodeMetrics with stop_sign_violations, collision_severity, lane_violations
+  - Added optional per-step trajectories: step_rewards, step_speeds
+  - Added StepMetrics dataclass for per-step tracking (speed, acceleration, jerk, distance_to_goal)
+  - Added EpisodeTracker class for trajectory-level metric aggregation
+  - Enhanced AggregateMetrics with violation aggregates and comfort metrics
+  - Enhanced dry-run simulation with realistic violation metrics
+  - Enhanced summary output displays violations and comfort
+
+- **Commit:** `feature/daily-2026-03-27-b`
 
 ### Pipeline PR #1: ScenarioRunner Integration for Unified CARLA Eval (2026-03-27)
 - **Updated: `training/eval/unified_carla_eval.py`**
