@@ -47,6 +47,7 @@
           "return": {"type": "number", "description": "Episode return (cumulative reward)"},
           "steps": {"type": "integer", "description": "Number of steps taken"},
           "final_dist": {"type": "number", "description": "Final distance to target (meters)"},
+          "num_waypoints_reached": {"type": "integer", "description": "Number of waypoints reached in episode"},
           "comfort": {
             "type": "object",
             "properties": {
@@ -71,7 +72,11 @@
         "success_rate": {"type": "number"},
         "return_mean": {"type": "number"},
         "steps_mean": {"type": "number"},
-        "num_episodes": {"type": "integer"}
+        "num_episodes": {"type": "integer"},
+        "max_accel_mean": {"type": "number", "description": "Mean of max acceleration across episodes (m/s²)"},
+        "max_accel_std": {"type": "number", "description": "Std of max acceleration across episodes"},
+        "max_jerk_mean": {"type": "number", "description": "Mean of max jerk across episodes (m/s³)"},
+        "max_jerk_std": {"type": "number", "description": "Std of max jerk across episodes"}
       },
       "additionalProperties": true
     }

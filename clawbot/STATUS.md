@@ -1,12 +1,15 @@
 # Status (ClawBot)
 
-_Last updated: 2026-03-27 (Pipeline PR #1 - daily cadence)_
+_Last updated: 2026-03-27 (Pipeline PR #4 - daily cadence)_
 
 ## Current focus
 Driving-first pipeline: **Waymo episodes → PyTorch SSL pretrain → waypoint BC → waypoint BC → RL refinement → CARLA ScenarioRunner eval**.
 
 ## Daily Cadence
 
+- ✅ **Pipeline PR #5** (2026-03-27): RL Refinement After SFT - Enhanced Delta Waypoint Learning
+- ✅ **Pipeline PR #4** (2026-03-27): Waymo to SSL Bridge - Waymo Episodes to PyTorch SSL Dataloader
+- ✅ **Pipeline PR #3** (2026-03-27): Waymo Episode Loader for SSL Pretraining
 - ✅ **Pipeline PR #2** (2026-03-27): Enhanced Metric Tracking - Per-Step Trajectory & Violation Tracking
 - ✅ **Pipeline PR #1** (2026-03-27): ScenarioRunner Integration for Unified CARLA Eval
 - ✅ **Pipeline PR #3** (2026-03-26): Unified CARLA Evaluation - Camera Sensor Integration
@@ -26,6 +29,44 @@ Driving-first pipeline: **Waymo episodes → PyTorch SSL pretrain → waypoint B
 - ⏳ **Pipeline PR #5** (2026-02-16): RL Refinement Stub for Residual Delta-Waypoint Learning - awaiting review
 
 ## Recent changes
+
+### Pipeline PR #5: RL Refinement After SFT - Enhanced Delta Waypoint Learning (2026-03-27)
+- **Updated: `training/rl/ppo_delta_waypoint_learning.py`**
+  - Added bounded delta head (tanh * delta_bound) for stable RL training
+  - Added checkpoint loading stub (from_BC_checkpoint) for BC model init
+  - Enhanced reward shaping with comfort penalties (max_accel_threshold)
+  - Added per-step trajectory tracking (position, speed, acceleration)
+  - Added comfort metrics computation (max_acceleration, max_jerk)
+  - Added domain='rl' and action_space='waypoint_deltas' to metrics.json
+  - Added --bc-checkpoint and --delta-bound CLI args
+
+- **Training Results (30 episodes):**
+  - Success rate: 100% (last 10)
+  - Mean reward: 60.99 (last 10)
+  - Max acceleration: 18.91 m/s²
+  - Max jerk: 18.78 m/s³
+
+- **Artifacts:** `out/rl_after_sft_20260327_193434/`
+  - `metrics.json` - Full training metrics
+  - `train_metrics.json` - Training summary
+  - `checkpoint_final.pt` - Model checkpoint
+
+- **Commit:** `32d6062` - Branch pushed to `feature/daily-2026-03-27-e`
+- **PR:** https://github.com/Capri2014/AIResearch/pull/new/feature/daily-2026-03-27-e
+
+### Pipeline PR #4: Waymo to SSL Bridge (2026-03-27)
+- **Created: `AIResearch/training/episodes/waymo_to_ssl.py`**
+  - Bridge module from WaymoEpisodeLoader to PyTorch SSL dataloader
+  - `waymo_to_episode_json()`: Convert WaymoEpisode to episode.json format
+  - `batch_convert_waymo_episodes()`: Batch convert multiple episodes
+  - `create_ssl_dataset_from_waymo()`: One-call entry point
+  - CLI: --list, --stats, --convert with --waymo-root, --output-dir
+  - Handles both CameraFrame objects and route-derived frames
+
+- **Commit:** `a8ddd87` - Branch pushed to `feature/daily-2026-03-27-d`
+- **PR:** https://github.com/Capri2014/AIResearch/pull/new/feature/daily-2026-03-27-d
+
+- **Driving-first pipeline:** Waymo → **SSL pretrain** → waypoint BC → RL → CARLA eval
 
 ### Pipeline PR #3: Waymo Episode Loader for SSL Pretraining (2026-03-27)
 - **Created: `AIResearch/training/episodes/waymo_episode_loader.py`**
