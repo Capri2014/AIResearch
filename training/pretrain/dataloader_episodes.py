@@ -45,6 +45,7 @@ class Sample:
     image_paths_by_cam: Dict[str, Optional[str]]
     speed_mps: float
     yaw_rad: float
+    waypoints: Optional[List[List[List[float]]]] = None  # [[x, y], ...] in ego coords
 
 
 def iter_episode_samples(ep_path: Path) -> Iterator[Sample]:
@@ -128,6 +129,14 @@ class EpisodesFrameDataset:
                 continue
             image_paths_by_cam[cam] = payload.get("image_path")
 
+        # Extract waypoints if available (from planned route / trajectory).
+        waypoints: Optional[list[list[float]]] = None
+        action = fr.get("action", {})
+        planned = action.get("planned", action.get("waypoints"))  # Support both schemas.
+        if planned and isinstance(planned, list) and len(planned) > 0:
+            # Waypoints are [[x, y], ...] in ego coordinates.
+            waypoints = planned
+
         out: Dict[str, Any] = {
             "image_paths_by_cam": image_paths_by_cam,
             "state": {
@@ -139,6 +148,10 @@ class EpisodesFrameDataset:
                 "t": t,
             },
         }
+
+        # Add waypoints to output if available.
+        if waypoints is not None:
+            out["waypoints"] = waypoints
 
         if self.decode_images:
             images_by_cam: Dict[str, Any] = {}
@@ -239,6 +252,20 @@ def collate_batch(batch: List[Dict[str, Any]], *, stack_images: bool = False) ->
             "t": [ex["meta"]["t"] for ex in batch],
         },
     }
+
+    # Collate waypoints if available (convert list of lists to tensor).
+    if "waypoints" in batch[0] and batch[0]["waypoints"] is not None:
+        max_wp_len = max(len(ex.get("waypoints", []) or []) for ex in batch)
+        if max_wp_len > 0:
+            torch = _require_torch()
+            # Pad waypoints to max length.
+            wp_list = []
+            for ex in batch:
+                wps = ex.get("waypoints") or []
+                # Pad with zeros.
+                padded = wps + [[0.0, 0.0]] * (max_wp_len - len(wps))
+                wp_list.append(padded[:max_wp_len])
+            out["waypoints"] = torch.tensor(wp_list, dtype=torch.float32)
 
     if "images_by_cam" in batch[0]:
         imgs_lists = {
