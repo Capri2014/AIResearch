@@ -1,6 +1,6 @@
 # Status (ClawBot)
 
-_Last updated: 2026-03-29 (Pipeline PR #3)_
+_Last updated: 2026-03-29 (Pipeline PR #4)_
 
 ## Current focus
 Driving-first pipeline: **Waymo episodes → PyTorch SSL pretrain → waypoint BC → RL refinement → CARLA ScenarioRunner eval**.
@@ -9,8 +9,8 @@ Driving-first pipeline: **Waymo episodes → PyTorch SSL pretrain → waypoint B
 
 - ✅ **Pipeline PR #1** (2026-03-29): Increase toy waypoint env max_steps - OPEN
 - ✅ **Pipeline PR #3** (2026-03-29): Unified CARLA eval with camera sensor integration - OPEN
+- ✅ **Pipeline PR #4** (2026-03-29): WaypointPolicyWrapper for camera-based inference - OPEN
 - ⏳ **Pipeline PR #6** (2026-03-29): RL Refinement Evaluation - awaiting review
-- ⏳ **Pipeline PR #4** (2026-03-28): Multi-task SSL + Waypoint Prediction - awaiting review
 
 ## Recent changes
 
@@ -45,6 +45,20 @@ Driving-first pipeline: **Waymo episodes → PyTorch SSL pretrain → waypoint B
 
 **Branch:** `feature/daily-2026-03-28-d`
 **Commit:** `6f9f1da`
+
+### Pipeline PR #4: WaypointPolicyWrapper for Camera-Based Inference (2026-03-29)
+- **Created: `models/waypoint_policy_wrapper.py`**
+  - WaypointPolicyWrapper: Bridges camera input with waypoint prediction
+  - Supports WaypointPredictionEncoder (combined) or separate encoder+head
+  - waypoints_to_control(): Converts waypoints to throttle/steer/brake
+  - Integrates with unified_carla_eval.py for closed-loop CARLA evaluation
+  
+- **Copied: `models/encoders/waypoint_prediction_head.py`**
+  - From AIResearch-repo to enable model inference
+
+- **Smoke test**: `python -m models.waypoint_policy_wrapper --device cpu --num-waypoints 8` ✅
+
+**Branch:** `feature/daily-2026-03-29-d`
 
 ### Pipeline PR #6: RL Refinement Evaluation (Today)
 - **Sample evaluation outputs** from toy waypoint env (10 episodes)
