@@ -1,6 +1,6 @@
 # Status (ClawBot)
 
-_Last updated: 2026-03-29 (Pipeline PR #1)_
+_Last updated: 2026-03-29 (Pipeline PR #3)_
 
 ## Current focus
 Driving-first pipeline: **Waymo episodes → PyTorch SSL pretrain → waypoint BC → RL refinement → CARLA ScenarioRunner eval**.
@@ -8,10 +8,26 @@ Driving-first pipeline: **Waymo episodes → PyTorch SSL pretrain → waypoint B
 ## Daily Cadence
 
 - ✅ **Pipeline PR #1** (2026-03-29): Increase toy waypoint env max_steps - OPEN
+- ✅ **Pipeline PR #3** (2026-03-29): Unified CARLA eval with camera sensor integration - OPEN
 - ⏳ **Pipeline PR #6** (2026-03-29): RL Refinement Evaluation - awaiting review
 - ⏳ **Pipeline PR #4** (2026-03-28): Multi-task SSL + Waypoint Prediction - awaiting review
 
 ## Recent changes
+
+### Pipeline PR #3: Unified CARLA Eval with Camera Sensor Integration (2026-03-29)
+- **Created: `training/eval/unified_carla_eval.py`**
+  - CameraSensorConfig: RGB camera (640x360, 110° FOV) at front windshield
+  - CameraSensorManager: Attaches camera to vehicle, manages lifecycle
+  - _CameraListener: Per-sensor frame buffer at 20Hz (RGBA→RGB)
+  - EpisodeResult: Schema-compliant metrics (route_completion, collisions, deviation, inference_ms)
+  - UnifiedCARLAEvaluator: Camera → policy → control pipeline for vision-based waypoint eval
+  - create_weather_configs(): clear/cloudy/night/rain presets
+
+- **Smoke test**: `python -m training.eval.unified_carla_eval --smoke` ✅
+- **Dry-run**: `python -m training.eval.unified_carla_eval --dry-run` ✅
+
+**Branch:** `feature/daily-2026-03-29-c`
+**Commit:** `569cb58`
 
 ### Pipeline PR #4: Multi-task SSL + Waypoint Prediction (2026-03-28)
 - **Created: `models/encoders/waypoint_prediction_head.py`**
@@ -53,9 +69,9 @@ python -m training.rl.compare_sft_vs_rl --episodes 10 --seed-base 0
 - End-to-end SSL pretraining with waypoint regression
 
 ## Next (top 3)
-1. Increase max_steps for toy waypoint env to allow success
-2. Run RL training to improve policy beyond SFT baseline
-3. Integrate with CARLA ScenarioRunner eval
+1. Connect actual WaypointPolicyWrapper checkpoints for real inference in unified_carla_eval
+2. Integrate with CARLA ScenarioRunner for scenario-based evaluation
+3. Scale to more complex scenarios
 
 ## Architecture Reference
 
@@ -64,9 +80,9 @@ python -m training.rl.compare_sft_vs_rl --episodes 10 --seed-base 0
 Waymo episodes → SSL pretrain → waypoint BC → RL refinement → CARLA eval
 ```
 
-**Multi-task SSL:**
+**Unified CARLA Eval:**
 ```
-total_loss = waypoint_loss_weight * L_wp + contrastive_loss_weight * L_contrastive
+CameraSensorManager → _CameraListener → WaypointPolicyWrapper → _waypoint_ego_to_world → VehicleControl
 ```
 
 ## Links
