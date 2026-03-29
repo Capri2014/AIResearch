@@ -1,19 +1,36 @@
 # Status (ClawBot)
 
-_Last updated: 2026-03-25 (Pipeline PR #6 - daily cadence)_
+_Last updated: 2026-03-29 (Pipeline PR #2)_
 
 ## Current focus
 Driving-first pipeline: **Waymo episodes → PyTorch SSL pretrain → waypoint BC → RL refinement → CARLA ScenarioRunner eval**.
 
 ## Daily Cadence
 
-- ✅ **Pipeline PR #6** (2026-03-25): SFT vs RL Policy Comparison + Documentation
-- ✅ **Pipeline PR #6** (2026-03-19): Unified Metrics Output for SFT vs RL Comparison
-- ✅ **Pipeline PR #6** (2026-03-16): Toy Waypoint SFT vs RL Comparison
-- ✅ **Pipeline PR #3** (2026-03-10): Multi-Scenario Evaluation Framework
-- ✅ **Pipeline PR #2** (2026-03-07): Kinematic Waypoint Env Evaluation with ADE/FDE
-- ✅ **Pipeline PR #6** (2026-02-28): RL Refinement Evaluation + Metrics Hardening
-- ⏳ **Pipeline PR #1** (2026-02-18): RL Checkpoint Selection with Policy Entropy - awaiting review
+- ⏳ **Pipeline PR #2** (2026-03-29): Multi-task SSL — contrastive + waypoint - OPEN
+- ⏳ **Pipeline PR #1** (2026-03-29): Increase toy waypoint env max_steps - OPEN
+- ⏳ **Pipeline PR #6** (2026-03-28): RL Refinement Evaluation - awaiting review
+- ⏳ **Pipeline PR #4** (2026-03-28): Multi-task SSL + Waypoint Prediction - awaiting review
+
+## Recent changes
+
+### Pipeline PR #2: Multi-task SSL — contrastive + waypoint regression (2026-03-29)
+- **Created: `training/pretrain/train_ssl_multi_task.py`**
+  - MultiTaskEncoder: TinyMultiCamEncoder + waypoint prediction head
+  - MultiPairInfoNCE loss across camera pairs (front↔front_left, front↔front_right, front↔rear)
+  - Waypoint regression with L1 loss (8 waypoints, 4s horizon)
+  - Combined loss: λ_contrastive × L_contrastive + λ_waypoint × L_waypoint
+  - Supports real episode data with synthetic fallback for testing
+  - Smoke test passed (loss ~2.8 on random data)
+- **Branch:** `feature/daily-2026-03-29-b`
+- **Commit:** `d53c6f4`
+- **PR:** https://github.com/Capri2014/AIResearch/pull/new/feature/daily-2026-03-29-b
+
+### Pipeline PR #1: Increase toy waypoint env max_steps (2026-03-29)
+- Increased max_steps from 100 → 500, enabling ~10% success rate
+- SFT: ADE=3.010m, FDE=3.838m, Success=10.0%
+- RL: ADE=3.099m, FDE=3.562m, Success=10.0%
+- **Branch:** `feature/daily-2026-03-29-a` / **Commit:** `e965a07`
 - ⏳ **Pipeline PR #9** (2026-02-17): Evaluation + Metrics Hardening for RL Refinement - awaiting review
 - ⏳ **Pipeline PR #8** (2026-02-17): CARLA Closed-Loop Waypoint BC Evaluation - awaiting review
 - ⏳ **Pipeline PR #5** (2026-02-16): RL Refinement Stub for Residual Delta-Waypoint Learning - awaiting review
@@ -97,9 +114,9 @@ Driving-first pipeline: **Waymo episodes → PyTorch SSL pretrain → waypoint B
   - Entropy history tracking: `entropy_history.json` with episode-wise records
 
 ## Next (top 3)
-1. Run multi-scenario evaluation to validate SFT vs RL performance
-2. Integrate kinematic env results with CARLA ScenarioRunner eval
-3. Compare entropy curves across different seeds
+1. Integrate multi-task SSL checkpoint into waypoint BC training (transfer learning)
+2. Run actual RL training to improve policy beyond SFT baseline
+3. Integrate with CARLA ScenarioRunner eval
 
 ## Blockers / questions for owner
 - PR reviews pending for #9, #8, #5, #6, #1
@@ -122,6 +139,5 @@ final_waypoints = sft_waypoints + delta_head(z)
 - Metrics: ADE/FDE, route_completion, collisions
 
 ## Links
-- Daily notes: `clawbot/daily/2026-03-25.md`
-- Branch: `feature/daily-2026-03-21-c`
-- PR: https://github.com/Capri2014/AIResearch/pull/new/feature/daily-2026-03-21-c
+- Daily notes: `clawbot/daily/2026-03-29.md`
+- PR: https://github.com/Capri2014/AIResearch/pull/new/feature/daily-2026-03-29-b
