@@ -1,0 +1,25 @@
+{
+  "num_episodes": 50,
+  "trajectory_types": [
+    "straight",
+    "lane_change_left",
+    "lane_change_right",
+    "turn_left_gentle",
+    "turn_right_gentle",
+    "turn_left_moderate",
+    "turn_right_moderate",
+    "curved_path",
+    "emergency_stop"
+  ],
+  "frames_per_episode": 10,
+  "num_waypoints": 8,
+  "image_shape": [
+    3,
+    120,
+    320
+  ],
+  "waypoints_shape": [
+    8,
+    2
+  ]
+}

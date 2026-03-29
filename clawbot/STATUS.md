@@ -1,69 +1,61 @@
 # Status (ClawBot)
 
-_Last updated: 2026-02-28 (Pipeline PR #6)_
+_Last updated: 2026-03-29 (Pipeline PR #6)_
 
 ## Current focus
 Driving-first pipeline: **Waymo episodes → PyTorch SSL pretrain → waypoint BC → RL refinement → CARLA ScenarioRunner eval**.
 
 ## Daily Cadence
 
-- ✅ **Pipeline PR #6** (2026-02-28): RL Refinement Evaluation + Metrics Hardening
+- ✅ **Pipeline PR #6** (2026-03-29): RL Refinement Evaluation - OPEN
+- ⏳ **Pipeline PR #4** (2026-03-28): Multi-task SSL + Waypoint Prediction - awaiting review
 - ⏳ **Pipeline PR #1** (2026-02-18): RL Checkpoint Selection with Policy Entropy - awaiting review
-- ⏳ **Pipeline PR #9** (2026-02-17): Evaluation + Metrics Hardening for RL Refinement - awaiting review
-- ⏳ **Pipeline PR #8** (2026-02-17): CARLA Closed-Loop Waypoint BC Evaluation - awaiting review
-- ⏳ **Pipeline PR #5** (2026-02-16): RL Refinement Stub for Residual Delta-Waypoint Learning - awaiting review
 
 ## Recent changes
 
-### Pipeline PR #6: RL Refinement Evaluation + Metrics Hardening (Today, 6:30pm PT)
-- **Updated: `training/rl/compare_sft_vs_rl.py`**
-  - Added git metadata capture (repo, commit, branch) for reproducibility
-  - Now outputs proper git info in metrics.json
+### Pipeline PR #4: Multi-task SSL + Waypoint Prediction (2026-03-28)
+- **Created: `models/encoders/waypoint_prediction_head.py`**
+  - WaypointPredictionHead: MLP with 2 hidden layers
+  - WaypointPredictionEncoder: Combined encoder + waypoint head
+  - Supports L1 and L2 regression losses
   
-- **Created: `training/rl/validate_metrics.py`**
-  - Validates metrics.json against `data/schema/metrics.json`
-  - Checks required fields, domain enum, scenario structure
-  - Supports --compare flag to compare SFT vs RL metrics files
-  - Prints 3-line summary report when comparing
+- **Updated: `training/pretrain/dataloader_episodes.py`**
+  - Added waypoints extraction from episode action data
+  - Added collate support for waypoints tensors
 
-**Key additions:**
-- `_git_info()`: Captures repo, commit, branch for reproducibility
-- `validate_metrics()`: Schema validation without jsonschema dependency
-- `compare_metrics()`: Computes improvement metrics between policies
-- CLI: `--compare` flag for loading and comparing saved metrics
+- **Created: `training/pretrain/train_ssl_waypoint_v0.py`**
+  - Multi-task training: contrastive SSL + waypoint regression
+  - Configurable loss weights
 
-### Pipeline PR #1: RL Checkpoint Selection with Policy Entropy (2026-02-18)
-- **Updated: `training/rl/train_rl_delta_waypoint.py`**
-  - Added `policy_entropy` field to evaluation metrics
-  - Best checkpoint selection: saves `best_entropy.pt` when entropy improves
-  - Entropy history tracking: `entropy_history.json` with episode-wise records
-  - Enhanced training summary with `best_checkpoint` section
-  - Higher entropy = more exploration = better for RL generalization
+**Branch:** `feature/daily-2026-03-28-d`
+**Commit:** `6f9f1da`
 
-**Key additions:**
-- `_save_best_checkpoint()`: Saves checkpoint when entropy reaches new best
-- `_save_entropy_history()`: Records entropy per eval interval
-- Updated `compute_metrics()` to include entropy
-- Updated `_save_train_summary()` with best checkpoint metadata
+### Pipeline PR #6: RL Refinement Evaluation (Today)
+- **Sample evaluation outputs** from toy waypoint env (10 episodes)
+- **Schema-compliant metrics.json** for both SFT and RL policies
+- **3-line summary** comparing ADE, FDE, success rate
 
-### Pipeline PR #9: Evaluation + Metrics Hardening for RL Refinement (Yesterday)
-- `training/rl/eval_toy_waypoint_env.py`: Deterministic evaluation with ADE/FDE
-- ADE/FDE computation per episode for measuring RL refinement quality
-- Summary metrics with mean/std, success_rate
-- 3-line comparison report (ADE, FDE, Success Rate)
+**Evaluation command:**
+```bash
+python -m training.rl.compare_sft_vs_rl --episodes 10 --seed-base 0
+```
 
-### Pipeline PR #8: CARLA Closed-Loop Waypoint BC Evaluation (Yesterday)
-- `training/eval/run_carla_closed_loop_eval.py`: Comprehensive closed-loop evaluation
-- 5 scenarios: straight_clear, straight_cloudy, straight_night, straight_rain, turn_clear
-- WaypointBCModelWrapper for checkpoint loading
+**Results:**
+- ADE: 18.62m (SFT) → 18.55m (RL) [+0%]
+- FDE: 53.06m (SFT) → 52.79m (RL) [+1%]
+- Success: 0% (both policies, max_steps=50)
+
+**Branch:** `feature/diffusion-drive-deep-dive-v2`
+**Commit:** `4ad41fb`
+
+### Pipeline PR #2: Waypoint Prediction Encoder (2026-03-28)
+- WaypointPredictionEncoder module combining TinyMultiCamEncoder with waypoint head
+- End-to-end SSL pretraining with waypoint regression
 
 ## Next (top 3)
-1. Run RL training with entropy-based checkpoint selection
-2. Validate metrics from full CARLA evaluation runs
-3. Compare entropy curves across different seeds
-
-## Blockers / questions for owner
-- PR reviews pending for #9, #8, #5
+1. Increase max_steps for toy waypoint env to allow success
+2. Run RL training to improve policy beyond SFT baseline
+3. Integrate with CARLA ScenarioRunner eval
 
 ## Architecture Reference
 
@@ -72,16 +64,11 @@ Driving-first pipeline: **Waymo episodes → PyTorch SSL pretrain → waypoint B
 Waymo episodes → SSL pretrain → waypoint BC → RL refinement → CARLA eval
 ```
 
-**Residual Delta Learning:**
+**Multi-task SSL:**
 ```
-final_waypoints = sft_waypoints + delta_head(z)
+total_loss = waypoint_loss_weight * L_wp + contrastive_loss_weight * L_contrastive
 ```
-
-**Checkpoint Selection:**
-- Reward-based: best_reward.pt
-- Entropy-based: best_entropy.pt (NEW)
-- Metrics: ADE/FDE, route_completion, collisions
 
 ## Links
-- Daily notes: `clawbot/daily/2026-02-28.md`
-- Branch: `feature/contingency-planning-v3`
+- Daily notes: `clawbot/daily/2026-03-28.md`
+- PR: https://github.com/Capri2014/AIResearch/pull/new/feature/daily-2026-03-28-d
