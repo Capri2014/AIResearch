@@ -1,183 +1,402 @@
-# DiffusionDrive — Digest
+# DiffusionDrive — public anchor digest
 
-**Date:** 2026-03-08  
-**Status:** Survey Complete  
-**Source:** CVPR 2025 (Highlight), arXiv:2411.15139
-
----
-
-## TL;DR (5 bullets)
-
-- **DiffusionDrive** uses a **truncated diffusion policy** with learned multi-modal anchor priors, achieving 10x fewer denoising steps vs vanilla diffusion while maintaining action diversity
-- Achieves **88.1 PDMS** on NAVSIM (record-breaking) with ResNet-34, runs at **45 FPS** on RTX 4090 — real-time for onboard deployment
-- Camera-only E2E: multi-view images → token embeddings → cascade diffusion decoder → trajectory sampling
-- Directly learns from human demonstrations (imitation learning) but models multi-modal action distribution via diffusion — addresses the "single-modal collapse" problem in IL
-- Integrates with existing perception modules (BEV/Map tokens) and works with ResNet/ViT backbones
+**Paper:** *DiffusionDrive: Truncated Diffusion Model for End-to-End Autonomous Driving*  
+**Venue:** CVPR 2025 (Highlight)  
+**Authors:** Bencheng Liao, Shaoyu Chen, Haoran Yin, Bo Jiang, Cheng Wang, Sixu Yan, Xinbang Zhang, Xiangyu Li, Ying Zhang, Qian Zhang, Xinggang Wang  
+**Primary links:** [arXiv](https://arxiv.org/abs/2411.15139) · [CVPR Open Access](https://openaccess.thecvf.com/content/CVPR2025/html/Liao_DiffusionDrive_Truncated_Diffusion_Model_for_End-to-End_Autonomous_Driving_CVPR_2025_paper.html) · [Code + models](https://github.com/hustvl/DiffusionDrive) · [Hugging Face](https://huggingface.co/hustvl/DiffusionDrive) · [NAVSIM](https://github.com/autonomousvision/navsim)
 
 ---
 
-## Problem
+## TL;DR
 
-End-to-end autonomous driving from camera pixels to trajectories has made progress via imitation learning (IL), but:
-
-1. **Single-modal collapse**: Standard IL (behavior cloning) outputs a single deterministic trajectory — cannot capture the inherent multi-modality of driving (e.g., lane-keeping vs lane-changing in the same scene)
-2. **Real-time constraint**: Diffusion models from robotics (Diffusion Policy) require 50-100+ denoising steps — too slow for onboard driving at 10-20 Hz
-3. **Open-world complexity**: Traffic scenes are more dynamic than controlled robot settings; need diverse, plausible actions for safety
-
----
-
-## Method
-
-### Architecture Overview
-
-```
-Multi-view Cameras → Image Encoder → BEV/Map Tokens → Cascade Diffusion Decoder → Trajectory Sampling
-```
-
-### Core Innovation: Truncated Diffusion Policy
-
-| Component | Standard Diffusion Policy | DiffusionDrive |
-|-----------|---------------------------|----------------|
-| Denoising steps | 50-100 | 2 (10x reduction) |
-| Starting distribution | Random Gaussian | Anchored Gaussian (learned priors) |
-| Action space | Continuous from scratch | Multi-modal anchors + residual |
-| Real-time | No (slow) | Yes (45 FPS) |
-
-**Key trick**: Pre-define a set of **driving action anchors** (e.g., "go straight", "turn left", "turn right", "follow", "stop") as learnable tokens. The diffusion process starts from these anchors plus Gaussian noise, rather than pure Gaussian. This dramatically reduces the diffusion horizon.
-
-### Cascade Diffusion Decoder
-
-- First stage: Attend to scene context (BEV tokens, map tokens) to refine anchor embeddings
-- Second stage: Generate residual trajectory offsets from anchors
-- Each denoising step re-attends to scene context — enables full interaction between action and environment
-
-### Training Objective
-
-- **Imitation learning + Diffusion**: Minimize KL divergence between predicted action distribution and human demonstration distribution
-- Multi-modal loss: The model learns to output a distribution over anchors, not just a single action
-- Anchor regularization: Prevent mode collapse by forcing diverse anchor usage during training
-
-### Inputs/Outputs
-
-| Input | Details |
-|-------|---------|
-| Multi-view cameras | 6 cameras (front, front-left, front-right, back, back-left, back-right) |
-| Temporal context | 2-4 frame history (not specified in paper, configurable) |
-
-| Output | Details |
-|--------|---------|
-| Trajectory | Future 3-5 seconds, sampled at 2 Hz (6-10 waypoints) |
-| Action distribution | Sampled at inference time from diffusion process |
+- **Why this is a good post-UniAD anchor:** it keeps the modern end-to-end framing (raw sensors → trajectory), but replaces single-trajectory regression with a **fast multi-hypothesis diffusion planner**.
+- **Core trick:** start denoising from a small set of **K-means trajectory anchors** instead of pure Gaussian noise, then truncate diffusion to **2 denoising steps**.
+- **Reported headline result:** **88.1 PDMS** on NAVSIM navtest with an aligned ResNet-34 backbone, running at **45 FPS on an RTX 4090**.
+- **What is genuinely useful for us:** a **scored waypoint head** (trajectory samples + confidence) and a **repeatable regression benchmark** that is richer than ADE/FDE alone.
+- **Big caveat for Tesla-style comparisons:** the strongest public NAVSIM result is **not camera-first in the strict Tesla sense**; the paper's aligned NAVSIM setup uses **3 front cameras + rasterized BEV LiDAR**.
 
 ---
 
-## Data / Training
+## 1) System decomposition: what is truly end-to-end vs modular
 
-- **Primary dataset**: **NAVSIM** (planning-oriented, navtest split for evaluation)
-- **Secondary**: nuScenes for open-loop metrics
-- **Backbone**: ResNet-34 (aligned with other methods for fair comparison), ResNet-50
-- **Training**: End-to-end from camera to trajectory, no rule-based post-processing
-- **Supervision**: Human driver trajectories (imitation from expert demonstrations)
+### What is truly end-to-end
+
+At the product level, DiffusionDrive is still an end-to-end planner:
+
+**raw onboard sensors → learned scene features / queries → trajectory hypotheses → top-1 driving trajectory**
+
+The planning module is not rule-based and does **not** rely on a hand-written motion planner or post-processing heuristic to produce the final path. The paper explicitly emphasizes that the public result is obtained by **learning from human demonstrations** and inferring **without post-processing**.
+
+### What remains modular inside the stack
+
+DiffusionDrive is **not** a monolithic “one transformer from pixels to steering” system. Internally it is a structured learned stack:
+
+1. **Perception backbone / scene encoder**
+   - Reuses existing perception modules from prior E2E stacks.
+   - In the aligned NAVSIM setting, it follows **Transfuser** with a **ResNet-34** backbone.
+   - Auxiliary perception tasks are still present in the Transfuser-style setup (the paper notes inherited **3D object detection** and **BEV semantic segmentation** auxiliaries).
+
+2. **Structured scene interface**
+   - The planner consumes **BEV features** and **agent queries** from the perception module.
+   - The diffusion decoder also uses **spatial cross-attention** to interact with scene features along trajectory coordinates.
+
+3. **Trajectory-anchor prior**
+   - The model uses a small set of **K-means clustered trajectory anchors** as priors.
+   - This is a learned planning system, but not an anchor-free generative policy.
+
+4. **Cascade diffusion decoder**
+   - A transformer-style decoder iteratively refines noisy trajectory samples and predicts both **trajectory coordinates** and **confidence scores**.
+
+### Bottom line
+
+DiffusionDrive is best viewed as:
+
+- **end-to-end at the planning interface** (sensors to trajectory, no symbolic planner),
+- but **modular in representation and training structure** (backbone, structured scene tokens, auxiliary perception, clustered anchors).
+
+That makes it closer to the current public “learned unified stack” tradition after UniAD than to Tesla’s strongest marketing version of “everything is just the network.”
 
 ---
 
-## Evaluation
+## 2) Inputs / outputs and temporal context handling
 
-### NAVSIM (Primary)
+### Inputs
 
-| Method | Backbone | PDMS ↑ |
-|--------|----------|--------|
-| **DiffusionDrive** | ResNet-34 | **88.1** (SOTA) |
-| (Prior SOTA) | ResNet-34 | ~84.6 |
+The paper is intentionally flexible about sensors, but the **reported NAVSIM recipe** is specific:
 
-**PDMS** (Planning Diversity-Metric Score): Measures both accuracy and diversity of planned trajectories.
+- **3 cropped, downscaled forward-facing camera images**, concatenated into a **1024×256** image
+- **Rasterized BEV LiDAR**
+- Conditional scene context from the inherited perception module (BEV features, agent queries)
 
-### nuScenes Open-Loop
+The NAVSIM dataset itself contains **8 cameras** and merged LiDAR, but DiffusionDrive's aligned Transfuser benchmark does **not** use the full 8-camera setup for its headline result.
 
-| Method | L2@1s | L2@2s | L2@3s | Col@1s | Col@2s | Col@3s |
-|--------|-------|-------|-------|--------|--------|--------|
-| DiffusionDrive | 0.27 | 0.54 | 0.90 | 0.03% | 0.05% | 0.16% |
-| VADv2 | 0.41 | 0.70 | 1.05 | 0.07% | 0.17% | 0.41% |
-| UniAD | 0.48 | 0.96 | 1.65 | 0.05% | 0.17% | 0.71% |
+### Outputs
+
+On NAVSIM, the model outputs:
+
+- **8 future waypoints over 4 seconds** (so effectively **2 Hz** planning output)
+- a **confidence score** for each trajectory sample
+- the evaluation uses the **top-1 scoring** predicted trajectory
+
+The trajectory is represented as ego-frame 2D waypoints:
+
+- \(\tau = \{(x_t, y_t)\}_{t=1}^{T_f}\)
+
+### Temporal context
+
+This is one place where DiffusionDrive is **not** Tesla-like.
+
+- The paper does **not** introduce a long-horizon recurrent memory or video token memory.
+- In the aligned NAVSIM setting, the public recipe is effectively a **current-scene planner** conditioned on the current sensor observation plus scene features, not a multi-second temporal world model.
+- Temporal structure appears primarily in the **future trajectory horizon** being predicted, not in a long explicit observation history.
+
+So if you're looking for “video-native end-to-end driving,” DiffusionDrive is strong on planning but **not** the clearest public exemplar of long-context temporal memory.
+
+---
+
+## 3) Training objectives
+
+DiffusionDrive is primarily an **imitation-learning** method with a truncated diffusion formulation.
+
+### Forward process: anchored Gaussian instead of pure Gaussian
+
+Instead of diffusing from random noise, the paper builds a truncated diffusion process around clustered anchors:
+
+\[
+\tau_k^i = \sqrt{\bar{\alpha}^i} a_k + \sqrt{1-\bar{\alpha}^i}\,\epsilon,
+\qquad \epsilon \sim \mathcal{N}(0, I)
+\]
+
+where \(a_k\) is one of the clustered trajectory anchors and \(i \in [1, T_{trunc}]\).
+
+### Supervision objective
+
+The decoder predicts, for each sampled trajectory hypothesis:
+
+- a **trajectory reconstruction**
+- a **confidence / classification score**
+
+The paper gives the training loss as:
+
+\[
+\mathcal{L} = \sum_{k=1}^{N_{anchor}} \Big[y_k \mathcal{L}_{rec}(\hat{\tau}_k, \tau_{gt}) + \lambda \operatorname{BCE}(\hat{s}_k, y_k)\Big]
+\]
+
+with:
+
+- **\(\mathcal{L}_{rec}\)** = simple **L1 reconstruction loss** on trajectory coordinates
+- **BCE** on the confidence score
+- the **positive anchor** is the one closest to the ground-truth trajectory
+
+### What category it falls into
+
+- **Imitation learning:** yes, clearly the main training signal
+- **Self-supervised learning:** not as a core planning objective (beyond standard pretrained backbone initialization)
+- **Reinforcement learning:** **no**
+- **Distillation:** **no** in the main reported setup
+
+### Practical training details reported in the paper
+
+- **20 clustered anchors** on NAVSIM
+- diffusion schedule truncated by **50 / 1000** during training
+- **2 denoising steps** at inference
+- trained from scratch for **100 epochs** on NAVSIM with **AdamW**, total batch size **512**, on **8× RTX 4090** GPUs
+
+---
+
+## 4) Evaluation protocol, metrics, and datasets
+
+## Datasets
+
+### NAVSIM (primary benchmark)
+
+The headline result is on **NAVSIM navtest**:
+
+- planning-oriented benchmark built on OpenScene / nuPlan assets
+- emphasizes more challenging decision-making scenarios
+- benchmark supports **non-reactive simulation** and **closed-loop-style planning metrics**
+
+### nuScenes (secondary benchmark)
+
+The paper also evaluates on **nuScenes** using standard **open-loop planning metrics**.
+
+---
+
+## Metrics
+
+### NAVSIM: PDMS
+
+The main metric is **PDMS** (Predictive Driver Model Score / PDM score family in NAVSIM), a weighted combination of:
+
+- **NC**: no at-fault collisions
+- **DAC**: drivable area compliance
+- **TTC**: time-to-collision
+- **Comfort**
+- **EP**: ego progress
+
+This is much closer to a usable driving regression score than raw displacement error alone.
+
+### nuScenes: open-loop planning metrics
+
+The paper reports:
+
+- **L2 displacement error** at **1s / 2s / 3s**
+- **collision rate** at **1s / 2s / 3s**
+
+The repo/model card reports the nuScenes result as:
+
+- **L2:** 0.27 / 0.54 / 0.90 m
+- **Collision:** 0.03% / 0.05% / 0.16%
+
+---
+
+## Reported results worth remembering
+
+### NAVSIM
+
+- **88.1 PDMS** with aligned **ResNet-34** backbone
+- beats **VADv2** by **7.2 PDMS** while reducing anchors from **8192 → 20**
+- beats **Hydra-MDP** by **5.1 PDMS**
+- still beats the stronger **Hydra-MDP-𝒱8192-W-EP** variant by **1.6 PDMS** despite that baseline using extra supervision and post-processing
 
 ### Runtime
 
-- **45 FPS** on NVIDIA RTX 4090 — real-time for onboard deployment
-- 2 denoising steps (vs 50-100 in vanilla diffusion)
+- **45 FPS** on **NVIDIA RTX 4090**
+- **2 denoising steps** instead of **20** in the vanilla diffusion-policy adaptation
+- paper frames this as a **10× reduction in denoising steps**
+
+### nuScenes
+
+The paper states DiffusionDrive is:
+
+- **1.8× faster than VAD**
+- **20.8% lower L2 error** than VAD
+- **63.6% lower collision rate** than VAD
 
 ---
 
-## Tesla/Ashok Alignment
+## 5) What maps to Tesla / Ashok claims, and what does not
 
-### ✅ What Aligns
+## What maps reasonably well
 
-| Tesla Claim | DiffusionDrive |
-|------------|---------------|
-| **Camera-first** | ✅ Camera-only, no LiDAR |
-| **End-to-end** | ✅ Single neural network, camera → trajectory |
-| **Imitation from human data** | ✅ Trained on human demonstrations |
-| **Real-time onboard** | ✅ 45 FPS on consumer GPU |
-| **Multi-modal planning** | ✅ Models multiple plausible trajectories |
+### 1. Learned planner instead of hand-coded planner
 
-### ⚠️ What Doesn't Align
+This maps well. DiffusionDrive is a genuinely learned planner that goes from sensor-conditioned scene representation to future trajectory without a classical optimization planner in the loop.
 
-| Gap | Notes |
-|-----|-------|
-| **Long-tail handling** | Not explicitly addressed; relies on training data diversity |
-| **Regression testing** | No mention of closed-loop safety wrappers or rule-based checks |
-| **Fleet learning** | No online updating or shadow mode feedback loop |
-| **Map dependency** | Uses map tokens (SDMap or vectorized map) — not fully map-free |
+### 2. Multi-modal behavior generation
 
----
+This also maps. A big weakness of earlier E2E stacks was single-trajectory regression. DiffusionDrive directly targets that problem by producing **multiple plausible futures** and scoring them.
 
-## What to Borrow for AIResearch
+### 3. Regression-testability
 
-### ✅ Directly Portable
+This maps **partially**. NAVSIM gives a much better public benchmark story than just ADE/FDE:
 
-1. **Truncated diffusion decoder**: The anchor-based diffusion is elegant and practical — much faster than full diffusion policy while preserving multi-modality
-2. **Waypoint head**: The trajectory output (6-10 waypoints, 2 Hz) is directly usable as a planning head
-3. **NAVSIM eval harness**: PDMS metric captures both safety (collision rate) and diversity — better than L2 alone for evaluating "human-like" behavior
-4. **ResNet-34 baseline**: Simple backbone, easy to replicate
+- fixed evaluation split
+- repeatable scoring
+- safety/progress/comfort decomposition
 
-### 🔧 Adaptations Needed
-
-1. **Temporal modeling**: Add a temporal encoder (e.g., transformer across frames) for better motion understanding
-2. **Map integration**: Either use their map token approach or go fully map-free with HD-map parsing
-3. **Closed-loop wrapper**: DiffusionDrive runs open-loop; needs a safety wrapper for real deployment (similar to Tesla's "rules" layer)
-4. **Multi-sensor**: Extend to radar/lidar if available (camera-only by default)
-
-### 📊 Eval Metrics to Adopt
-
-- **PDMS** (primary): Balances diversity and safety
-- **L2 displacement**: Standard per-horizon error
-- **Collision rate**: Per-horizon collision percentage
-- **Mode diversity score**: Measures how often the model outputs different trajectories for same scene
+That is directionally similar to the “massive regression harness” story Ashok/Tesla talk about.
 
 ---
 
-## Key Takeaways
+## What does *not* map cleanly
 
-1. **Diffusion can be fast**: Truncated diffusion with anchor priors achieves 10x speedup without sacrificing diversity
-2. **Multi-modality matters**: Modeling action distributions (not just single trajectories) is crucial for human-like driving
-3. **Real-time E2E is viable**: 45 FPS on consumer GPU proves onboard deployment is practical
-4. **Imitation + Diffusion = Strong**: The combination beats pure IL (single-modal collapse) and pure RL (sample inefficiency)
-5. **The field is moving past UniAD**: VADv2, DiffusionDrive, and other 2024-2025 works show E2E planning is now competitive with modular stacks
+### 1. Camera-first
+
+This is the biggest mismatch.
+
+The public headline NAVSIM setup is **not camera-only**. It uses:
+
+- **3 front cameras**
+- **rasterized BEV LiDAR**
+
+So DiffusionDrive is **not** a clean public analogue for Tesla's strongest camera-first claim.
+
+### 2. Long temporal context / video memory
+
+Another mismatch. The method is strong at **multi-hypothesis planning**, but the paper does **not** center long-context temporal memory, fleet-scale video learning, or a world-model-like latent memory.
+
+### 3. Long-tail mining and fleet learning loop
+
+Tesla/Ashok often emphasize:
+
+- fleet-scale hard-negative mining
+- shadow mode / replay
+- targeted retraining on edge cases
+
+DiffusionDrive does not present a public equivalent of that operations loop. It is a strong paper model, not a fleet-learning system description.
+
+### 4. Real vehicle deployment proof
+
+45 FPS on a 4090 is impressive, but it is still not the same thing as proving production deployment on automotive hardware with a safety case.
 
 ---
 
-## Action Items for This Repo
+## 6) What to borrow for AIResearch
 
-- [ ] Add DiffusionDrive to `docs/digests/` (this file)
-- [ ] Consider adding **PDMS metric** to evaluation harness (if not present)
-- [ ] Experiment with truncated diffusion for waypoint prediction head
-- [ ] Benchmark against VADv2 and UniAD on same backbone
+This is the most useful part.
+
+### A. Borrow the **head design**, not necessarily the full diffusion machinery on day one
+
+Our repo already has a clean waypoint contract:
+
+- `data/schema/episode.json` defines expert future waypoints in ego frame
+- `data/waymo/README.md` locks a **2.0s horizon @ 10Hz = 20 waypoints**
+- `data/schema/metrics.json` already has **ADE, FDE, collisions, offroad, red_light, route_completion, comfort**
+
+That means the low-friction import from DiffusionDrive is:
+
+1. keep our current **ego-frame waypoint target**
+2. replace a deterministic head with a **K-hypothesis waypoint head**
+3. predict **(trajectory, score)** per hypothesis
+4. evaluate **top-1** and optionally **top-k oracle**
+
+Concretely, start with:
+
+- **K anchors** over the current 20-waypoint target format
+- a **residual waypoint regressor**
+- a **score head**
+
+That gets most of the value before paying the full diffusion complexity tax.
+
+### B. Then add truncated diffusion only if the simple K-hypothesis head saturates
+
+The deepest DiffusionDrive idea is not “diffusion is cool.” It is:
+
+> use a small anchor prior to cover action modes, then refine with a learned residual generative head cheaply.
+
+A practical AIResearch roadmap:
+
+1. **Stage 1:** anchor classification + waypoint residuals
+2. **Stage 2:** iterative residual refinement block
+3. **Stage 3:** truncated diffusion with 1–2 denoising steps
+
+That sequence is much more realistic than jumping straight to a full diffusion planner.
+
+### C. Borrow the **eval harness philosophy** immediately
+
+This repo already has pieces of the right schema, but not yet a strong public driving score comparable to PDMS.
+
+What to add:
+
+1. **Composite driving score** in eval summaries
+   - combine collision/offroad/red-light/route-completion/comfort
+   - keep ADE/FDE as diagnostics, not the only headline
+
+2. **Scenario-sliced regression battery**
+   - unprotected left
+   - car-following stop/go
+   - cut-in
+   - lane change
+   - pedestrian yield
+
+3. **Top-1 vs top-k analysis**
+   - top-1 for actual deployment behavior
+   - top-k oracle to measure whether the model “knows” a good future but scores it poorly
+
+4. **Seeded replay regression**
+   - fixed scenario set, fixed seeds, saved artifacts
+   - trendline every training run
+
+That is very aligned with the repo's current CARLA/waypoint-eval trajectory.
+
+### D. Specific recommendation for this repo
+
+If I had to extract one concrete implementation idea from DiffusionDrive for AIResearch, it would be:
+
+**Add a scored multi-hypothesis waypoint head on top of the existing 20-point ego-frame target, then upgrade the eval harness to a PDMS-like composite leaderboard.**
+
+That is the highest-leverage borrow.
 
 ---
 
-## Citations
+## 7) Suggested takeaway for our architecture decisions
 
-- **DiffusionDrive Paper** — CVPR 2025 Highlight, arXiv:2411.15139: https://arxiv.org/abs/2411.15139
-- **Code & Models** — HuggingFace: https://huggingface.co/hustvl/DiffusionDrive
-- **NAVSIM Benchmark**: https://github.com/autonomousvision/navsim
-- **VADv2 (related)** — ICLR 2026, arXiv:2402.13243: https://arxiv.org/abs/2402.13243
-- **VAD (original)** — ICCV 2023: https://arxiv.org/abs/2303.12077
+If the question is “what should we anchor on publicly after UniAD?”, DiffusionDrive is a strong answer because it shows:
+
+- the field is moving from **single deterministic trajectory regression** to **multi-hypothesis learned planning**
+- you do **not** need thousands of vocabulary anchors if you have a smarter generative residual planner
+- evaluation quality matters almost as much as architecture quality; **PDMS-style regression harnesses** are part of the stack
+
+If the question is “is this basically Tesla FSD, publicly reproduced?”, the answer is **no**.
+
+It is a strong **post-UniAD public planner anchor**, but not a full public proof of:
+
+- camera-only fleet learning,
+- long-horizon video memory,
+- or production regression infrastructure at Tesla scale.
+
+---
+
+## Citations + links
+
+### Primary
+
+- Bencheng Liao et al., **DiffusionDrive: Truncated Diffusion Model for End-to-End Autonomous Driving**, CVPR 2025.  
+  Open access: https://openaccess.thecvf.com/content/CVPR2025/html/Liao_DiffusionDrive_Truncated_Diffusion_Model_for_End-to-End_Autonomous_Driving_CVPR_2025_paper.html
+- arXiv version: https://arxiv.org/abs/2411.15139
+- Code / training / evaluation scripts: https://github.com/hustvl/DiffusionDrive
+- Model card / weights: https://huggingface.co/hustvl/DiffusionDrive
+
+### Benchmark / evaluation context
+
+- NAVSIM: Data-Driven Non-Reactive Autonomous Vehicle Simulation and Benchmarking (NeurIPS 2024)  
+  Paper: https://arxiv.org/abs/2406.15349  
+  Code: https://github.com/autonomousvision/navsim
+- Pseudo-Simulation for Autonomous Driving (CoRL 2025)  
+  Paper: https://arxiv.org/abs/2506.04218
+
+### Pre-/post-UniAD comparison points
+
+- UniAD: Planning-oriented Autonomous Driving (CVPR 2023)  
+  https://arxiv.org/abs/2212.10156
+- VADv2: End-to-End Vectorized Autonomous Driving via Probabilistic Planning  
+  https://arxiv.org/abs/2402.13243
+- TransFuser: Imitation with Transformer-Based Sensor Fusion for Autonomous Driving  
+  https://arxiv.org/abs/2205.15997
+
+---
+
+## One-line verdict
+
+**Anchor on DiffusionDrive if the lesson you want is “multi-hypothesis waypoint planning + better regression harness”; do not anchor on it if the lesson you want is “camera-only Tesla-style fleet intelligence.”**
