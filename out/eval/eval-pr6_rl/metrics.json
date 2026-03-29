@@ -1,0 +1,124 @@
+{
+  "run_id": "eval-pr6_rl",
+  "domain": "rl",
+  "git": {
+    "repo": "git@github.com:Capri2014/AIResearch.git",
+    "commit": "781ab9dbc858daa03764df58e5fd127617c24364",
+    "branch": "feature/diffusion-drive-deep-dive-v2"
+  },
+  "policy": {
+    "name": "toy_waypoint_rl"
+  },
+  "scenarios": [
+    {
+      "scenario_id": "seed:0",
+      "success": false,
+      "ade": 21.554311561584473,
+      "fde": 49.701473236083984,
+      "return": 4.047914896160364,
+      "steps": 50,
+      "num_waypoints_reached": 7,
+      "final_dist": NaN
+    },
+    {
+      "scenario_id": "seed:1",
+      "success": false,
+      "ade": 21.195753049850463,
+      "fde": 51.88993835449219,
+      "return": 4.047915320843458,
+      "steps": 50,
+      "num_waypoints_reached": 7,
+      "final_dist": NaN
+    },
+    {
+      "scenario_id": "seed:2",
+      "success": false,
+      "ade": 8.466232299804688,
+      "fde": 21.621212005615234,
+      "return": 7.166548028588295,
+      "steps": 50,
+      "num_waypoints_reached": 10,
+      "final_dist": NaN
+    },
+    {
+      "scenario_id": "seed:3",
+      "success": false,
+      "ade": 23.239210510253905,
+      "fde": 60.41101837158203,
+      "return": 4.04791472107172,
+      "steps": 50,
+      "num_waypoints_reached": 7,
+      "final_dist": NaN
+    },
+    {
+      "scenario_id": "seed:4",
+      "success": false,
+      "ade": 17.926471090316774,
+      "fde": 51.43967819213867,
+      "return": 6.47595514729619,
+      "steps": 50,
+      "num_waypoints_reached": 9,
+      "final_dist": NaN
+    },
+    {
+      "scenario_id": "seed:5",
+      "success": false,
+      "ade": 24.376563453674315,
+      "fde": 68.46268463134766,
+      "return": 4.047915689647198,
+      "steps": 50,
+      "num_waypoints_reached": 7,
+      "final_dist": NaN
+    },
+    {
+      "scenario_id": "seed:6",
+      "success": false,
+      "ade": 24.62408757209778,
+      "fde": 73.41329956054688,
+      "return": 4.047920595854521,
+      "steps": 50,
+      "num_waypoints_reached": 7,
+      "final_dist": NaN
+    },
+    {
+      "scenario_id": "seed:7",
+      "success": false,
+      "ade": 24.624093341827393,
+      "fde": 73.41331481933594,
+      "return": 4.047916412353516,
+      "steps": 50,
+      "num_waypoints_reached": 7,
+      "final_dist": NaN
+    },
+    {
+      "scenario_id": "seed:8",
+      "success": false,
+      "ade": 11.777248096466064,
+      "fde": 38.52302169799805,
+      "return": 8.990497812628746,
+      "steps": 50,
+      "num_waypoints_reached": 10,
+      "final_dist": NaN
+    },
+    {
+      "scenario_id": "seed:9",
+      "success": false,
+      "ade": 7.716499137878418,
+      "fde": 39.06131362915039,
+      "return": 11.836088549345732,
+      "steps": 50,
+      "num_waypoints_reached": 12,
+      "final_dist": NaN
+    }
+  ],
+  "summary": {
+    "ade_mean": 18.550047011375426,
+    "ade_std": 6.4113855943532245,
+    "fde_mean": 52.7936954498291,
+    "fde_std": 15.90611124320287,
+    "success_rate": 0.0,
+    "num_episodes": 10,
+    "avg_return": 5.875658717378974,
+    "avg_steps": 50.0
+  }
+}
