@@ -1,39 +1,31 @@
-# Pull Request: RL refinement evaluation - SFT vs RL comparison metrics
+# Pull Request: Increase toy waypoint env max_steps
 
 ## Title
-RL eval: deterministic SFT vs RL comparison with schema-compliant metrics
+Increase toy waypoint env max_steps from 100 to 500 for meaningful RL evaluation
 
 ## Body
 ## Summary
-Add deterministic evaluation runner that compares SFT-only vs RL-refined policies on the toy waypoint environment, producing schema-compliant metrics.json outputs.
+Increase the maximum episode length in the toy waypoint environment from 100 to 500 steps, allowing episodes to actually reach the goal and provide meaningful training signal for RL refinement.
 
 ## Changes
-- Sample evaluation outputs from toy waypoint env (10 episodes)
-- Schema-compliant metrics.json for both SFT and RL policies
-- 3-line summary: ADE, FDE, success rate comparison
+- **waypoint_env.py**: Add `max_steps` as configurable parameter with default 500
+- **eval_toy_waypoint_rl.py**: Update hardcoded max_steps from 100 to 500
 
-## Evaluation Run
-```bash
-python -m training.rl.compare_sft_vs_rl --episodes 10 --seed-base 0
+## Results
+With max_steps=500:
+```
+SFT:  ADE=3.010m, FDE=3.838m, Success=10.0%
+RL:   ADE=3.099m, FDE=3.562m, Success=10.0%
+Delta: ADE -3.0%, FDE +7.2%, Success +0.0%
 ```
 
-**Results (PR #6):**
-- ADE: 18.62m (SFT) → 18.55m (RL) [+0%]
-- FDE: 53.06m (SFT) → 52.79m (RL) [+1%]
-- Success: 0% (SFT) → 0% (RL)
-
-## Output
-- Commit: 4ad41fb
-- Branch: feature/diffusion-drive-deep-dive-v2
-- Artifacts: `out/eval/eval-pr6_sft/metrics.json`, `out/eval/eval-pr6_rl/metrics.json`
-
 ## Theme
-RL refinement AFTER SFT — evaluation + metrics hardening
+RL environment tuning - enabling meaningful success signals
 
 ## Pipeline Context
 Waymo episodes → pretrain → waypoint BC → RL refinement → ScenarioRunner eval
 
 ## Commands
 ```bash
-gh pr create --title "RL eval: deterministic SFT vs RL comparison with schema-compliant metrics" --body-file CLAW_PULL_REQUEST.md
+gh pr create --title "Increase toy waypoint env max_steps from 100 to 500" --body-file CLAW_PULL_REQUEST.md
 ```
