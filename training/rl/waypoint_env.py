@@ -20,13 +20,15 @@ class WaypointEnv:
         dt: float = 0.1,
         max_speed: float = 2.0,
         goal_threshold: float = 0.5,
-        noise_std: float = 0.0
+        noise_std: float = 0.0,
+        max_steps: int = 500
     ):
         self.horizon = horizon
         self.dt = dt
         self.max_speed = max_speed
         self.goal_threshold = goal_threshold
         self.noise_std = noise_std
+        self.max_steps = max_steps
         
         self.state_dim = 6  # x, y, vx, vy, goal_x, goal_y
         self.action_dim = 2  # dx, dy per waypoint
@@ -34,7 +36,6 @@ class WaypointEnv:
         self.state = None
         self.goal = None
         self.step_count = 0
-        self.max_steps = 100
         
     def reset(self) -> np.ndarray:
         """Reset environment to random initial state."""
