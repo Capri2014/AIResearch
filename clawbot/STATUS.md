@@ -7,9 +7,9 @@ Driving-first pipeline: **Waymo episodes → PyTorch SSL pretrain → waypoint B
 
 ## Daily Cadence
 
+- ✅ **Pipeline PR #8** (2026-03-30): Unified Eval Runner + Metrics Integration
 - ✅ **Pipeline PR #7** (2026-03-30): SFT vs RL Waypoint Comparison
 - ✅ **Pipeline PR #6** (2026-03-30): RL Refinement Evaluation + Metrics Hardening
-- ✅ **Pipeline PR #5** (2026-03-29): PPO Stub for Residual Delta-Waypoint Learning
 - ⏳ **Pipeline PR #1** (2026-02-18): RL Checkpoint Selection with Policy Entropy - awaiting review
 - ⏳ **Pipeline PR #9** (2026-02-17): Evaluation + Metrics Hardening for RL Refinement - awaiting review
 - ⏳ **Pipeline PR #8** (2026-02-17): CARLA Closed-Loop Waypoint BC Evaluation - awaiting review
@@ -32,6 +32,23 @@ Driving-first pipeline: **Waymo episodes → PyTorch SSL pretrain → waypoint B
 
 - **Branch:** `feature/daily-2026-03-30-b`
 - **Commit:** `72118bc` — 1 file, 626 insertions
+
+### Pipeline PR #8: Unified Eval Runner + Metrics Integration (2026-03-30)
+- **Created: `training/rl/unified_eval_runner.py`**
+  - Bridges eval_sft_rl_comparison.py with eval_metrics_loader.py framework
+  - Runs SFT vs RL comparison with configurable delta scales
+  - Outputs schema-compliant metrics.json (domain=unified_eval)
+  - CLI: --episodes, --seed-base, --max-steps, --delta-scales, --verbose
+
+- **Test results (3 episodes, seeds 100-102, max_steps=30)**:
+  - SFT Only (δ=0.0): ADE=37.196m ± 8.324m, FDE=64.754m ± 30.420m
+  - SFT+RL (δ=1.0): ADE=37.953m ± 8.733m, FDE=64.754m ± 30.420m
+  - Delta: ADE -2.0%, FDE 0.0%
+
+- **Branch:** `feature/daily-2026-03-30-c`
+- **Commit:** `b2a3c91` — 1 file, ~380 lines
+
+- **Run output:** `out/eval/unified_eval_20260330-103559/`
 
 ### Pipeline PR #6: RL Refinement Evaluation + Metrics Hardening (2026-03-30)
 - **Created: `training/rl/eval_toy_waypoint_rl.py`**
