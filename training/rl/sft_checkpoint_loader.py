@@ -170,13 +170,27 @@ class SFTModelWrapper(nn.Module):
         
     def _infer_feature_dim(self) -> int:
         """Infer feature dimension from model architecture."""
-        # Try to get from config
+        # Try to get from config (which should have latent_dim for WaypointBCModel)
+        if 'latent_dim' in self.config:
+            return self.config['latent_dim']
+        
+        # Try to get from config attribute
         if hasattr(self.model, 'config'):
             config = self.model.config
+            if hasattr(config, 'latent_dim'):
+                return config.latent_dim
             if hasattr(config, 'hidden_dim'):
                 return config.hidden_dim
-            if isinstance(config, dict) and 'hidden_dim' in config:
-                return config['hidden_dim']
+            if isinstance(config, dict):
+                if 'latent_dim' in config:
+                    return config['latent_dim']
+                if 'hidden_dim' in config:
+                    return config['hidden_dim']
+        
+        # Try to infer from WaypointBCModel attributes
+        if hasattr(self.model, 'num_waypoints'):
+            # This is likely a WaypointBCModel, default latent_dim is 512
+            return 512
         
         # Try to infer from first linear layer
         for module in self.model.modules():
@@ -201,8 +215,18 @@ class SFTModelWrapper(nn.Module):
         Returns:
             waypoints: [B, T, waypoint_dim]
         """
-        if features.dim() == 2:
-            features = features.unsqueeze(1)
+        # Handle different input dimensions
+        original_shape = features.shape
+        
+        if features.dim() == 3:
+            # [B, T, feature_dim] -> take last timestep
+            features = features[:, -1, :]  # [B, feature_dim]
+        elif features.dim() == 2:
+            # [B, feature_dim] - already what we need
+            pass
+        elif features.dim() == 1:
+            # [feature_dim] -> add batch dimension
+            features = features.unsqueeze(0)
         
         # Get model output
         output = self.model(features)
@@ -254,16 +278,29 @@ def load_sft_model_from_checkpoint(
     Returns:
         Tuple of (model, config)
     """
-    checkpoint = torch.load(checkpoint_path, map_location=device)
+    checkpoint = torch.load(checkpoint_path, map_location=device, weights_only=False)
     
     # Extract model and config from checkpoint
     if isinstance(checkpoint, dict):
         # Standard checkpoint format
-        model_state = checkpoint.get('model_state_dict', checkpoint.get('state_dict', checkpoint))
-        config = checkpoint.get('config', checkpoint.get('model_config', {}))
+        # Handle both 'model_state' and 'model_state_dict' keys
+        model_state = checkpoint.get('model_state', checkpoint.get('model_state_dict', checkpoint.get('state_dict', {})))
         
-        # Try to get model class from checkpoint
-        model_class = checkpoint.get('model_class', None)
+        # Extract metrics and also load model_config.json for architecture info
+        config = {}
+        if 'metrics' in checkpoint:
+            config['train_loss'] = checkpoint['metrics'].get('train_loss', [0.0])
+            config['eval_ADE'] = checkpoint['metrics'].get('eval_ade', [0.0])
+            config['eval_FDE'] = checkpoint['metrics'].get('eval_fde', [0.0])
+        
+        # Load model_config.json for architecture
+        model_config_path = Path(checkpoint_path).parent / "model_config.json"
+        if model_config_path.exists():
+            with open(model_config_path) as f:
+                model_config = json.load(f)
+                config['latent_dim'] = model_config.get('latent_dim', 512)
+                config['num_waypoints'] = model_config.get('num_waypoints', 4)
+                config['model_type'] = model_config.get('type', 'WaypointBCModel')
     else:
         # Direct model
         model_state = checkpoint
@@ -276,16 +313,38 @@ def load_sft_model_from_checkpoint(
     
     # Try to determine architecture from config
     if isinstance(config, dict):
-        feature_dim = config.get('hidden_dim', config.get('feature_dim', 256))
-        waypoint_dim = config.get('waypoint_dim', 3)
+        feature_dim = config.get('latent_dim', config.get('hidden_dim', config.get('feature_dim', 256)))
+        waypoint_dim = 3  # x, y, heading
+        num_waypoints = config.get('num_waypoints', 4)
     else:
-        feature_dim = 256
+        # Load from model_config.json if available
+        config_path = Path(checkpoint_path).parent / "model_config.json"
+        if config_path.exists():
+            with open(config_path) as f:
+                config = json.load(f)
+            feature_dim = config.get('latent_dim', 512)
+            num_waypoints = config.get('num_waypoints', 4)
+        else:
+            feature_dim = 256
+            num_waypoints = 4
         waypoint_dim = 3
     
-    # For simplicity, create a simple linear model that will be
-    # replaced by the actual architecture when integrated
-    # In production, this would use the actual model class
-    model = nn.Linear(feature_dim, waypoint_dim * 10)  # 10 waypoints
+    # Build proper WaypointBCModel for waypoint prediction
+    from training.sft.train_waypoint_bc_with_metrics import WaypointBCModel
+    
+    # Create model 
+    model = WaypointBCModel(
+        sft_waypoints=None,
+        latent_dim=feature_dim,
+        num_waypoints=num_waypoints,
+    )
+    
+    # Try to load state dict
+    try:
+        model.load_state_dict(model_state, strict=False)
+    except Exception as e:
+        print(f"Warning: Could not load state dict exactly: {e}")
+
     
     # Try to load state dict
     try:
