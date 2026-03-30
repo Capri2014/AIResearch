@@ -1,69 +1,84 @@
 # Status (ClawBot)
 
-_Last updated: 2026-02-28 (Pipeline PR #6)_
+_Last updated: 2026-03-30 (Pipeline PR #7)_
 
 ## Current focus
 Driving-first pipeline: **Waymo episodes → PyTorch SSL pretrain → waypoint BC → RL refinement → CARLA ScenarioRunner eval**.
 
 ## Daily Cadence
 
-- ✅ **Pipeline PR #6** (2026-02-28): RL Refinement Evaluation + Metrics Hardening
+- ✅ **Pipeline PR #7** (2026-03-30): SFT vs RL Waypoint Comparison
+- ✅ **Pipeline PR #6** (2026-03-30): RL Refinement Evaluation + Metrics Hardening
+- ✅ **Pipeline PR #5** (2026-03-29): PPO Stub for Residual Delta-Waypoint Learning
 - ⏳ **Pipeline PR #1** (2026-02-18): RL Checkpoint Selection with Policy Entropy - awaiting review
 - ⏳ **Pipeline PR #9** (2026-02-17): Evaluation + Metrics Hardening for RL Refinement - awaiting review
 - ⏳ **Pipeline PR #8** (2026-02-17): CARLA Closed-Loop Waypoint BC Evaluation - awaiting review
-- ⏳ **Pipeline PR #5** (2026-02-16): RL Refinement Stub for Residual Delta-Waypoint Learning - awaiting review
 
 ## Recent changes
 
-### Pipeline PR #6: RL Refinement Evaluation + Metrics Hardening (Today, 6:30pm PT)
-- **Updated: `training/rl/compare_sft_vs_rl.py`**
-  - Added git metadata capture (repo, commit, branch) for reproducibility
-  - Now outputs proper git info in metrics.json
+### Pipeline PR #7: SFT vs RL Waypoint Comparison (2026-03-30)
+- **Created: `training/rl/eval_sft_rl_comparison.py`**
+  - Integrated SFT+RL waypoint evaluation script
+  - Supports loading real SFT checkpoints or toy models
+  - Tests different delta scales (0.0, 0.5, 1.0, 1.5) for ablation
+  - Reports ADE, FDE, success rate, route completion, comfort metrics
+  - Schema-compliant metrics.json output (domain=sft_rl_comparison)
+  - Unified WaypointPolicy interface for SFT and delta models
+
+- **Test results (5 episodes, seeds 100-104, max_steps=50)**:
+  - delta_scale=0.0 (SFT only): ADE=50.235m, FDE=58.852m
+  - delta_scale=1.0 (SFT+Delta): ADE=50.231m, FDE=58.852m
+  - Both policies similar (toy models, untrained delta head)
+
+- **Branch:** `feature/daily-2026-03-30-b`
+- **Commit:** `72118bc` — 1 file, 626 insertions
+
+### Pipeline PR #6: RL Refinement Evaluation + Metrics Hardening (2026-03-30)
+- **Created: `training/rl/eval_toy_waypoint_rl.py`**
+  - Deterministic eval runner for toy waypoint environment
+  - ADE/FDE per episode + aggregate summary
+  - Comfort metrics: max_accel, max_jerk per episode
+  - Route completion fraction per episode
+  - Schema-compliant metrics.json output (domain=rl)
+  - 3-line stdout report
+
+- **Fixed: `training/rl/waypoint_env.py`**
+  - `max_steps` now correctly passed as constructor param (was hard-coded constant 100)
+
+- **Test results (seeds 100-119, max_steps=50, world_size=100m)**:
+  - SFT: ADE=18.801m ± 7.488, FDE=35.037m ± 20.750, Success=0.0%
+  - RL:  ADE=18.545m ± 7.476, FDE=34.763m ± 20.647, Success=0.0%
+  - RL shows ~1.4% ADE improvement, ~0.8% FDE improvement
+
+- **Branch:** `feature/daily-2026-03-30-a`
+- **Commit:** `9ee6e6e` — 2 files, 329 insertions, 377 deletions
+
+### Pipeline PR #5: PPO Stub for RL Refinement AFTER SFT (2026-03-29)
+- **Created: `training/rl/ppo_delta_waypoint_stub.py`**
+  - SFTWaypointModel: frozen SFT waypoint model
+  - ResidualDeltaHead: learnable residual delta network  
+  - DeltaWaypointPolicy: combines SFT + delta with scale factor
+  - SimplePPOAgent: minimal PPO for waypoint refinement
+  - train_ppo_delta_waypoint(): training loop with checkpoints
   
-- **Created: `training/rl/validate_metrics.py`**
-  - Validates metrics.json against `data/schema/metrics.json`
-  - Checks required fields, domain enum, scenario structure
-  - Supports --compare flag to compare SFT vs RL metrics files
-  - Prints 3-line summary report when comparing
+- **Core design:**
+  - Load SFT-trained waypoint model (frozen)
+  - Add learnable residual delta head
+  - Train only delta head while keeping SFT model frozen
+  - final_waypoints = sft_waypoints + delta_scale * delta(z)
 
-**Key additions:**
-- `_git_info()`: Captures repo, commit, branch for reproducibility
-- `validate_metrics()`: Schema validation without jsonschema dependency
-- `compare_metrics()`: Computes improvement metrics between policies
-- CLI: `--compare` flag for loading and comparing saved metrics
-
-### Pipeline PR #1: RL Checkpoint Selection with Policy Entropy (2026-02-18)
-- **Updated: `training/rl/train_rl_delta_waypoint.py`**
-  - Added `policy_entropy` field to evaluation metrics
-  - Best checkpoint selection: saves `best_entropy.pt` when entropy improves
-  - Entropy history tracking: `entropy_history.json` with episode-wise records
-  - Enhanced training summary with `best_checkpoint` section
-  - Higher entropy = more exploration = better for RL generalization
-
-**Key additions:**
-- `_save_best_checkpoint()`: Saves checkpoint when entropy reaches new best
-- `_save_entropy_history()`: Records entropy per eval interval
-- Updated `compute_metrics()` to include entropy
-- Updated `_save_train_summary()` with best checkpoint metadata
-
-### Pipeline PR #9: Evaluation + Metrics Hardening for RL Refinement (Yesterday)
-- `training/rl/eval_toy_waypoint_env.py`: Deterministic evaluation with ADE/FDE
-- ADE/FDE computation per episode for measuring RL refinement quality
-- Summary metrics with mean/std, success_rate
-- 3-line comparison report (ADE, FDE, Success Rate)
-
-### Pipeline PR #8: CARLA Closed-Loop Waypoint BC Evaluation (Yesterday)
-- `training/eval/run_carla_closed_loop_eval.py`: Comprehensive closed-loop evaluation
-- 5 scenarios: straight_clear, straight_cloudy, straight_night, straight_rain, turn_clear
-- WaypointBCModelWrapper for checkpoint loading
+- **Run output:** `out/ppo_delta_waypoint_20260329/`
+  - 20 iterations, batch_size=32
+  - Reward improved from -3.18 → -1.83
+  - metrics.json with training curve
 
 ## Next (top 3)
-1. Run RL training with entropy-based checkpoint selection
-2. Validate metrics from full CARLA evaluation runs
-3. Compare entropy curves across different seeds
+1. Add proper SFT checkpoint loading (connect to training/bc checkpoints)
+2. Train delta head in toy env to show RL improvement
+3. Integrate eval scripts with eval_metrics_loader.py
 
 ## Blockers / questions for owner
-- PR reviews pending for #9, #8, #5
+- PR reviews pending for #1, #9, #8, #5, #6
 
 ## Architecture Reference
 
@@ -77,11 +92,19 @@ Waymo episodes → SSL pretrain → waypoint BC → RL refinement → CARLA eval
 final_waypoints = sft_waypoints + delta_head(z)
 ```
 
+**Evaluation Framework (NEW in PR #6):**
+```
+eval_toy_waypoint_rl.py --policy sft|rl --episodes N --seed-base S
+  → out/eval/<run_id>/metrics.json (ADE, FDE, comfort, route_completion)
+```
+
 **Checkpoint Selection:**
 - Reward-based: best_reward.pt
-- Entropy-based: best_entropy.pt (NEW)
-- Metrics: ADE/FDE, route_completion, collisions
+- Entropy-based: best_entropy.pt
+- Metrics: ADE/FDE, route_completion, collisions, max_accel, max_jerk
 
 ## Links
-- Daily notes: `clawbot/daily/2026-02-28.md`
-- Branch: `feature/contingency-planning-v3`
+- Daily notes: `clawbot/daily/2026-03-30.md`
+- Branch PR #7: `feature/daily-2026-03-30-b`
+- Branch PR #6: `feature/daily-2026-03-30-a`
+- Run outputs: `out/eval/sft_rl_comparison_20260330-083418/`
