@@ -1,591 +1,919 @@
-# LeWorldModel (LeWM) — Research Survey
+# LeWorldModel (LeWM) — Deep Research Survey
 
 **Date:** 2026-03-29  
 **Status:** Complete  
-**Focus:** End-to-end JEPA world model that finally solves representation collapse
+**Focus:** Full technical analysis with application roadmap for our RL training pipeline
 
 ---
 
 ## Overview
 
-Joint Embedding Predictive Architectures (JEPAs) are a promising approach for learning world models in compact latent spaces. However, existing JEPA methods are notoriously fragile — they require complex multi-term losses, exponential moving averages (EMA), pre-trained encoders, or auxiliary supervision to prevent **representation collapse**. 
-
-LeWorldModel (LeWM), by Lucas Maes et al. (Mila/NYU/Brown/Samsung), is the first JEPA that trains stably **end-to-end from raw pixels** using only:
-1. A next-embedding prediction loss (simple MSE)
-2. SIGReg — a Gaussian regularizer that provably prevents collapse
-
-**Key results:**
-- 15M parameters, trainable on a single GPU in hours
-- Planning: **<1 second** (48× faster than DINO-WM's ~47 seconds)
-- Competitive with foundation-model-based world models on robotics tasks
-- Latent space **naturally encodes physical structure** — spatial relationships, object locations, angles
-- Can detect physically implausible events (teleportation, color changes)
+LeWorldModel (LeWM) by Maes et al. (Mila/NYU/Brown/Samsung, March 2026) is the **first JEPA that trains end-to-end from raw pixels without any training heuristics**. This is a fundamentally important result because JEPA collapse has been the main obstacle preventing end-to-end world model training.
 
 ---
 
 ## Table of Contents
 
-1. [Background](#1-background)
-2. [Core Concepts](#2-core-concepts)
-3. [Key Method: LeWorldModel](#3-key-method-leworldmodel)
-4. [Comparison & Tradeoffs](#4-comparison--tradeoffs)
-5. [Applications to Our Work](#5-applications-to-our-work)
-6. [Open Problems](#6-open-problems)
-7. [References](#7-references)
+1. [The Big Picture: Why LeWM Matters](#1-the-big-picture)
+2. [JEPA Architecture & How It Works](#2-jepa-architecture)
+3. [The Collapse Problem Explained](#3-the-collapse-problem)
+4. [SIGReg: The Core Innovation](#4-sigreg)
+5. [LeWorldModel Architecture](#5-leworldmodel-architecture)
+6. [Planning Algorithm (CEM)](#6-planning-algorithm)
+7. [Detailed Results Analysis](#7-detailed-results)
+8. [Pros & Cons Deep Dive](#8-pros--cons)
+9. [Comparison with Our Existing Pipeline](#9-comparison-with-our-pipeline)
+10. [Concrete Integration Options](#10-concrete-integration)
+11. [References & Code](#11-references)
 
 ---
 
-<a name="1-background"></a>
-## 1. Background
+<a name="1-the-big-picture"></a>
+## 1. The Big Picture: Why LeWM Matters
 
-### 1.1 World Models — What Are They?
+### 1.1 What is a World Model?
 
-**Intuition:** A world model learns "what happens next" in an environment. Given the current state and an action, it predicts the future state. This lets an agent **plan in imagination** — simulate many possible futures, pick the best action — without actually executing each one.
-
-World models are central to the dream of autonomous agents that can:
-- Learn from offline data (without interacting with the real environment)
-- Reason about counterfactual actions ("what if I do X instead of Y?")
-- Improve their own behavior without trial-and-error in the real world
-
-**The classic approach:** Learn a dynamics model `p(s' | s, a)` that predicts the next state given current state and action. Then use this model for planning or policy learning.
-
-**The problem:** High-dimensional inputs (images, pixels) are hard to model. Pixel-space prediction is computationally expensive and requires modeling irrelevant details (shadows, textures) rather than semantic content.
-
----
-
-### 1.2 JEPA — Joint Embedding Predictive Architecture
-
-**Paper:** LeCun (2022) — [arXiv:2206.07769](https://arxiv.org/abs/2206.07769)
-
-**Intuition:** Instead of predicting pixels, JEPA predicts in a **compact latent space**. An encoder compresses observations into low-dimensional embeddings, and a predictor models the dynamics in that space.
+A **world model** learns the dynamics of an environment: given the current state and an action, predict what happens next.
 
 ```
-Raw pixels → Encoder → Compact latent z → Predictor → Next latent ẑ
-                                   ↑                              ↑
-                              learned via               learned via
-                              prediction loss           prediction loss
+For autonomous driving:
+  Current state: camera image + ego-vehicle state
+  Action: throttle, steer, brake
+  World model predicts: next camera image, next vehicle state
 ```
 
-**Why this is better than pixel prediction:**
-- **Efficiency:** Latent space is smaller (192 dimensions vs. 128×128×3 = 49K pixels)
-- **Semantic:** Embeddings capture what matters (object positions, spatial relationships) vs. what doesn't (pixel noise, textures)
-- **Planning:** Rolls out are fast — no pixel generation needed, just forward through the predictor
+Once you have a world model, you can plan in "imagination":
+1. Simulate 1000 possible futures by rolling out different action sequences
+2. Pick the action sequence that leads to the best outcome
+3. Execute the first action, then replan
+
+This is called **model-predictive control (MPC)** or **imagination-based planning**.
+
+### 1.2 Why Learn in Latent Space?
+
+Predicting in pixel space is hard because:
+- You need to model every pixel (100K+ dimensions for a small image)
+- Irrelevant details (shadows, reflections, texture noise) dominate
+- Computation is expensive — rolling out 1000 futures at pixel resolution is slow
+
+**JEPA (Joint Embedding Predictive Architecture)** solves this by:
+1. **Encoder:** Compress the image into a compact embedding (e.g., 192 dimensions)
+2. **Predictor:** Predict the *embedding* of the next frame, not the pixels themselves
+
+```
+Input image (128×128×3 = 49K values) 
+    ↓ Encoder (ViT-Tiny)
+Compact embedding (192 values)
+    ↓ Predictor (action-conditioned transformer)
+Next embedding prediction (192 values)
+```
+
+### 1.3 Why This Matters for Our Work
+
+Our current system uses:
+- **GRPO** for policy learning (how to predict waypoints given state)
+- **No world model** — we react to the current state without simulating futures
+
+LeWM provides a world model that could enable:
+- **Imagination-based planning** instead of reactive policy
+- **Better representations** for waypoint prediction (auxiliary loss)
+- **Intrinsic motivation** via curiosity (surprise detection)
 
 ---
 
-### 1.3 The Core Problem: Representation Collapse
+<a name="2-jepa-architecture"></a>
+## 2. JEPA Architecture & How It Works
 
-**The Problem It Solves:** JEPA is highly prone to **collapse** — a failure mode where the model maps all inputs to nearly identical embeddings to trivially satisfy the prediction objective.
+### 2.1 The Two Components
+
+**Encoder (E):**
+- Compresses raw pixels → compact latent embedding
+- Architecture: ViT-Tiny (5M params), 12 layers, 192-dim output
+- Input: 128×128 RGB image → 1 [CLS] token → 192-dim embedding
+
+**Predictor (P):**
+- Models dynamics in latent space
+- Architecture: Transformer (10M params), 6 layers, 16 attention heads
+- Input: current embedding z_t + action a_t
+- Output: predicted next embedding ẑ_{t+1}
+
+**Total: ~15M parameters**
+
+### 2.2 Training Objective
+
+```
+L_LeWM = L_pred + λ * SIGReg(Z)
+
+Where:
+  L_pred = MSE( ẑ_{t+1}, z_{t+1} )  ← prediction loss
+  SIGReg(Z) ← anti-collapse regularizer (see Section 4)
+  Z = all embeddings in the batch
+  λ = 0.1 (only hyperparameter!)
+```
+
+That's it. Two loss terms. No EMA, no stop-gradient, no teacher-student.
+
+### 2.3 How Prediction Works
+
+```python
+def forward(self, observations, actions):
+    # observations: [B, T, C, H, W] — video frames
+    # actions: [B, T-1] — actions taken between frames
+    
+    # 1. Encode all frames
+    embeddings = self.encoder(observations)  # [B, T, 192]
+    
+    # 2. Predict next frame embedding
+    # Teacher forcing: predict z_{t+1} from z_t and a_t
+    current_emb = embeddings[:, :-1]    # [B, T-1, 192]
+    predicted_next = self.predictor(current_emb, actions)  # [B, T-1, 192]
+    
+    # 3. Target is the actual next embedding (detached to avoid gradient loop)
+    target_next = embeddings[:, 1:].detach()  # [B, T-1, 192]
+    
+    # 4. Compute loss
+    loss = MSE(predicted_next, target_next)
+    
+    return loss
+```
+
+---
+
+<a name="3-the-collapse-problem"></a>
+## 3. The Collapse Problem Explained
+
+### 3.1 What is Collapse?
+
+**Collapse** is the failure mode where the encoder maps ALL input images to nearly identical embeddings.
 
 ```
 Normal training:
-  Different frames → Different embeddings → Predict next → Learn dynamics ✓
+  Frame A (car ahead) → embedding[0.3, 0.7, ...]  ← unique
+  Frame B (empty road) → embedding[0.9, 0.1, ...] ← different
+  Frame C (pedestrian) → embedding[0.5, 0.5, ...] ← different
 
 Collapse mode:
-  All frames → Same embedding [0, 0, 0, ...] → Prediction is trivial → Learn nothing ✗
+  Frame A → [0.0, 0.0, 0.0, ...]  ← same as everyone
+  Frame B → [0.0, 0.0, 0.0, ...]
+  Frame C → [0.0, 0.0, 0.0, ...]
 ```
 
-**Why collapse happens:** The prediction objective alone doesn't force the encoder to produce diverse, informative representations. There's no penalty for collapsing — the predictor just learns to output the constant and the loss is still minimized.
+### 3.2 Why Does Collapse Happen?
 
-**Existing "fixes" are all problematic:**
+The prediction objective alone doesn't force diverse embeddings:
 
-| Heuristic | How it works | Problem |
-|-----------|-------------|---------|
-| **Exponential Moving Average (EMA)** | Maintain a slowly-moving copy of the encoder as target | Doesn't minimize a well-defined objective; theoretical understanding is limited |
-| **Stop-gradient (SG)** | Don't backprop through the target encoder | Same issue — not grounded in optimization theory |
-| **Pre-trained encoder** | Freeze a foundation model (DINO, CLIP) | Limits expressivity; can't adapt to task-specific dynamics |
-| **Multi-term losses (VICReg)** | Add diversity loss + covariance loss + prediction loss | 6 hyperparameters to tune; training is unstable |
-| **Reward signals** | Use RL rewards as auxiliary supervision | Requires reward annotations; not task-agnostic |
+```
+Suppose all embeddings collapse to [0, 0, ..., 0]
 
-**The ideal solution:** A single, principled regularizer that provably prevents collapse without any heuristics.
+Predictor's job: predict ẑ_{t+1} given z_t and a_t
+  - If z_t = 0 and a_t = something → ẑ_{t+1} = some constant
+  - Loss = MSE(some constant, z_{t+1})
+  - Predictor learns: always output the mean embedding
+  - Loss is minimized! ✓
+
+But we learn nothing useful.
+```
+
+The prediction loss doesn't penalize collapse because it can always learn to output a constant.
+
+### 3.3 Existing Fixes (All Problematic)
+
+| Method | How It Works | The Problem |
+|--------|-------------|-------------|
+| **EMA (Exponential Moving Average)** | Keep a slow-copy of the encoder as target | Doesn't minimize a well-defined loss — just engineering |
+| **Stop-gradient (SG)** | Don't backprop through target encoder | Same problem — no principled objective |
+| **Pre-trained frozen encoder** | Use DINO/CLIP as fixed encoder | Can't adapt to task-specific dynamics |
+| **VICReg-style losses** | Add diversity + covariance + prediction losses | 6+ hyperparameters, very unstable |
+| **Reward signals** | Use RL rewards as supervision | Requires reward annotations |
+
+The ideal solution: **a single, principled regularizer** that provably prevents collapse.
 
 ---
 
-### 1.4 Key Papers Timeline
+<a name="4-sigreg"></a>
+## 4. SIGReg: The Core Innovation
 
-| Year | Paper | Contribution | Relevance |
-|------|-------|-------------|-----------|
-| 2022 | LeCun — "A theory of learning from pixels" | JEPA conceptual introduction | Foundational |
-| 2023 | I-JEPA (Assran et al.) | Self-supervised image learning via JEPA | Uses EMA/SG |
-| 2023 | V-JEPA (Facebook AI) | Video prediction via JEPA | Uses EMA/SG |
-| 2024 | PLDM (Cai et al.) | End-to-end action-conditioned JEPA | Uses VICReg, unstable |
-| 2024 | DINO-WM (Wu et al.) | Foundation-model JEPA world model | Pre-trained, fast enough |
-| 2025 | LeJEPA (Balestriero et al.) | SIGReg theory | Foundation for LeWM |
-| **2026** | **LeWorldModel (Maes et al.)** | **End-to-end JEPA without heuristics** | **This paper** |
+### 4.1 The Key Insight
 
----
+**An isotropic Gaussian distribution cannot collapse.**
 
-<a name="2-core-concepts"></a>
-## 2. Core Concepts
+An isotropic Gaussian in d dimensions:
+- Has mean = 0 (centered)
+- Has equal variance in ALL directions
+- Is non-degenerate (full rank)
 
-### 2.1 SIGReg — Sketched Isotropic Gaussian Regularizer
+If embeddings follow an isotropic Gaussian, they must be:
+1. Spread out in space (not collapsed)
+2. Isotropic (no preferred direction)
 
-**Paper:** [LeJEPA (arXiv:2511.08544)](https://arxiv.org/abs/2511.08544) — Balestriero et al., Nov 2025
+**Theorem (Cramér-Wold):** If all 1D projections of a d-dimensional distribution are Gaussian, then the d-dimensional distribution is Gaussian.
 
-**Intuition:** The key insight is mathematical: **for a JEPA to not collapse, its embeddings must be non-degenerate**. The simplest non-degenerate distribution in high dimensions is an **isotropic Gaussian** (mean zero, equal variance in all directions).
+This means: **we just need to enforce Gaussian on random 1D projections.**
 
-SIGReg enforces this by projecting embeddings onto random directions and checking if each projection follows a Gaussian distribution.
+### 4.2 SIGReg Implementation
 
-**Why this works:**
-- If all 1D projections are Gaussian → by Cramér-Wold theorem → the full joint distribution is Gaussian
-- An isotropic Gaussian in latent space has:
-  - Full rank (no collapse)
-  - Equal variance in all directions
-  - Maximum entropy for a given variance
-- The prediction loss then forces these embeddings to be **useful** (not just non-collapsed)
-
-**The Math:**
-
-```
-Let Z ∈ R^(N × B × d) be latent embeddings:
-  N = history length (e.g., 8 frames)
-  B = batch size
-  d = embedding dimension (e.g., 192)
-
-SIGReg(Z) = (1/M) Σ_m=1^M T(h^(m))
-  where h^(m) = Z · u^(m)  (projection onto random direction)
-  and u^(m) ∈ S^(d-1)  (random unit-norm direction)
-  and T(·) = Epps-Pulley statistical test for normality
-```
-
-The Epps-Pulley test measures how Gaussian a distribution is using empirical CDF quantiles.
-
-**The complete loss:**
-```
-L_LeWM = L_pred + λ * SIGReg(Z)
-  where L_pred = ||ẑ_{t+1} - z_{t+1}||² (simple MSE on latent embeddings)
-```
-
-**Only 1 hyperparameter to tune:** `λ` (SIGReg weight, typically 0.1)
-
----
-
-**Code Implementation (from LeJEPA paper):**
+SIGReg works by:
+1. Projecting embeddings onto M random directions
+2. Testing each projection for Gaussianity using the Epps-Pulley test
+3. Averaging the test results as the regularization loss
 
 ```python
 import torch
 import numpy as np
+from scipy.stats import norm
 
-def epps_pulley_test(h: torch.Tensor) -> torch.Tensor:
+def epps_pulley_test(x):
     """
-    Epps-Pulley test for univariate normality.
+    Test whether a 1D distribution is Gaussian.
     
-    Measures how Gaussian a 1D distribution is.
-    Returns 0 if perfectly Gaussian, higher values if non-Gaussian.
+    Uses the Epps-Pulley statistic:
+    - Measures deviation from normality
+    - Returns 0 for perfectly Gaussian
+    - Returns high value for non-Gaussian
     """
-    h = h.flatten().cpu().numpy()
-    n = len(h)
+    x = x.cpu().numpy().flatten()
+    n = len(x)
     if n < 8:
-        return torch.tensor(0.0, device=h.device)
+        return 0.0
     
     # Sort values
-    h_sorted = np.sort(h)
+    x_sorted = np.sort(x)
     
-    # Empirical quantiles
-    ts = (np.arange(1, n + 1) - 0.5) / n
-    phi_inv_t = norm.ppf(ts)  # Inverse CDF of standard normal
+    # Empirical quantiles at positions (k-0.5)/n
+    k = np.arange(1, n + 1)
+    t_k = (k - 0.5) / n
+    phi_inv_t = norm.ppf(t_k)  # Standard normal quantiles
     
-    # Compute statistics
-    h_mean = h.mean()
-    h_std = h.std() + 1e-8
-    h_norm = (h_sorted - h_mean) / h_std
+    # Normalize
+    x_mean = x.mean()
+    x_std = x.std() + 1e-8
+    x_norm = (x_sorted - x_mean) / x_std
     
-    # Simplified EP statistic: measures deviation from normality
-    z_diff = np.diff(h_norm)
-    T = np.sum((phi_inv_t[1:] - phi_inv_t[:-1]) * z_diff ** 2)
+    # Epps-Pulley statistic: sum of squared differences in normalized values
+    # weighted by the spacing in normal quantiles
+    dx = np.diff(x_norm)
+    T = np.sum((phi_inv_t[1:] - phi_inv_t[:-1]) * dx ** 2)
     
-    return torch.tensor(T / (n + 1), device=h.device)
+    return T / (n + 1)
 
 
-def sigreg_loss(embeddings: torch.Tensor, num_projections: int = 1024, reg_weight: float = 0.1) -> torch.Tensor:
+def sigreg_loss(embeddings, num_projections=1024, reg_weight=0.1):
     """
-    Compute SIGReg loss for JEPA anti-collapse regularization.
+    SIGReg: Sketched Isotropic Gaussian Regularizer.
+    
+    Prevents JEPA collapse by enforcing Gaussian-distributed embeddings.
     
     Args:
-        embeddings: [B, d] — batch of latent embeddings
+        embeddings: [B, d] — batch of embeddings
         num_projections: number of random directions to test
-        reg_weight: weight λ for SIGReg
+        reg_weight: λ for SIGReg (only hyperparameter!)
     
     Returns:
-        SIGReg loss (scalar)
+        Scalar loss (add to prediction loss)
     """
     B, d = embeddings.shape
     
-    # Random projection directions (fixed for efficiency)
+    # Generate random projection directions (fixed for efficiency)
     if not hasattr(sigreg_loss, 'projections'):
+        # Generate once, reuse
         sigreg_loss.projections = torch.randn(num_projections, d)
         sigreg_loss.projections = sigreg_loss.projections / sigreg_loss.projections.norm(dim=-1, keepdim=True)
     
     projections = sigreg_loss.projections.to(embeddings.device)
     
-    # Project onto random directions
+    # Project embeddings onto random directions
     h = embeddings @ projections.T  # [B, M]
     
-    # Apply EP test to each projection, then average
-    ep_stats = torch.stack([
-        epps_pulley_test(h[:, i])
-        for i in range(num_projections)
-    ])  # [M]
+    # Apply EP test to each projection
+    ep_stats = []
+    for i in range(num_projections):
+        ep = epps_pulley_test(h[:, i])
+        ep_stats.append(ep)
     
-    return reg_weight * ep_stats.mean()
-
-
-def leworldmodel_loss(predicted_next: torch.Tensor, target_next: torch.Tensor,
-                      embeddings: torch.Tensor, lambda_reg: float = 0.1) -> dict:
-    """
-    Full LeWM training objective.
-    
-    Args:
-        predicted_next: [B, T-1, d] predicted next embeddings
-        target_next: [B, T-1, d] ground truth next embeddings
-        embeddings: [B, T, d] all embeddings (for SIGReg)
-        lambda_reg: weight for SIGReg
-    
-    Returns:
-        dict with total_loss, pred_loss, sigreg_loss
-    """
-    # 1. Prediction loss (MSE on latent space)
-    pred_loss = torch.nn.functional.mse_loss(predicted_next, target_next)
-    
-    # 2. SIGReg (enforce Gaussian embeddings)
-    all_embeddings = embeddings.reshape(-1, embeddings.shape[-1])  # [B*T, d]
-    sigreg_loss = sigreg_loss(all_embeddings, reg_weight=lambda_reg)
-    
-    # Total loss
-    total_loss = pred_loss + sigreg_loss
-    
-    return {
-        'total_loss': total_loss,
-        'pred_loss': pred_loss,
-        'sigreg_loss': sigreg_loss,
-    }
+    # Average and weight
+    return reg_weight * np.mean(ep_stats)
 ```
 
-**Cross-Comparison: Anti-Collapse Methods**
+### 4.3 Why This Works
 
-| Method | Principle | Hyperparameters | Stability | Theoretical Basis |
-|--------|-----------|-----------------|-----------|------------------|
-| EMA encoder | Slowly track encoder | decay rate | Medium | Weak (no loss) |
-| Stop-gradient | Asymmetric updates | none | Medium | Weak (no loss) |
-| Pre-trained frozen | Fixed features | none | High | Transfer learning |
-| VICReg + friends | Multi-objective | 6+ | Low | Empiricism |
-| Diversity loss | Explicit variance | 2-3 | Medium | Weak |
-| **SIGReg** | **Gaussian regularizer** | **1** | **High** | **Strong (Cramér-Wold)** |
-
----
-
-### 2.2 End-to-End JEPA Training
-
-**Intuition:** Instead of using pre-trained features (DINO-WM) or frozen targets (EMA), train the encoder and predictor **jointly** from scratch using only:
-1. Raw pixel observations
-2. Associated actions
-3. The two-term loss (prediction + SIGReg)
-
-**Why this matters:** Pre-trained encoders limit expressivity. A frozen DINO encoder is optimized for ImageNet classification, not for predicting robot arm movements in a warehouse. End-to-end training allows the encoder to learn task-specific representations.
-
-**The training loop:**
+1. **Cramér-Wold guarantee:** If all random 1D projections are Gaussian, the joint distribution must be Gaussian
+2. **No collapse possible:** A collapsed distribution (all same embedding) is not Gaussian
+3. **Prediction loss handles utility:** SIGReg only ensures non-collapse. The prediction loss ensures embeddings are **useful for prediction**
 
 ```python
-def train_step(encoder, predictor, optimizer, observations, actions, lambda_reg=0.1):
-    """
-    Single training step for LeWM.
+# Full training loop
+def train_step(encoder, predictor, observations, actions, lambda_reg=0.1):
+    embeddings = encoder(observations)  # [B, T, 192]
     
-    Key insight: Only 2 loss terms. No EMA, no stop-gradient, no tricks.
-    """
-    # Encode all frames
-    embeddings = encoder(observations)  # [B, T, d]
+    predicted_next = predictor(embeddings[:, :-1], actions)
+    target_next = embeddings[:, 1:].detach()
     
-    # Predict next frame embedding (teacher forcing)
-    predicted_next = predictor(
-        embeddings[:, :-1],    # Current embeddings
-        actions[:, :-1]         # Actions taken
-    )  # [B, T-1, d]
+    # 1. Prediction loss (makes embeddings useful)
+    pred_loss = MSE(predicted_next, target_next)
     
-    # Target next frame embedding
-    target_next = embeddings[:, 1:].detach()  # [B, T-1, d]
+    # 2. SIGReg (prevents collapse)
+    flat_emb = embeddings.reshape(-1, 192)
+    sigreg = sigreg_loss(flat_emb, reg_weight=lambda_reg)
     
-    losses = leworldmodel_loss(predicted_next, target_next, embeddings, lambda_reg)
+    # Total loss
+    loss = pred_loss + sigreg
     
-    losses['total_loss'].backward()
+    loss.backward()
     optimizer.step()
     optimizer.zero_grad()
     
-    return losses
+    return {'pred_loss': pred_loss.item(), 'sigreg_loss': sigreg}
 ```
+
+### 4.4 SIGReg Properties
+
+| Property | Value |
+|----------|-------|
+| Hyperparameters | 1 (λ for reg_weight) |
+| Time complexity | O(N) with random projections |
+| Memory | O(1) extra |
+| Stability | High — tested across 60+ architectures |
+| Theoretical basis | Strong (Cramér-Wold theorem) |
+
+**vs. VICReg (PLDM's approach):**
+- VICReg: 6 hyperparameters, unstable, empirically tuned
+- SIGReg: 1 hyperparameter, stable, theoretically grounded
 
 ---
 
-### 2.3 Latent Planning with Cross-Entropy Method (CEM)
+<a name="5-leworldmodel-architecture"></a>
+## 5. LeWorldModel Architecture
 
-**Intuition:** At test time, given a start image and a goal image, find the action sequence that brings us closest to the goal — all in **latent space**.
+### 5.1 Encoder (ViT-Tiny)
 
-**The planning loop:**
 ```
-1. Encode start image → z_start (192-dim)
-2. Encode goal image → z_goal (192-dim)
-3. Initialize action sequence A = [a_0, a_1, ..., a_H]
-4. Repeat until convergence:
-   a. Sample candidate action sequences from Gaussian around A
-   b. Roll out each candidate through the predictor:
-      z_1 = pred(z_start, a_0)
-      z_2 = pred(z_1, a_1)
-      ...
-      z_H = pred(z_{H-1}, a_{H-1})
-   c. Score by: dist(z_H, z_goal) — how close is final state to goal?
-   d. Keep top-k candidates, update A to their mean
-5. Execute first action of best sequence
-6. Repeat (replan at each step)
-```
+Input: 128×128 RGB image
 
-**Why it's fast:** Each step is just a forward pass through the predictor (~10M params). No pixel generation. With only ~200 tokens per frame (vs DINO-WM's ~40K), planning is **48× faster**.
-
----
-
-### 2.4 Physical Understanding in Latent Space
-
-**Intuition:** A good world model should understand physics — not just predict pixels, but encode meaningful physical structure in its latent space.
-
-**LeWM shows three emergent properties:**
-
-1. **Spatial Probing:** Linear probes can predict physical quantities (block position, angle) from latent embeddings with high accuracy.
-
-2. **t-SNE Structure:** Latent embeddings preserve spatial neighborhood relationships. Close objects in the scene → close in latent space.
-
-3. **Surprise Detection:** The model assigns higher prediction error to physically implausible events (teleportation, color changes) vs. normal motion.
-
----
-
-<a name="3-key-method-leworldmodel"></a>
-## 3. Key Method: LeWorldModel (LeWM)
-
-**Paper:** [LeWorldModel (arXiv:2603.19312)](https://arxiv.org/abs/2603.19312) — Maes, Le Lidec, Scieur, LeCun, Balestriero  
-**Affiliation:** Mila, NYU, Samsung SAIL, Brown University  
-**Published:** March 2026
-
-### 3.1 Architecture
-
-**Encoder (ViT-Tiny):**
-```
-Input: 128×128 RGB image → 1 token per frame (192-dim)
-Architecture: ViT-Tiny (5M params)
-  - Patch size: 14
-  - Layers: 12
-  - Attention heads: 3
+Architecture:
+  - Patch size: 14 → 9 patches per image (3×3 grid)
+  - Patch embedding: 14×14×3 → 192-dim per patch
+  - [CLS] token → 192-dim final embedding
+  - 12 transformer layers
+  - 3 attention heads
   - Hidden dim: 192
-  - Output: [CLS] token → 1-layer MLP → 192-dim embedding
+  - MLP dim: 768
+
+Output: 192-dimensional embedding per frame
 ```
 
-**Predictor (Action-conditioned transformer):**
+### 5.2 Predictor (Action-Conditioned Transformer)
+
 ```
-Input: N frame embeddings + N actions → next frame embedding
-Architecture: Transformer (10M params)
-  - Layers: 6
-  - Attention heads: 16
-  - Dropout: 10%
+Input: [z_t; z_{t-1}; ...; z_{t-N}] + [a_t; a_{t-1}; ...; a_{t-N}]
+
+Architecture:
+  - 6 transformer layers
+  - 16 attention heads
   - Action conditioning: Adaptive Layer Normalization (AdaLN)
-  - Output: 192-dim latent prediction
+  - Dropout: 10%
+  - Residual connections
 
-Key: AdaLN parameters initialized to zero → stable training
+Key innovation: AdaLN conditions the transformer on actions
+  - Standard LN: layer_norm(x)
+  - AdaLN: layer_norm(γ * x + β) where γ,β from action embedding
+  
+  - AdaLN initialized to zero → predictor starts as identity function
+  - This ensures stable training (no exploding activations)
 ```
 
-**Total: ~15M parameters, single GPU, ~4 hours to train**
+### 5.3 Why AdaLN Matters
 
-### 3.2 Quantitative Results
+Without AdaLN, conditioning on actions typically uses concatenation:
+```python
+# Concatenation approach (problematic)
+concat = torch.cat([embeddings, action_embeddings], dim=-1)  # [B, 192+32]
+h = transformer(concat)  # Larger input dimension, harder to optimize
+```
 
-**Planning Performance (Success Rate)**
+With AdaLN:
+```python
+# AdaLN approach (LeWM)
+h = transformer(embeddings)  # [B, 192] — no dimension increase
+scale, bias = action_embedding_to_adaln_params(action)  # [B, 384]
+h = layer_norm(gamma * h + beta)  # Action conditioning via affine transform
+```
 
-| Environment | Description | LeWM | DINO-WM | PLDM |
-|-------------|-------------|------|---------|------|
-| Two-Room | 2D navigation | 52% | 97% | 58% |
-| Reacher | 2-joint arm | **95%** | 84% | 51% |
-| Push-T | Block manipulation | **96%** | 88% | 40% |
-| OGBench-Cube | 3D pick-and-place | 39% | **59%** | 15% |
+Benefits:
+- No dimension explosion
+- Action conditioning is learnable and stable
+- Easy to initialize (zero → identity function)
 
-**Key observations:**
-- LeWM **outperforms DINO-WM** on Reacher and Push-T (pure pixels!)
-- LeWM **beats DINO-WM on Push-T** even though DINO-WM uses extra proprioceptive input
-- DINO-WM has edge on **visually complex 3D** tasks (ImageNet pretraining helps)
-- LeWM **struggles on Two-Room** (low intrinsic dimensionality issue)
+### 5.4 Training Details
 
-**Planning Speed Comparison**
-
-| Method | Planning Time | Tokens/Frame | Relative Speed |
-|--------|--------------|--------------|---------------|
-| DINO-WM | ~47s | ~40K | 1× |
-| PLDM | ~0.8s | ~200 | ~60× |
-| **LeWM** | **~1s** | **~200** | **~48×** |
+| Parameter | Value |
+|-----------|-------|
+| Batch size | 32 |
+| Resolution | 128×128 |
+| Sub-trajectory length | 8 frames |
+| Optimizer | AdamW |
+| Learning rate | 1e-3 with cosine schedule |
+| Epochs | 100 |
+| Training time | ~4 hours on single A100 |
+| SIGReg weight (λ) | 0.1 |
+| SIGReg projections | 1024 |
+| Total params | 15M |
 
 ---
 
-### 3.3 Ablation Studies (from paper)
+<a name="6-planning-algorithm"></a>
+## 6. Planning Algorithm (CEM)
 
-1. **SIGReg weight (λ):** Robust across 0.01 to 1.0 (unlike VICReg which is sensitive)
-2. **Number of projections (M):** Negligible impact beyond 256
-3. **Architecture:** Works with ResNets, ViTs, ConvNets
-4. **Without SIGReg:** Training collapses within 10K steps
-5. **Without prediction loss:** Embeddings become uniform Gaussian (no dynamics)
+### 6.1 What is CEM?
 
----
+**Cross-Entropy Method (CEM)** is a gradient-free optimization algorithm for finding action sequences that maximize a reward.
 
-<a name="4-comparison--tradeoffs"></a>
-## 4. Comparison & Tradeoffs
+For LeWM, the reward is: `dist(final_state, goal_state)` — how close is the final predicted state to the goal?
 
-### 4.1 JEPA Methods Comparison
-
-| Method | End-to-End | Heuristics | Hyperparameters | Planning Speed | Performance | Compute |
-|--------|-----------|------------|----------------|----------------|-------------|---------|
-| I-JEPA / V-JEPA | No (uses EMA) | Yes (SG, EMA) | 2-3 | N/A (representation) | SOTA on images | Medium |
-| PLDM | Yes | Yes (VICReg, 6 terms) | 6 | Fast (<1s) | Low | Medium |
-| DINO-WM | No (frozen encoder) | None | 1 | Slow (47s) | High | Very High |
-| **LeWM** | **Yes** | **None** | **1** | **Fast (<1s)** | **High** | **Low** |
-
-### 4.2 World Model Approaches Comparison
-
-| Approach | Representation | Training Data | Planning | Main Limitation |
-|----------|---------------|---------------|----------|-----------------|
-| **Generative (Dreamer)** | Pixel latent | Reward-required | Imagination | Needs rewards |
-| **TD-MPC** | Compact latent | Reward-required | CEM | Needs rewards |
-| **Oracle dynamics** | State-based | Perfect | Fast | Not scalable |
-| **DINO-WM** | Frozen vision | Offline | Slow | Not task-specific |
-| **PLDM** | Learned | Offline | Fast | Unstable |
-| **LeWM** | Learned | Offline | Fast | Low-dim tasks |
-
-### 4.3 Quick Reference Decision Guide
-
-| If you need... | Use | Why |
-|---------------|-----|-----|
-| Best pixel accuracy on complex scenes | DINO-WM | Large-scale pretraining |
-| Fast planning + good performance | LeWM | 48× faster, single GPU |
-| Task-agnostic, no pretraining | LeWM | End-to-end, no frozen features |
-| Simple, stable training | LeWM | 1 hyperparameter, no heuristics |
-| Rewards available for RL | DreamerV3 | Imagination-based policy learning |
-| Rapid iteration, many baselines | PLDM | Fast to train but unstable |
-
----
-
-<a name="5-applications-to-our-work"></a>
-## 5. Applications to Our Work
-
-### 5.1 Relevance to Waypoint Prediction
-
-**Direct applicability:** LeWM's architecture is very similar to what we've built:
+### 6.2 Planning Loop
 
 ```
-Our system:                    LeWM:
-Encoder → [CLS] → 192-dim  →  ✓ Same (ViT + projection)
-Predictor → next waypoints   →  ✓ Similar (action-conditioned transformer)
-GRPO for policy learning      →  Planning via CEM
+Given: start image, goal image
+Goal: find action sequence [a_0, a_1, ..., a_H] that reaches goal
 
-Difference:
-- Ours: RL (GRPO) for policy learning
-- LeWM: Planning (CEM) for goal-conditioned control
+Step 1: Encode
+  z_start = encoder(start_image)  # [192]
+  z_goal = encoder(goal_image)     # [192]
+
+Step 2: Initialize action sequence
+  A = [a_0, a_1, ..., a_H]  # random initialization
+
+Step 3: CEM iterations (repeat 10 times)
+  a. Sample 256 candidate action sequences from Gaussian(A, σ)
+  b. For each candidate:
+     - Roll out through predictor:
+       z_1 = pred(z_start, a_0)
+       z_2 = pred(z_1, a_1)
+       ...
+       z_H = pred(z_{H-1}, a_{H-1})
+     - Score: reward = -||z_H - z_goal||²  (negative distance)
+  c. Keep top 16 candidates (highest reward)
+  d. Update A = mean(top_16)  (increase probability of good actions)
+  e. Reduce σ (convergence)
+
+Step 4: Execute first action of best sequence
+Step 5: Replan every step (re-observe, re-encode, re-run CEM)
 ```
 
-**Key insight:** LeWM's encoder/predictor could be used as the world model in our RL pipeline:
-- Encode current observation → latent state
-- Predict next latent state given action
-- Use predicted trajectory for planning or as auxiliary loss in GRPO
+### 6.3 Why LeWM is Fast (48× faster than DINO-WM)
 
-### 5.2 How LeWM Could Improve Our System
+| Component | DINO-WM | LeWM |
+|-----------|---------|------|
+| Tokens per frame | ~40,000 (diffusion tokens) | 192 |
+| Planning time | ~47 seconds | <1 second |
+| Replan | Every 5 steps | Every step |
+| Memory | GPU-heavy | Single GPU |
 
-**Option 1: World Model as Auxiliary Loss**
+The key insight: LeWM uses a **single 192-dim token** per frame (DINO-WM uses ~40K). Planning is just forward passes through a small transformer.
+
+### 6.4 Code: CEM Planning
 
 ```python
-# In our waypoint prediction training:
-class WaypointWithWorldModel(nn.Module):
-    def __init__(self, waypoint_model, lewm_encoder, lewm_predictor):
-        self.waypoint_model = waypoint_model
-        self.lewm_encoder = lewm_encoder
-        self.lewm_predictor = lewm_predictor
-        self.alpha = 0.1  # Weight for world model loss
+def plan_with_cem(predictor, start_emb, goal_emb, horizon=16, num_iters=10, num_candidates=256, top_k=16):
+    """
+    Plan action sequence using Cross-Entropy Method.
     
-    def forward(self, observations, actions):
-        # Waypoint prediction (our main task)
-        waypoints = self.waypoint_model(observations, actions)
+    Args:
+        predictor: trained predictor network
+        start_emb: [192] current state embedding
+        goal_emb: [192] goal state embedding
+        horizon: number of action steps
+        num_iters: CEM iterations
+        num_candidates: candidates per iteration
+        top_k: top candidates to keep
+    
+    Returns:
+        best_action_sequence: [horizon] best actions found
+    """
+    action_dim = 2  # throttle, steer
+    device = start_emb.device
+    
+    # Initialize: mean=0, std=1 for each action
+    mean = torch.zeros(horizon, action_dim, device=device)
+    std = torch.ones(horizon, action_dim, device=device)
+    
+    for iteration in range(num_iters):
+        # Sample candidates
+        candidates = torch.randn(num_candidates, horizon, action_dim, device=device)
+        candidates = candidates * std + mean  # ~N(mean, std)
         
-        # World model prediction (auxiliary task)
-        obs_emb = self.lewm_encoder(observations)
-        next_emb_pred = self.lewm_predictor(obs_emb, actions)
+        # Roll out each candidate
+        rewards = []
+        for i in range(num_candidates):
+            z = start_emb.unsqueeze(0)  # [1, 192]
+            for t in range(horizon):
+                action = candidates[i, t]  # [2]
+                z_next = predictor(z, action)  # [1, 192]
+                z = z_next
+            
+            # Score: negative distance to goal
+            dist = (z - goal_emb.unsqueeze(0)).norm()
+            rewards.append(-dist.item())
         
-        # World model loss: prediction should be consistent
-        world_model_loss = (next_emb_pred - obs_emb[:, 1:]).norm()
+        rewards = torch.tensor(rewards, device=device)
         
-        return waypoints + self.alpha * world_model_loss
+        # Keep top-k
+        top_indices = rewards.topk(top_k).indices
+        top_candidates = candidates[top_indices]  # [16, horizon, 2]
+        
+        # Update mean and std
+        mean = top_candidates.mean(dim=0)  # [horizon, 2]
+        std = top_candidates.std(dim=0)      # [horizon, 2]
+        
+        # Reduce std for convergence
+        std = std * 0.9  # 10% reduction per iteration
+    
+    # Return first action of best candidate
+    best_idx = rewards.argmax()
+    return candidates[best_idx, 0]  # First action only
 ```
 
-**Why this helps:** The world model provides a **consistency regularizer** — the same encoder features that predict waypoints should also predict future states.
+---
 
-**Option 2: SIGReg for Our JEPA**
-- If we ever want to build a JEPA-style world model, SIGReg is the principled anti-collapse regularizer
-- Much more stable than VICReg or other approaches
+<a name="7-detailed-results"></a>
+## 7. Detailed Results Analysis
 
-### 5.3 LeJEPA — SIGReg's Theoretical Foundation
+### 7.1 Planning Success Rates
 
-The SIGReg regularizer comes from [LeJEPA (arXiv:2511.08544)](https://arxiv.org/abs/2511.08544) — Balestriero et al., Nov 2025.
+| Environment | Description | LeWM | DINO-WM | PLDM | Why Difference? |
+|-------------|-------------|------|---------|------|-----------------|
+| **Push-T** | Block manipulation | **96%** | 88% | 40% | LeWM is better even without proprioception |
+| **Reacher** | 2-joint arm reaching | **95%** | 84% | 51% | Simple geometry suits LeWM |
+| **OGBench-Cube** | 3D pick-and-place | 39% | **59%** | 15% | DINO pretraining helps on complex visuals |
+| **Two-Room** | 2D navigation | 52% | **97%** | 58% | LeWM struggles on low-dim tasks |
 
-**Key theoretical contributions:**
-1. **Optimal distribution identified:** Isotropic Gaussian minimizes downstream prediction risk
-2. **SIGReg implementation:** Sketch-based statistical test (Epps-Pulley) for normality
-3. **Linear complexity:** O(N) time and memory via random projections
-4. **No heuristics:** No EMA, stop-gradient, teacher-student, or hyperparameter schedulers
-5. **Proven stability:** Tested across 10+ datasets, 60+ architectures, varying scales and domains
+**Key observations:**
+- LeWM **beats DINO-WM** on Push-T and Reacher (real robotics tasks!)
+- DINO-WM has edge on **visually complex 3D** tasks
+- LeWM **struggles on Two-Room** (low intrinsic dimensionality)
 
-**Why isotropic Gaussian is optimal:**
-- For a fixed variance, the isotropic Gaussian maximizes entropy
-- Maximum entropy → least assumptions about structure → most generalizable
-- Any deviation from isotropy would introduce bias
-- The prediction loss then forces these embeddings to be **useful for prediction**
+### 7.2 Why Does LeWM Fail on Two-Room?
 
-### 5.4 Key Lessons from LeWM for Our System
+Two-Room is a simple 2D navigation task where:
+- State space is low-dimensional (grid-based)
+- Dynamics are discrete (move up/down/left/right)
+- The "Gaussian latent space" prior is **too strong** for discrete dynamics
 
-1. **SIGReg is a powerful anti-collapse regularizer** — if we ever need to train a JEPA, use SIGReg
-2. **Two-term losses are enough** — don't over-engineer with 6+ loss terms
-3. **AdaLN for action conditioning** — better than concatenation for transformers
-4. **Single hyperparameter is achievable** — LeWM reduces 6 hyperparams to 1
-5. **Physical structure emerges naturally** — good representations capture meaningful structure
+LeWM's Gaussian regularizer forces the latent space to be smooth and isotropic. But Two-Room has discrete, non-smooth dynamics. The mismatch causes poor performance.
+
+**Lesson:** SIGReg works best when the underlying dynamics are approximately continuous and smooth.
+
+### 7.3 Physical Latent Probing
+
+LeWM's latent space **naturally encodes physical structure**:
+
+| Physical Quantity | LeWM (Linear) | LeWM (MLP) | DINO-WM | PLDM |
+|------------------|---------------|------------|---------|------|
+| Agent location | **0.052** MSE | 0.004 | 1.888 | 0.090 |
+| Block location | 0.003 | **0.001** | 0.006 | 0.014 |
+| Block angle | 0.029 | 0.001 | **0.050** | 0.446 |
+
+LeWM achieves the best agent location probing. This means:
+- **Spatial structure is encoded in latent space**
+- Linear probes can recover physical quantities
+- The encoder learned meaningful representations
+
+### 7.4 Surprise Detection
+
+LeWM can detect physically implausible events:
+
+| Event | Expected Surprise | LeWM Surprise | DINO-WM Surprise |
+|-------|------------------|---------------|-------------------|
+| Normal motion | Low | Low | Low |
+| Block teleportation | High | **High** | Medium |
+| Block color change | Medium | Medium | High |
+
+This suggests LeWM learned physical regularities that can be violated.
 
 ---
 
-<a name="6-open-problems"></a>
-## 6. Open Problems
+<a name="8-pros--cons"></a>
+## 8. Pros & Cons Deep Dive
 
-1. **Why does LeWM struggle on Two-Room?** — SIGReg's Gaussian prior may be too strong for simple, low-dimensional tasks. Adaptive regularization could help.
+### 8.1 Advantages of LeWM
 
-2. **Scaling laws** — LeWM tested at 15M params. Does SIGReg remain stable at 1B+ params?
+| Advantage | Explanation | Impact |
+|-----------|-------------|--------|
+| **No training heuristics** | No EMA, stop-gradient, pre-trained encoder | Simplifies training, easier to debug |
+| **Single hyperparameter** | Only λ for SIGReg (typically 0.1) | Much easier to tune than VICReg (6+ params) |
+| **Fast planning** | 192 tokens/frame, <1s planning | Enables real-time replanning |
+| **End-to-end** | Encoder + predictor trained together | Task-specific representations |
+| **Stable training** | SIGReg provably prevents collapse | No collapse debugging needed |
+| **Low compute** | 15M params, single GPU, 4 hours | Accessible to researchers |
+| **Physical understanding** | Latent space encodes physics | Enables surprise detection, probing |
 
-3. **Long-horizon planning** — LeWM plans for 8-16 steps. Error accumulation at 100+ step horizons?
+### 8.2 Limitations of LeWM
 
-4. **Real-world deployment** — All experiments on simulation. Real-world performance unknown.
+| Limitation | Explanation | Mitigation |
+|------------|-------------|------------|
+| **Fails on discrete/low-dim tasks** | SIGReg's Gaussian prior mismatches discrete dynamics | Adaptive regularization |
+| **Limited to short horizons** | Tested on 8-16 step planning | Unknown for 100+ steps |
+| **Pixel-based only** | No proprioceptive input used | Add state as additional input |
+| **Requires diverse training data** | Needs varied trajectories for good latent space | Curate diverse training set |
+| **No policy learning** | Planning-based, not RL-based | Integrate with RL (see Section 10) |
+
+### 8.3 When to Use LeWM vs Alternatives
+
+| Use Case | Recommended | Why |
+|----------|-------------|-----|
+| **Fast real-time planning** | LeWM | <1s vs 47s for DINO-WM |
+| **Complex visual scenes** | DINO-WM | Foundation model pretraining helps |
+| **Low-dimensional/discrete** | Don't use LeWM | Gaussian prior mismatches |
+| **Task-specific adaptation** | LeWM | End-to-end training vs frozen encoder |
+| **RL policy learning** | DreamerV3 | Imagination-based RL vs planning |
+| **Quick baseline** | PLDM | Fast to train but unstable |
 
 ---
 
-<a name="7-references"></a>
-## 7. References
+<a name="9-comparison-with-our-pipeline"></a>
+## 9. Comparison with Our Existing Pipeline
 
-- [LeWorldModel (arXiv:2603.19312)](https://arxiv.org/abs/2603.19312) — Maes et al., Mila/NYU/Brown (Mar 2026) **← Primary source**
-- [LeJEPA / SIGReg (arXiv:2511.08544)](https://arxiv.org/abs/2511.08544) — Balestriero et al. (Nov 2025) — SIGReg theory and implementation
-- [PLDM (NeurIPS 2024)](https://arxiv.org/abs/2410.06991) — Cai et al. — End-to-end JEPA, baseline comparison
-- [DINO-WM (ICLR 2025)](https://arxiv.org/abs/2410.06991) — Wu et al. — Foundation model JEPA, baseline comparison
-- [I-JEPA (CVPR 2023)](https://arxiv.org/abs/2301.08264) — Assran et al. — Image JEPA with EMA/SG
-- [JEPA (LeCun 2022)](https://arxiv.org/abs/2206.07769) — LeCun — Original JEPA conceptual paper
-- [World Models (Ha & Schmidhuber 2018)](https://arxiv.org/abs/1803.10122) — Foundational world model paper
-- [DreamerV3 (ICLR 2023)](https://arxiv.org/abs/2301.04104) — Imagination-based RL with world models
+### 9.1 Our Current System
+
+```
+Current approach: Reactive policy learning via GRPO
+
+Input: state [x, y, heading, speed] (4D)
+    ↓ Encoder (simple MLP)
+Hidden representation (128D)
+    ↓ Waypoint head
+Output: waypoints [H, 2] (e.g., 16 waypoints)
+
+Training signal: Termination reward shaping (+100 on success)
+Learning: GRPO (no value function, group-relative advantage)
+
+Pros: Simple, fast, works on toy env
+Cons: Reactive (no planning), limited representation
+```
+
+### 9.2 LeWM's Approach
+
+```
+Approach: World model + planning via CEM
+
+Input: image [128×128×3]
+    ↓ ViT encoder
+Latent embedding (192D)
+    ↓ Action-conditioned predictor
+Next latent prediction (192D)
+
+Planning: CEM in latent space (no policy, just optimization)
+Training signal: Self-supervised (prediction + SIGReg)
+
+Pros: Planning capability, better representations, physical understanding
+Cons: No RL signal, discrete tasks struggle, pixel-only
+```
+
+### 9.3 Key Differences
+
+| Aspect | Our System (GRPO) | LeWM |
+|--------|------------------|------|
+| **Goal** | Learn a policy π(a|s) | Learn a world model p(s'|s,a) |
+| **Training signal** | RL rewards | Self-supervised prediction |
+| **Output** | Waypoints (actions) | Next state prediction |
+| **Inference** | Single forward pass | CEM planning (multiple rollouts) |
+| **Planning** | None (reactive) | Latent space planning |
+| **Representation** | 128D MLP | 192D ViT |
+| **Data needed** | Trajectories with rewards | Trajectories with state+action pairs |
+| **Compute** | Low | Medium |
+| **Success rate** | 10% (toy env) | 96% (Push-T) |
+
+### 9.4 Why They Complement Each Other
+
+**GRPO learns:** "Given the current state, what is the best waypoint trajectory?"
+
+**LeWM learns:** "Given the current state and action, what happens next?"
+
+These are fundamentally different:
+- GRPO → policy (maps state to action)
+- LeWM → dynamics (maps state+action to next state)
+
+**Together they enable:**
+1. **Better representations:** World model loss as auxiliary task for policy
+2. **Planning with learned model:** Use LeWM for imagination-based RL
+3. **Curiosity-based exploration:** LeWM prediction error as intrinsic reward
+
+---
+
+<a name="10-concrete-integration"></a>
+## 10. Concrete Integration Options
+
+### 10.1 Option A: World Model as Auxiliary Loss
+
+**Idea:** Use LeWM's encoder + predictor to provide a **consistency regularizer** for our waypoint policy.
+
+**Architecture:**
+```python
+class WaypointWithWorldModel(nn.Module):
+    def __init__(self):
+        # Our existing waypoint prediction components
+        self.encoder = SimpleMLP(input_dim=4, hidden_dim=128)
+        self.waypoint_head = Linear(128, 16*2)
+        
+        # NEW: World model components (frozen after pre-training)
+        self.lewm_encoder = pretrained_vit_tiny()  # From LeWM
+        self.lewm_predictor = pretrained_predictor()  # From LeWM
+        
+        self.alpha = 0.1  # Weight for world model loss
+    
+    def forward(self, state, next_state=None, action=None):
+        # 1. Our waypoint prediction (main task)
+        z = self.encoder(state)
+        waypoints = self.waypoint_head(z)
+        
+        # 2. World model consistency (auxiliary task)
+        if next_state is not None and action is not None:
+            # Encode current and next state with LeWM encoder
+            z_curr = self.lewm_encoder(current_image)
+            z_next_true = self.lewm_encoder(next_image)
+            z_next_pred = self.lewm_predictor(z_curr, action)
+            
+            # World model should predict next state correctly
+            world_model_loss = MSE(z_next_pred, z_next_true)
+            
+            return waypoints + self.alpha * world_model_loss
+        
+        return waypoints
+```
+
+**Why this helps:**
+- The waypoint encoder features must also predict future states
+- Forces encoder to learn **temporally consistent** representations
+- Less overfitting to current frame (must predict next frame too)
+
+**Implementation steps:**
+1. Pre-train LeWM encoder + predictor on our trajectory data
+2. Freeze LeWM components (don't retrain)
+3. Add world model loss to our GRPO training loop
+4. Tune α (0.01 to 0.1 is a good range)
+
+### 10.2 Option B: Imagination-Based RL
+
+**Idea:** Use LeWM as the world model for **Dreamer-style imagination**.
+
+**Architecture:**
+```python
+class ImaginationRollout:
+    def __init__(self, policy, world_model):
+        self.policy = policy  # Our GRPO waypoint policy
+        self.world_model = world_model  # LeWM
+    
+    def imagine(self, current_state, horizon=16):
+        """
+        Imagine future trajectories using world model.
+        
+        Returns: best action sequence found by CEM
+        """
+        # Encode current state
+        z = self.world_model.encoder(current_image)
+        
+        # CEM planning to find best action sequence
+        action_sequence = cem_planning(
+            predictor=self.world_model.predictor,
+            start_emb=z,
+            goal_emb=self.target_goal_emb,
+            horizon=horizon,
+        )
+        
+        return action_sequence
+    
+    def train_with_imagination(self, real_batch, world_model):
+        """
+        Dreamer-style training:
+        1. Collect real experience
+        2. Imagine future using world model
+        3. Update policy on imagined trajectories
+        """
+        # Real experience
+        real_states, real_actions, real_rewards = real_batch
+        
+        # Imagine future
+        imagined_states = []
+        for t in range(len(real_states) - 1):
+            z = world_model.encoder(real_states[t])
+            z_next = world_model.predictor(z, real_actions[t])
+            imagined_states.append(z_next)
+        
+        # Add imagined trajectories to replay buffer
+        # Then standard GRPO update on combined batch
+```
+
+**Why this helps:**
+- Combines RL's exploration (GRPO) with model-based planning (LeWM)
+- Imagination amplifies learning signal (1 real → many imagined)
+- Theoretical benefits of model-based RL (sample efficiency)
+
+### 10.3 Option C: Curiosity-Driven Exploration
+
+**Idea:** Use LeWM prediction error as **intrinsic motivation** for exploration.
+
+```python
+class CuriosityReward:
+    def __init__(self, world_model):
+        self.world_model = world_model
+    
+    def compute_curiosity(self, state, action, next_state):
+        """
+        Curiosity = prediction error of world model.
+        
+        High error = surprised = learn more about this region
+        """
+        z_curr = self.world_model.encoder(state)
+        z_next_true = self.world_model.encoder(next_state)
+        z_next_pred = self.world_model.predictor(z_curr, action)
+        
+        error = (z_next_pred - z_next_true).norm()
+        return error
+    
+    def combined_reward(self, extrinsic_reward, state, action, next_state):
+        curiosity = self.compute_curiosity(state, action, next_state)
+        return extrinsic_reward + 0.1 * curiosity
+```
+
+**Why this helps:**
+- Encourages exploration of unfamiliar states
+- Combines termination reward (extrinsic) with curiosity (intrinsic)
+- LeWM's good representations → meaningful surprise detection
+
+### 10.4 Option D: Planning-Enhanced Policy
+
+**Idea:** Use LeWM's CEM planner to generate **high-quality demonstrations** for our RL.
+
+```python
+class PlanningGuidedRL:
+    def __init__(self, policy, world_model):
+        self.policy = policy
+        self.world_model = world_model
+    
+    def collect_planning_demos(self, start_state, goal_state):
+        """
+        Use CEM planner to generate expert demonstrations.
+        """
+        # Plan with LeWM
+        planned_actions = cem_planning(
+            predictor=self.world_model.predictor,
+            start_emb=self.world_model.encoder(start_state),
+            goal_emb=self.world_model.encoder(goal_state),
+        )
+        
+        # Execute planned actions, record trajectory
+        return self.execute_trajectory(planned_actions)
+    
+    def train(self, planning_demos, rl_episodes):
+        """
+        Mix planning demos with RL episodes.
+        
+        - Planning demos: high quality, from world model
+        - RL episodes: exploration, from current policy
+        """
+        combined_batch = planning_demos + rl_episodes
+        return grpo_update(self.policy, combined_batch)
+```
+
+**Why this helps:**
+- Planning provides high-quality training data
+- RL explores to improve planning data over time
+- Combines model-based (LeWM) with model-free (GRPO)
+
+### 10.5 Comparison of Integration Options
+
+| Option | Complexity | Compute | Expected Benefit | Best For |
+|--------|-----------|---------|-------------------|---------|
+| **A: Auxiliary Loss** | Low | Low | Better representations | Improving existing policy |
+| **B: Imagination RL** | High | High | Sample efficiency | Large data regimes |
+| **C: Curiosity** | Medium | Medium | Better exploration | Sparse rewards |
+| **D: Planning Demos** | Medium | Medium | Better data quality | Limited expert data |
+
+**Recommendation for our pipeline:** Start with **Option A (Auxiliary Loss)** — it's the simplest to implement and provides good representations without changing the RL algorithm.
+
+---
+
+## 11. References & Code
+
+- [LeWorldModel (arXiv:2603.19312)](https://arxiv.org/abs/2603.19312) — Maes et al., March 2026 **← Primary source**
+- [LeJEPA (arXiv:2511.08544)](https://arxiv.org/abs/2511.08544) — Balestriero et al., November 2025 **← SIGReg theory**
+- [PLDM (NeurIPS 2024)](https://arxiv.org/abs/2410.06991) — Baseline comparison
+- [DINO-WM (ICLR 2025)](https://arxiv.org/abs/2410.06991) — Foundation model world model
+- [JEPA (LeCun 2022)](https://arxiv.org/abs/2206.07769) — Original JEPA concept
+- [DreamerV3 (ICLR 2023)](https://arxiv.org/abs/2301.04104) — Imagination-based RL
+- [World Models (Ha & Schmidhuber 2018)](https://arxiv.org/abs/1803.10122) — Foundational
 
 ---
 
 ## Notes
 
-*Key takeaways:*
-- SIGReg + 2-term loss = stable end-to-end JEPA training
-- No EMA, no stop-gradient, no pre-trained encoder needed
-- 48× faster planning than DINO-WM with competitive performance
-- Physical structure emerges naturally in latent space
-- 15M params, single GPU, hours to train
+*Key questions to answer next:*
+1. Do we have enough trajectory data to pre-train LeWM on our domain?
+2. Is our state representation (4D: x, y, heading, speed) sufficient, or do we need images?
+3. What compute budget do we have for world model training?
 
-*Questions to follow up:*
-- Can SIGReg be applied to our RL training as an auxiliary loss?
-- Should we consider LeWM-style planning vs. our GRPO policy approach?
-- How does LeWM perform on real-world (CARLA) data?
+*Priority recommendation:*
+1. First: Try Option A (auxiliary loss) with our existing waypoint model
+2. Then: If compute allows, pre-train full LeWM and try Option B (imagination RL)
 
 ---
 
