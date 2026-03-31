@@ -1,12 +1,16 @@
 # Status (ClawBot)
 
-_Last updated: 2026-03-30 (Pipeline PR #7)_
+_Last updated: 2026-03-31 (Pipeline PR #12)_
 
 ## Current focus
 Driving-first pipeline: **Waymo episodes → PyTorch SSL pretrain → waypoint BC → RL refinement → CARLA ScenarioRunner eval**.
 
 ## Daily Cadence
 
+- ✅ **Pipeline PR #12** (2026-03-31): CARLA Delta-Waypoint Evaluation
+- ✅ **Pipeline PR #11** (2026-03-30): PPO Delta-Waypoint Training with Real SFT
+- ✅ **Pipeline PR #10** (2026-03-30): Unified Eval with Real SFT Checkpoint
+- ✅ **Pipeline PR #9** (2026-03-30): Real SFT Checkpoint Loader
 - ✅ **Pipeline PR #8** (2026-03-30): Unified Eval Runner + Metrics Integration
 - ✅ **Pipeline PR #7** (2026-03-30): SFT vs RL Waypoint Comparison
 - ✅ **Pipeline PR #6** (2026-03-30): RL Refinement Evaluation + Metrics Hardening
@@ -15,6 +19,22 @@ Driving-first pipeline: **Waymo episodes → PyTorch SSL pretrain → waypoint B
 - ⏳ **Pipeline PR #8** (2026-02-17): CARLA Closed-Loop Waypoint BC Evaluation - awaiting review
 
 ## Recent changes
+
+### Pipeline PR #12: CARLA Delta-Waypoint Evaluation (2026-03-31)
+- **Created: `sim/driving/carla_srunner/run_delta_waypoint_eval.py`**
+  - DeltaWaypointPolicyForCarla: loads SFT checkpoint + RL delta head
+  - Supports residual learning: final_waypoints = sft_waypoints + delta_scale * delta
+  - Integrates with CARLA ScenarioRunner for closed-loop evaluation
+  - Toy environment fallback for testing without CARLA
+  - Schema-compliant metrics.json output (ADE, FDE, route_completion, collisions, comfort)
+  - CLI: --sft-checkpoint, --rl-checkpoint, --delta-scale, --episodes, --dry-run
+
+- **Test results (dry-run, 3 episodes)**:
+  - ADE: 5.100m, FDE: 5.240m, route_completion: 0.898
+  - Output: out/carla_delta_eval/metrics.json
+
+- **Branch:** `feature/daily-2026-03-31-a`
+- **Commit:** `c4ea6cd` — 1 file, 647 insertions
 
 ### Pipeline PR #7: SFT vs RL Waypoint Comparison (2026-03-30)
 - **Created: `training/rl/eval_sft_rl_comparison.py`**
@@ -48,7 +68,65 @@ Driving-first pipeline: **Waymo episodes → PyTorch SSL pretrain → waypoint B
 - **Branch:** `feature/daily-2026-03-30-c`
 - **Commit:** `b2a3c91` — 1 file, ~380 lines
 
+### Pipeline PR #9: Real SFT Checkpoint Loader (2026-03-30)
+- **Created: `training/rl/sft_checkpoint_loader.py`**
+  - Real SFT model architecture matching `train_waypoint_bc_with_metrics.py`
+  - Loads from `AIResearch-repo/out/waypoint_bc/best_model.pt`
+  - Handles `latent_dim=512`, `num_waypoints=4` from checkpoint
+  - `SFTCheckpointAdapter` for eval framework compatibility
+  - Extracts train_loss and eval_ADE metrics from checkpoint
+
+- **Test results:**
+  - Model: WaypointSFTWithDeltaModel (latent_dim=512, num_waypoints=4)
+  - Train losses: [1.129, 1.056, 1.025...]
+  - Eval ADE: [1.294, 1.270, 1.247...]
+  - Forward pass works with delta_scale=0.0 and delta_scale=1.0
+
+- **Branch:** `feature/daily-2026-03-30-d`
+- **Commit:** `f0886d1` — 1 file, 380 insertions, 367 deletions
+
 - **Run output:** `out/eval/unified_eval_20260330-103559/`
+
+### Pipeline PR #10: Unified Eval with Real SFT Checkpoint (2026-03-30)
+- **Created: `training/rl/unified_eval_real_sft.py`**
+  - Connects real SFT checkpoint to unified eval framework
+  - Uses `sft_checkpoint_loader.load_real_sft_checkpoint()` 
+  - Integrates `WaypointSFTWithDeltaModel` for proper architecture
+  - Supports delta scales 0.0 (SFT only) and 1.0 (SFT + delta)
+  - Outputs schema-compliant metrics.json (domain=real_sft_eval)
+  - Includes `RealSFTWaypointPolicy` and `RealSFTWithDeltaPolicy`
+  - Reports checkpoint_info (latent_dim, num_waypoints, train_loss, eval_ADE)
+
+- **Branch:** `feature/daily-2026-03-30-e`
+- **Commit:** `f6d144d` — 1 file, 500 insertions
+
+- **Next:** Run eval to verify real SFT model works in toy environment
+
+### Pipeline PR #11: PPO Delta-Waypoint Training with Real SFT (2026-03-30)
+- **Created: `training/rl/train_ppo_rl_sft_delta.py`**
+  - PPO agent loads real SFT waypoint model from checkpoint
+  - Freezes SFT model, trains delta head with residual learning
+  - Architecture: final_waypoints = sft_waypoints + delta_head(z)
+  - Uses toy waypoint environment with random latent features
+  - Outputs to out/rl_ppo_delta_sft/run_<timestamp>/:
+    - checkpoint.pt (policy + optimizer state)
+    - metrics.json (run_id, config, sft_info, final_metrics)
+    - train_metrics.json (training curve)
+
+- **Fixed: `training/rl/sft_checkpoint_loader.py`**
+  - Properly loads WaypointBCModel from checkpoint
+  - Handles latent_dim=512 from model_config.json
+  - Loads metrics from checkpoint + config
+
+- **Test results:**
+  - SFT model: WaypointBCModel, latent_dim=512, num_waypoints=4
+  - Train loss: 0.9555, Eval ADE: 1.2031
+  - Training rewards improved: -3.179 → -2.844
+
+- **Branch:** `feature/daily-2026-03-30-f`
+- **Commit:** `52cb510` — 2 files, 884 insertions, 17 deletions
+
+- **Run output:** `out/rl_ppo_delta_sft/run_20260330-194055/`
 
 ### Pipeline PR #6: RL Refinement Evaluation + Metrics Hardening (2026-03-30)
 - **Created: `training/rl/eval_toy_waypoint_rl.py`**
@@ -90,12 +168,12 @@ Driving-first pipeline: **Waymo episodes → PyTorch SSL pretrain → waypoint B
   - metrics.json with training curve
 
 ## Next (top 3)
-1. Add proper SFT checkpoint loading (connect to training/bc checkpoints)
-2. Train delta head in toy env to show RL improvement
-3. Integrate eval scripts with eval_metrics_loader.py
+1. Run delta-waypoint eval with real SFT + RL checkpoints
+2. Add CARLA town scenarios (Town01, Town02)
+3. Integrate with ScenarioRunner for full closed-loop
 
 ## Blockers / questions for owner
-- PR reviews pending for #1, #9, #8, #5, #6
+- PR reviews pending for #1, #10, #9, #8, #5, #6, #12
 
 ## Architecture Reference
 
