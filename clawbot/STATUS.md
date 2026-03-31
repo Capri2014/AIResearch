@@ -1,24 +1,79 @@
 # Status (ClawBot)
 
-_Last updated: 2026-03-31 (Pipeline PR #12)_
+_Last updated: 2026-03-31 (Pipeline PR #15)_
 
 ## Current focus
 Driving-first pipeline: **Waymo episodes → PyTorch SSL pretrain → waypoint BC → RL refinement → CARLA ScenarioRunner eval**.
 
 ## Daily Cadence
 
+- ✅ **Pipeline PR #15** (2026-03-31): CARLA Evaluation Integration Layer
+- ✅ **Pipeline PR #14** (2026-03-31): Route Planner + Scenario Generator
+- ✅ **Pipeline PR #13** (2026-03-31): Multi-Town CARLA Evaluation
 - ✅ **Pipeline PR #12** (2026-03-31): CARLA Delta-Waypoint Evaluation
 - ✅ **Pipeline PR #11** (2026-03-30): PPO Delta-Waypoint Training with Real SFT
 - ✅ **Pipeline PR #10** (2026-03-30): Unified Eval with Real SFT Checkpoint
 - ✅ **Pipeline PR #9** (2026-03-30): Real SFT Checkpoint Loader
-- ✅ **Pipeline PR #8** (2026-03-30): Unified Eval Runner + Metrics Integration
-- ✅ **Pipeline PR #7** (2026-03-30): SFT vs RL Waypoint Comparison
-- ✅ **Pipeline PR #6** (2026-03-30): RL Refinement Evaluation + Metrics Hardening
 - ⏳ **Pipeline PR #1** (2026-02-18): RL Checkpoint Selection with Policy Entropy - awaiting review
 - ⏳ **Pipeline PR #9** (2026-02-17): Evaluation + Metrics Hardening for RL Refinement - awaiting review
 - ⏳ **Pipeline PR #8** (2026-02-17): CARLA Closed-Loop Waypoint BC Evaluation - awaiting review
 
 ## Recent changes
+
+### Pipeline PR #15: CARLA Evaluation Integration Layer (2026-03-31)
+- **Created: `sim/driving/carla_srunner/eval_integration.py`**
+  - Unified entry point for route planning + multi-town evaluation
+  - Generates routes and scenarios via route_planner.py
+  - Runs evaluation with SFT + RL delta checkpoint loading
+  - Schema-compliant metrics.json output (ADE, FDE, route_completion)
+  - CLI: --towns, --num-routes, --num-scenarios, --episodes, --sft-checkpoint, --rl-checkpoint, --delta-scale, --dry-run
+
+- **Test results (dry-run, 2 towns, 3 routes each, 2 episodes per town)**:
+  - Town01: ADE=8.197m, FDE=8.175m, route_completion=0.769
+  - Town02: ADE=5.512m, FDE=13.185m, route_completion=0.836
+  - Aggregate: ADE=6.855m, FDE=10.68m, route_completion=0.803
+
+- **Branch:** `feature/daily-2026-03-31-d`
+- **Commit:** `b3e2a1c` — 1 file, ~450 insertions
+
+- **Output:** `out/carla_eval_integration/metrics.json`
+
+### Pipeline PR #14: CARLA Route Planner and Scenario Generator (2026-03-31)
+- **Created: `sim/driving/carla_srunner/route_planner.py`**
+  - CarlaRoutePlanner class for generating routes and scenarios
+  - Town waypoints for Town01-05 with diverse route definitions
+  - Weather presets: clear_noon, clear_evening, cloudy, rain_light, rain_heavy, fog_morning, night
+  - Traffic density: low, medium, high
+  - Time of day: day, night, dawn, dusk
+  - Outputs schema-compliant scenarios JSON
+  - CLI: --towns, --num-routes, --num-scenarios, --weather-variation, --traffic-variation, --time-variation, --seed, --dry-run
+
+- **Test results (dry-run, 2 towns, 5 routes each, 10 scenarios)**:
+  - Weather: clear_noon=3, clear_evening=1, cloudy=1, rain_light=1, rain_heavy=1, fog_morning=1, night=2
+  - Traffic: low=5, medium=3, high=2
+  - Output: out/route_planner/scenarios_dryrun_1774978515.json
+
+- **Branch:** `feature/daily-2026-03-31-c`
+- **Commit:** `b12b2aa` — 1 file, 540 insertions
+
+### Pipeline PR #13: Multi-Town CARLA Evaluation (2026-03-31)
+- **Created: `sim/driving/carla_srunner/run_multi_town_eval.py`**
+  - Multi-town evaluation across CARLA towns (Town01, Town02, etc.)
+  - Per-town metrics: ADE, FDE, route_completion, collisions
+  - Aggregate summary across all towns
+  - Supports SFT + RL delta checkpoint loading
+  - Dry-run mode for testing without CARLA
+  - CLI: --towns, --episodes, --sft-checkpoint, --rl-checkpoint, --delta-scale
+
+- **Test results (dry-run, 2 towns, 3 episodes each)**:
+  - Town01: ADE=8.264m ± 1.405m, FDE=12.108m, route_completion=0.785
+  - Town02: ADE=7.344m ± 0.649m, FDE=9.991m, route_completion=0.809
+  - Aggregate: ADE=7.804m ± 0.460m
+
+- **Branch:** `feature/daily-2026-03-31-b`
+- **Commit:** `b1c112c` — 1 file, 420 insertions
+
+- **Output:** `out/carla_multi_town_eval/metrics.json`
 
 ### Pipeline PR #12: CARLA Delta-Waypoint Evaluation (2026-03-31)
 - **Created: `sim/driving/carla_srunner/run_delta_waypoint_eval.py`**
@@ -168,8 +223,8 @@ Driving-first pipeline: **Waymo episodes → PyTorch SSL pretrain → waypoint B
   - metrics.json with training curve
 
 ## Next (top 3)
-1. Run delta-waypoint eval with real SFT + RL checkpoints
-2. Add CARLA town scenarios (Town01, Town02)
+1. Run multi-town eval with real SFT + RL checkpoints in CARLA
+2. Add more CARLA towns (Town03, Town04, Town05)
 3. Integrate with ScenarioRunner for full closed-loop
 
 ## Blockers / questions for owner
