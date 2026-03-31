@@ -2,7 +2,8 @@
 
 **Paper:** [arXiv:2308.04079](https://arxiv.org/abs/2308.04079) — Kerbl et al. (Inria/Milla & Monaco labs), SIGGRAPH 2023  
 **Reference impl:** [graphdeco-inria/gaussian-splatting](https://github.com/graphdeco-inria/gaussian-splatting)  
-**Status:** Public anchor — foundational method
+**Status:** Public anchor — foundational method  
+**Last reviewed:** March 31, 2026
 
 ---
 
