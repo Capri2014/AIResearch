@@ -1,12 +1,13 @@
 # Status (ClawBot)
 
-_Last updated: 2026-03-31 (Pipeline PR #15)_
+_Last updated: 2026-03-31 (Pipeline PR #16)_
 
 ## Current focus
 Driving-first pipeline: **Waymo episodes → PyTorch SSL pretrain → waypoint BC → RL refinement → CARLA ScenarioRunner eval**.
 
 ## Daily Cadence
 
+- ✅ **Pipeline PR #16** (2026-03-31): Kinematics Waypoint Environment + PPO Delta
 - ✅ **Pipeline PR #15** (2026-03-31): CARLA Evaluation Integration Layer
 - ✅ **Pipeline PR #14** (2026-03-31): Route Planner + Scenario Generator
 - ✅ **Pipeline PR #13** (2026-03-31): Multi-Town CARLA Evaluation
@@ -19,6 +20,33 @@ Driving-first pipeline: **Waymo episodes → PyTorch SSL pretrain → waypoint B
 - ⏳ **Pipeline PR #8** (2026-02-17): CARLA Closed-Loop Waypoint BC Evaluation - awaiting review
 
 ## Recent changes
+
+### Pipeline PR #16: Kinematics Waypoint Environment + PPO Delta (2026-03-31)
+- **Created: `training/rl/kinematics_waypoint_env.py`**
+  - KinematicBicycleModel: simple 2D vehicle dynamics with steering limits
+  - WaypointFollower: pure pursuit for speed/steering commands
+  - KinematicsWaypointEnv: environment that consumes predicted waypoints
+  - Proper kinematics: waypoints → speed/steering → simulation → metrics
+  - Computes ADE, FDE, success, max_accel, max_jerk
+
+- **Created: `training/rl/train_ppo_kinematics_delta.py`**
+  - SFTWaypointModel: frozen SFT baseline predictor
+  - DeltaWaypointHead: residual delta network (trainable)
+  - DeltaWaypointPolicy: combines SFT + delta_scale * delta
+  - SimplePPOAgent: trains only delta head while SFT frozen
+
+- **Design (Option B):** final_waypoints = sft_waypoints + delta_scale * delta
+
+- **Test results (10 iterations, batch=16, steps=50)**:
+  - Initial reward: -115.68
+  - Final reward: -108.49
+  - Improvement: +6.23%
+  - Final loss: 0.946
+
+- **Branch:** `feature/daily-2026-03-31-e`
+- **Commit:** `2b9cb26` — 2 files, ~1050 insertions
+
+- **Output:** `out/ppo_kinematics_delta_sft/run_20260331-173000/`
 
 ### Pipeline PR #15: CARLA Evaluation Integration Layer (2026-03-31)
 - **Created: `sim/driving/carla_srunner/eval_integration.py`**
