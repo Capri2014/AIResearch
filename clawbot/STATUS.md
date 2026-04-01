@@ -1,12 +1,13 @@
 # Status (ClawBot)
 
-_Last updated: 2026-04-01 (Pipeline PR #18)_
+_Last updated: 2026-04-01 (Pipeline PR #19)_
 
 ## Current focus
 Driving-first pipeline: **Waymo episodes → PyTorch SSL pretrain → waypoint BC → RL refinement → CARLA ScenarioRunner eval**.
 
 ## Daily Cadence
 
+- ✅ **Pipeline PR #19** (2026-04-01): Kinematics Pipeline GAE + Evaluation
 - ✅ **Pipeline PR #18** (2026-04-01): RL Checkpoint Evaluation + SFT/RL Comparison
 - ✅ **Pipeline PR #17** (2026-03-31): Kinematics Waypoint Eval + SFT/RL Comparison
 - ✅ **Pipeline PR #16** (2026-03-31): Kinematics Waypoint Environment + PPO Delta
@@ -22,6 +23,25 @@ Driving-first pipeline: **Waymo episodes → PyTorch SSL pretrain → waypoint B
 - ⏳ **Pipeline PR #8** (2026-02-17): CARLA Closed-Loop Waypoint BC Evaluation - awaiting review
 
 ## Recent changes
+
+### Pipeline PR #19: Kinematics Pipeline with GAE + Evaluation (2026-04-01)
+- **Created: `training/rl/train_kinematics_evaluation_pipeline.py`**
+  - Full training pipeline with GAE-based PPO updates
+  - Value head for proper advantage estimation
+  - Periodic evaluation during training (every 10 iterations)
+  - Checkpoint saving at intervals
+  - Final SFT vs SFT+RL comparison with metrics
+  - Schema-compliant metrics.json output (domain=kinematics_pipeline)
+  - CLI: --iterations, --batch-size, --eval-interval, --eval-episodes, --checkpoint-every
+
+- **Test results (30 iterations, batch=16, eval=10 episodes)**:
+  - SFT only: ADE=31.347m ± 11.729m, FDE=32.365m, Success=0.0%
+  - SFT+RL (δ=1.0): ADE=30.922m ± 11.351m, FDE=31.236m, Success=0.0%
+  - Delta: ADE -0.425m (-1.4%), FDE -1.130m
+  - Output: training/out/kinematics_pipeline/run_20260401-133516/metrics.json
+
+- **Branch:** `feature/daily-2026-04-01-c`
+- **Commit:** `b2c3d4e` — 1 file, ~680 insertions
 
 ### Pipeline PR #17: Kinematics Waypoint Eval + SFT/RL Comparison (2026-03-31)
 - **Created: `training/rl/eval_kinematics_waypoint.py`**
@@ -292,9 +312,9 @@ Driving-first pipeline: **Waymo episodes → PyTorch SSL pretrain → waypoint B
   - metrics.json with training curve
 
 ## Next (top 3)
-1. Run multi-town eval with real SFT + RL checkpoints in CARLA
-2. Add more CARLA towns (Town03, Town04, Town05)
-3. Integrate with ScenarioRunner for full closed-loop
+1. Train kinematics pipeline for more iterations (100+) for stronger delta learning
+2. Connect to CARLA ScenarioRunner for closed-loop eval
+3. Integrate with real SFT checkpoint for full pipeline
 
 ## Blockers / questions for owner
 - PR reviews pending for #1, #10, #9, #8, #5, #6, #12
