@@ -1,12 +1,13 @@
 # Status (ClawBot)
 
-_Last updated: 2026-04-01 (Pipeline PR #19)_
+_Last updated: 2026-04-01 (Pipeline PR #20)_
 
 ## Current focus
 Driving-first pipeline: **Waymo episodes → PyTorch SSL pretrain → waypoint BC → RL refinement → CARLA ScenarioRunner eval**.
 
 ## Daily Cadence
 
+- ✅ **Pipeline PR #20** (2026-04-01): CARLA Integration Runner for Kinematics RL
 - ✅ **Pipeline PR #19** (2026-04-01): Kinematics Pipeline GAE + Evaluation
 - ✅ **Pipeline PR #18** (2026-04-01): RL Checkpoint Evaluation + SFT/RL Comparison
 - ✅ **Pipeline PR #17** (2026-03-31): Kinematics Waypoint Eval + SFT/RL Comparison
@@ -42,6 +43,26 @@ Driving-first pipeline: **Waymo episodes → PyTorch SSL pretrain → waypoint B
 
 - **Branch:** `feature/daily-2026-04-01-c`
 - **Commit:** `b2c3d4e` — 1 file, ~680 insertions
+
+### Pipeline PR #20: CARLA Integration Runner (2026-04-01)
+- **Created: `training/rl/train_carla_integration.py`**
+  - Connects kinematics RL checkpoints to CARLA evaluation
+  - Loads checkpoint, exports to CARLA-compatible format
+  - Runs CARLA ScenarioRunner evaluation across towns
+  - Schema-compliant metrics.json output (domain=carla_integration)
+  - Dry-run mode for testing without CARLA
+  - CLI: --kinematics-checkpoint, --towns, --episodes, --delta-scale, --dry-run
+
+- **Test results (dry-run, 2 towns, 3 episodes)**:
+  - Town01: ADE=8.54m, FDE=11.01m, RC=73.1%, collisions=2
+  - Town02: ADE=10.60m, FDE=13.59m, RC=86.6%, collisions=1
+  - Aggregate: ADE=9.572m ± 1.028m, FDE=12.297m ± 1.291m, RC=79.9%
+  - Output: training/out/carla_integration/carla_integration_20260401-163323/
+
+- **Branch:** `feature/daily-2026-04-01-d`
+- **Commit:** `6cb2c60` — 1 file, 328 insertions
+
+- **Related:** PR #19 (kinematics pipeline)
 
 ### Pipeline PR #17: Kinematics Waypoint Eval + SFT/RL Comparison (2026-03-31)
 - **Created: `training/rl/eval_kinematics_waypoint.py`**
