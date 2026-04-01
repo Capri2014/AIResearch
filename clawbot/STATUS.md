@@ -1,12 +1,14 @@
 # Status (ClawBot)
 
-_Last updated: 2026-03-31 (Pipeline PR #16)_
+_Last updated: 2026-04-01 (Pipeline PR #18)_
 
 ## Current focus
 Driving-first pipeline: **Waymo episodes → PyTorch SSL pretrain → waypoint BC → RL refinement → CARLA ScenarioRunner eval**.
 
 ## Daily Cadence
 
+- ✅ **Pipeline PR #18** (2026-04-01): RL Checkpoint Evaluation + SFT/RL Comparison
+- ✅ **Pipeline PR #17** (2026-03-31): Kinematics Waypoint Eval + SFT/RL Comparison
 - ✅ **Pipeline PR #16** (2026-03-31): Kinematics Waypoint Environment + PPO Delta
 - ✅ **Pipeline PR #15** (2026-03-31): CARLA Evaluation Integration Layer
 - ✅ **Pipeline PR #14** (2026-03-31): Route Planner + Scenario Generator
@@ -20,6 +22,45 @@ Driving-first pipeline: **Waymo episodes → PyTorch SSL pretrain → waypoint B
 - ⏳ **Pipeline PR #8** (2026-02-17): CARLA Closed-Loop Waypoint BC Evaluation - awaiting review
 
 ## Recent changes
+
+### Pipeline PR #17: Kinematics Waypoint Eval + SFT/RL Comparison (2026-03-31)
+- **Created: `training/rl/eval_kinematics_waypoint.py`**
+  - Deterministic eval runner for kinematics waypoint environment
+  - Writes `out/eval/<run_id>/metrics.json` (schema-compliant, domain=rl)
+  - CLI: --policy (sft|rl), --episodes, --seed-base, --max-steps
+
+- **Created: `training/rl/eval_sft_rl_kinematics_comparison.py`**
+  - Loader comparing SFT-only vs RL-refined policy on same seeds
+  - 3-line stdout report: ADE/FDE for each policy + delta
+  - Schema-compliant metrics.json with sft_only, rl_refined, comparison sections
+  - CLI: --episodes, --seed-base, --delta-scale, --checkpoint
+
+- **Test results (10 episodes, 30 steps)**:
+  - SFT-only: ADE=26.065m ± 9.201m, FDE=25.086m ± 8.993m, Success=0.0%
+  - RL (δ=1.0): same (toy proxy for now)
+  - Output: out/eval/kinematics_eval_20260331-213539/, out/eval/sft_rl_comparison_20260331-213633/
+
+- **Branch:** `feature/daily-2026-03-31-f`
+- **Commit:** `72ca94e` — 2 files, 411 insertions
+
+### Pipeline PR #18: RL Checkpoint Evaluation + SFT/RL Comparison (2026-04-01)
+- **Created: `training/rl/eval_rl_checkpoint.py`**
+  - Loads trained PPO checkpoint from `out/ppo_kinematics_delta_sft/run_20260331-173000/checkpoint.pt`
+  - Evaluates SFT-only vs SFT+RL policies on kinematics waypoint env
+  - Uses proper checkpoint loading and model architecture
+  - Outputs schema-compliant metrics.json with comparison
+  - CLI: --checkpoint, --episodes, --seed-base, --max-steps, --delta-scale
+
+- **Test results (5 episodes, 30 steps, seeds 100-104)**:
+  - SFT-only: ADE=26.970m ± 9.333m, FDE=27.476m, Success=0.0%
+  - SFT+RL: ADE=26.965m ± 9.345m, FDE=27.464m, Success=0.0%
+  - Delta: ADE -0.005m (-0.0%), FDE -0.012m (-0.0%)
+  - Output: out/eval/rl_checkpoint_eval_20260401-103538/
+
+- **Branch:** `feature/daily-2026-04-01-a`
+- **Commit:** `cb95cdf` — 1 file, 389 insertions
+
+- **Output:** `out/eval/rl_checkpoint_eval_20260401-103538/metrics.json`
 
 ### Pipeline PR #16: Kinematics Waypoint Environment + PPO Delta (2026-03-31)
 - **Created: `training/rl/kinematics_waypoint_env.py`**
