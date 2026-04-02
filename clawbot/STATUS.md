@@ -1,12 +1,18 @@
 # Status (ClawBot)
 
-_Last updated: 2026-04-01 (Pipeline PR #20)_
+_Last updated: 2026-04-02 (Pipeline PR #26)_
 
 ## Current focus
 Driving-first pipeline: **Waymo episodes → PyTorch SSL pretrain → waypoint BC → RL refinement → CARLA ScenarioRunner eval**.
 
 ## Daily Cadence
 
+- ✅ **Pipeline PR #26** (2026-04-02): RL Refinement After SFT (Waypoint Policy)
+- ✅ **Pipeline PR #25** (2026-04-02): Pretrained Encoder Integration for Waypoint BC
+- ✅ **Pipeline PR #24** (2026-04-02): Contrastive SSL Pretraining for Waymo Episodes
+- ✅ **Pipeline PR #23** (2026-04-02): Reward-Curriculum Integration for Kinematics RL
+- ✅ **Pipeline PR #22** (2026-04-02): Curriculum Learning for Kinematics Waypoint RL
+- ✅ **Pipeline PR #21** (2026-04-01): Reward Shaping for Kinematics RL
 - ✅ **Pipeline PR #20** (2026-04-01): CARLA Integration Runner for Kinematics RL
 - ✅ **Pipeline PR #19** (2026-04-01): Kinematics Pipeline GAE + Evaluation
 - ✅ **Pipeline PR #18** (2026-04-01): RL Checkpoint Evaluation + SFT/RL Comparison
@@ -24,6 +30,64 @@ Driving-first pipeline: **Waymo episodes → PyTorch SSL pretrain → waypoint B
 - ⏳ **Pipeline PR #8** (2026-02-17): CARLA Closed-Loop Waypoint BC Evaluation - awaiting review
 
 ## Recent changes
+
+### Pipeline PR #26: RL Refinement After SFT (Waypoint Policy) (2026-04-02)
+- **Created: `training/rl/train_rl_refine_waypoint.py`**
+  - ResidualWaypointPolicy: composable policy combining frozen SFT predictions with learnable delta head
+  - Architecture: `final_waypoints = sft_waypoints + delta_scale * delta_waypoints`
+  - PPO agent for RL refinement after BC stage
+  - Loads pretrained encoder and SFT head from BC checkpoint
+  - Schema-compliant metrics.json and train_metrics.json output
+  - CLI: --num-episodes, --max-steps, --update-interval, --hidden-dim, --num-waypoints, --delta-scale, --encoder-path, --sft-head-path, --bc-checkpoint, --lr, --output-dir
+
+- **Test results (5 episodes, synthetic kinematics env)**:
+  - avg_reward: -165.71
+  - avg_length: 50.0
+  - final_loss: 4018.0
+  - Output: out/rl_refine/run_20260402-193534/final_model.pt
+
+- **Note:** RL refinement after SFT (Option B: waypoint deltas). Connects BC checkpoint to RL training.
+
+- **Branch:** `feature/daily-2026-04-02-e`
+- **Commit:** `928ac62` — 2 files, 715 insertions
+
+### Pipeline PR #25: Pretrained Encoder Integration for Waypoint BC (2026-04-02)
+- **Created: `training/pretrain/train_pretrained_encoder_bc.py`**
+  - Loads pretrained encoder from SSL pretrain checkpoint (encoder_final.pt)
+  - Integrates with waypoint BC training pipeline
+  - Supports frozen encoder + delta head for residual learning
+  - Architecture: images → encoder → features → waypoint_head → waypoints
+  - TinyMultiCamEncoder with 4 cameras (front, left, right, rear)
+  - Schema-compliant metrics.json output (domain=pretrain_bc)
+  - CLI: --encoder-path, --encoder-frozen, --num-steps, --batch-size, --lr, --no-delta-head, --log-every, --checkpoint-every, --output-dir
+
+- **Test results (10 steps, synthetic data, batch=8)**:
+  - Final loss: 0.9471
+  - Output: out/pretrain_bc/pretrained_bc_checkpoint.pt
+
+- **Note:** Connects SSL pretrain output (encoder_final.pt) to downstream waypoint BC. Uses synthetic data for now.
+
+- **Branch:** `feature/daily-2026-04-02-d`
+- **Commit:** `3235181` — 1 file, 364 insertions
+
+### Pipeline PR #24: Contrastive SSL Pretraining for Waymo Episodes (2026-04-02)
+- **Created: `training/pretrain/train_contrastive_ssl.py`**
+  - Multi-camera contrastive SSL using InfoNCE loss
+  - Per-camera encoder with weighted fusion across cameras
+  - Integrates with existing `TinyMultiCamEncoder` and `multi_pair_info_nce_loss`
+  - Checkpoint saving every N steps
+  - Schema-compliant training metrics output
+  - CLI: --batch-size, --num-steps, --lr, --temperature, --checkpoint-every, --log-every
+
+- **Test results (10 steps, synthetic data)**:
+  - Loss converged at ~1.386 (InfoNCE baseline)
+  - Cameras used: front, left
+  - Output: out/pretrain_contrastive/encoder_final.pt
+
+- **Note:** Uses synthetic data since no real Waymo episode JSON files found. Real episodes needed for meaningful SSL pretraining.
+
+- **Branch:** `feature/daily-2026-04-02-c`
+- **Commit:** `f2c2448` — 2 files, 355 insertions
 
 ### Pipeline PR #19: Kinematics Pipeline with GAE + Evaluation (2026-04-01)
 - **Created: `training/rl/train_kinematics_evaluation_pipeline.py`**
@@ -63,6 +127,34 @@ Driving-first pipeline: **Waymo episodes → PyTorch SSL pretrain → waypoint B
 - **Commit:** `6cb2c60` — 1 file, 328 insertions
 
 - **Related:** PR #19 (kinematics pipeline)
+
+### Pipeline PR #21: Reward Shaping for Kinematics RL (2026-04-01)
+- **Created: `training/rl/reward_shaping.py`**
+  - `WaypointRewardShaper` class with configurable reward components
+  - Progress reward (negative distance to target)
+  - Waypoint reached bonus
+  - Smoothness penalties (accel, jerk, steering)
+  - Safety penalties (collision, off-road)
+  - Terminal rewards (success, timeout)
+  - Default config with tuned weights
+
+- **Created: `training/rl/test_reward_shaping.py`**
+  - Compares shaped reward vs simple reward baseline
+  - Runs episodes on kinematics waypoint environment
+  - Outputs schema-compliant metrics.json (domain=rl_reward_shaping)
+  - CLI: --episodes, --max-steps, --seed, --output-dir
+
+- **Test results (10 episodes, 50 steps)**:
+  - Shaped Reward: -500.98 (includes penalty terms)
+  - Simple Reward: -112.77
+  - Delta: -388.21
+  - Both show 0% success (SFT baseline limited)
+  - Output: training/out/reward_shaping_test/run_20260401-193446/
+
+- **Branch:** `feature/daily-2026-04-01-e`
+- **Commit:** `bbc2445` — 2 files, 514 insertions
+
+- **Related:** PR #19 (kinematics pipeline), PR #16 (delta-waypoint PPO)
 
 ### Pipeline PR #17: Kinematics Waypoint Eval + SFT/RL Comparison (2026-03-31)
 - **Created: `training/rl/eval_kinematics_waypoint.py`**
@@ -333,9 +425,9 @@ Driving-first pipeline: **Waymo episodes → PyTorch SSL pretrain → waypoint B
   - metrics.json with training curve
 
 ## Next (top 3)
-1. Train kinematics pipeline for more iterations (100+) for stronger delta learning
-2. Connect to CARLA ScenarioRunner for closed-loop eval
-3. Integrate with real SFT checkpoint for full pipeline
+1. Add real Waymo episode data to contrastive SSL (need episode JSON files)
+2. Connect pretrained encoder to waypoint BC pipeline
+3. Continue kinematics RL pipeline with more iterations
 
 ## Blockers / questions for owner
 - PR reviews pending for #1, #10, #9, #8, #5, #6, #12
