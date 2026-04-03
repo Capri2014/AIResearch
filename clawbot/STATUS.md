@@ -1,12 +1,14 @@
 # Status (ClawBot)
 
-_Last updated: 2026-04-03 (Pipeline PR #28)_
+_Last updated: 2026-04-03 (Pipeline PR #30)_
 
 ## Current focus
 Driving-first pipeline: **Waymo episodes → PyTorch SSL pretrain → waypoint BC → RL refinement → CARLA ScenarioRunner eval**.
 
 ## Daily Cadence
 
+- ✅ **Pipeline PR #30** (2026-04-03): Kinematics Waypoint RL Wrapper for PPO
+- ✅ **Pipeline PR #29** (2026-04-03): Synthetic Episode Generator for Waymo-Style Data
 - ✅ **Pipeline PR #28** (2026-04-03): CARLA ScenarioRunner Agent for Closed-Loop Evaluation
 - ✅ **Pipeline PR #27** (2026-04-03): CARLA Evaluation Sweeper for Delta Scale Sweep
 - ✅ **Pipeline PR #26** (2026-04-02): RL Refinement After SFT (Waypoint Policy)
@@ -32,6 +34,50 @@ Driving-first pipeline: **Waymo episodes → PyTorch SSL pretrain → waypoint B
 - ⏳ **Pipeline PR #8** (2026-02-17): CARLA Closed-Loop Waypoint BC Evaluation - awaiting review
 
 ## Recent changes
+
+### Pipeline PR #30: Kinematics Waypoint RL Wrapper for PPO (2026-04-03)
+- **Created: `training/rl/kinematics_waypoint_rl_wrapper.py`**
+  - WaypointRLRewardShaper: shapes rewards for RL (progress, waypoint bonus, smoothness penalty, terminal rewards)
+  - KinematicsWaypointRLWrapper: RL-compatible wrapper for KinematicsWaypointEnv
+  - Provides (obs, reward, done, info) interface suitable for PPO training
+  - Tracks episode-level reward breakdowns for analysis
+  - CLI: --episodes, --max-steps, --seed, --output-dir
+  - Schema-compliant metrics.json output (domain=rl_wrapper)
+
+- **Test results (5 episodes, 30 steps, random baseline)**:
+  - Mean reward: -90.35 ± 26.86
+  - All episodes failed (baseline random waypoints)
+  - Output: out/rl_wrapper_test_20260403/
+
+- **Note:** Connects kinematics environment to RL training loop. Ready for PPO training integration.
+
+- **Branch:** `feature/daily-2026-04-03-e`
+- **Commit:** `kinematics_waypoint_rl_wrapper.py` — 1 file, ~400 lines
+
+- **Output:** `out/rl_wrapper_test_20260403/metrics.json`
+
+### Pipeline PR #29: Synthetic Episode Generator for Waymo-Style Data (2026-04-03)
+- **Created: `data/waymo/generate_synthetic_episodes.py`**
+  - Generates episode JSON files following episode.json schema
+  - Multi-camera observations (front, left, right, rear)
+  - Expert waypoints in ego frame (8-step horizon, 5m spacing)
+  - Configurable difficulty: easy (straight), medium (light curves), hard (tight turns)
+  - Supports --num-episodes, --frames, --cameras, --horizon-steps, --difficulty, --validate
+  - Generated 25 episodes (1000 frames) in data/waymo/episodes/
+
+- **Test results (25 episodes, 50 frames each)**:
+  - Easy: 8 episodes, straight-line trajectories
+  - Medium: 6 episodes, gentle curves
+  - Hard: 11 episodes, tight turns, higher speed
+
+- **Note:** Provides Waymo-style episode data for downstream SSL pretraining.
+
+- **Branch:** `feature/daily-2026-04-03-d`
+- **Commit:** `6f3d112` — 1 file, 361 insertions
+
+- **PR URL:** https://github.com/Capri2014/AIResearch/pull/new/feature/daily-2026-04-03-d
+
+- **Output:** `data/waymo/episodes/syn_42_*.json`
 
 ### Pipeline PR #27: CARLA Evaluation Sweeper for Delta Scale Sweep (2026-04-03)
 - **Created: `sim/driving/carla_srunner/eval_sweeper.py`**
@@ -450,7 +496,7 @@ Driving-first pipeline: **Waymo episodes → PyTorch SSL pretrain → waypoint B
   - metrics.json with training curve
 
 ## Next (top 3)
-1. Add real Waymo episode data to contrastive SSL (need episode JSON files)
+1. Integrate synthetic episodes with contrastive SSL training (train_contrastive_ssl.py)
 2. Connect pretrained encoder to waypoint BC pipeline
 3. Continue kinematics RL pipeline with more iterations
 
