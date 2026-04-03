@@ -1,12 +1,13 @@
 # Status (ClawBot)
 
-_Last updated: 2026-04-02 (Pipeline PR #26)_
+_Last updated: 2026-04-03 (Pipeline PR #27)_
 
 ## Current focus
 Driving-first pipeline: **Waymo episodes → PyTorch SSL pretrain → waypoint BC → RL refinement → CARLA ScenarioRunner eval**.
 
 ## Daily Cadence
 
+- ✅ **Pipeline PR #27** (2026-04-03): CARLA Evaluation Sweeper for Delta Scale Sweep
 - ✅ **Pipeline PR #26** (2026-04-02): RL Refinement After SFT (Waypoint Policy)
 - ✅ **Pipeline PR #25** (2026-04-02): Pretrained Encoder Integration for Waypoint BC
 - ✅ **Pipeline PR #24** (2026-04-02): Contrastive SSL Pretraining for Waymo Episodes
@@ -30,6 +31,29 @@ Driving-first pipeline: **Waymo episodes → PyTorch SSL pretrain → waypoint B
 - ⏳ **Pipeline PR #8** (2026-02-17): CARLA Closed-Loop Waypoint BC Evaluation - awaiting review
 
 ## Recent changes
+
+### Pipeline PR #27: CARLA Evaluation Sweeper for Delta Scale Sweep (2026-04-03)
+- **Created: `sim/driving/carla_srunner/eval_sweeper.py`**
+  - Systematic evaluation across delta scale configurations (0.0, 0.5, 1.0, 1.5)
+  - Multi-town evaluation (Town01-Town05)
+  - Reports ADE, FDE, route_completion, collisions, success_rate
+  - Aggregate metrics by delta scale and by town
+  - Best configuration identification
+  - Dry-run mode for simulation
+  - Schema-compliant metrics.json output (domain=carla_sweep)
+  - CLI: --towns, --delta-scales, --episodes, --dry-run, --verbose
+
+- **Test results (dry-run, 2 towns × 4 deltas = 8 configs)**:
+  - Best ADE: Town01 δ=1.5 → 6.749m
+  - Best RC: Town02 δ=1.5 → 92.1%
+  - Aggregate δ=1.0: ADE=8.085m, RC=82.0%
+
+- **Note:** Enables systematic hyperparameter sweep for delta scale tuning.
+
+- **Branch:** `feature/daily-2026-04-03-a`
+- **Commit:** `8bcaec4` — 1 file, 458 insertions
+
+- **Output:** `out/carla_sweeper/run_1775219706/`
 
 ### Pipeline PR #26: RL Refinement After SFT (Waypoint Policy) (2026-04-02)
 - **Created: `training/rl/train_rl_refine_waypoint.py`**
