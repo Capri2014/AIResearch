@@ -1,13 +1,13 @@
 # Status (ClawBot)
 
-_Last updated: 2026-04-01 (Pipeline PR #18)_
+_Last updated: 2026-04-02 (Pipeline PR #6 — daily cadence)_
 
 ## Current focus
 Driving-first pipeline: **Waymo episodes → PyTorch SSL pretrain → waypoint BC → RL refinement → CARLA ScenarioRunner eval**.
 
 ## Daily Cadence
 
-- ✅ **Pipeline PR #18** (2026-04-01): RL Checkpoint Evaluation + SFT/RL Comparison
+- ✅ **Pipeline PR #6** (2026-04-02): Deterministic Eval Runner + Metrics Hardening
 - ✅ **Pipeline PR #17** (2026-03-31): Kinematics Waypoint Eval + SFT/RL Comparison
 - ✅ **Pipeline PR #16** (2026-03-31): Kinematics Waypoint Environment + PPO Delta
 - ✅ **Pipeline PR #15** (2026-03-31): CARLA Evaluation Integration Layer
@@ -22,6 +22,31 @@ Driving-first pipeline: **Waymo episodes → PyTorch SSL pretrain → waypoint B
 - ⏳ **Pipeline PR #8** (2026-02-17): CARLA Closed-Loop Waypoint BC Evaluation - awaiting review
 
 ## Recent changes
+
+### Pipeline PR #6: Deterministic Eval Runner + Metrics Hardening (2026-04-02)
+- **Created: `training/rl/run_deterministic_eval.py`**
+  - Deterministic evaluation of SFT vs RL-refined policies on toy waypoint env
+  - Validates metrics against `data/schema/metrics.json` (domain="driving")
+  - Runs N episodes with fixed seeds, outputs schema-compliant metrics.json
+  - CLI: --episodes, --seed-base, --policy (sft|rl_refined), --output-dir
+
+- **Created: `training/rl/compare_policies.py`**
+  - Loader comparing SFT-only vs RL-refined policy on same seeds
+  - 3-line stdout report with ADE/FDE/Success/Route/Comfort deltas
+  - Saves comparison.json to out/eval/
+
+- **Test results (10 episodes, seeds 100-109)**:
+  - SFT: ADE=13.53m, FDE=15.66m, Success=0%, Route=47.3%, MaxJerk=292.97
+  - RL:  ADE=13.45m, FDE=15.65m, Success=0%, Route=47.1%, MaxJerk=284.12
+  - Delta: ADE↓0.08m, FDE↓0.01m, MaxJerk↓8.85
+  - RL shows modest improvements in comfort metrics
+
+- **Schema validation:** Both outputs pass ✅
+
+- **Branch:** `feature/daily-2026-04-01-a`
+- **Commit:** `e4f43bb` — 5 files, 642 insertions
+
+- **Output:** `out/eval/sft_eval_20260402-213332/metrics.json`, `out/eval/rl_refined_eval_20260402-213335/metrics.json`, `out/eval/comparison_20260402-213349/comparison.json`
 
 ### Pipeline PR #17: Kinematics Waypoint Eval + SFT/RL Comparison (2026-03-31)
 - **Created: `training/rl/eval_kinematics_waypoint.py`**
