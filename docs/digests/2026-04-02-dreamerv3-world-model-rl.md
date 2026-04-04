@@ -14,7 +14,7 @@
 - For **driving**, the driving-specific instantiation (GAIA-1, UniSim) swaps pixel reconstruction for discretized video tokens, enabling *action-conditioned future video generation* rather than latent-space RL planning — closer to Ashok's "video+action → next video" simulator claim.
 - **Multi-camera consistency** requires shared geometry + joint tokenization or cross-view attention to prevent view drift across long rollouts; a shared BEV or 3D latent is the most robust approach.
 
-> **Updated April 2, 2026** — PR #4 public anchor digest (8:00pm PT)
+> **Updated April 3, 2026** — PR #4 public anchor digest (8:00pm PT)
 
 ---
 
