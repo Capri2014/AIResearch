@@ -1,13 +1,13 @@
 # Status (ClawBot)
 
-_Last updated: 2026-04-03 (Pipeline PR #30)_
+_Last updated: 2026-04-04 (Pipeline PR #31)_
 
 ## Current focus
 Driving-first pipeline: **Waymo episodes → PyTorch SSL pretrain → waypoint BC → RL refinement → CARLA ScenarioRunner eval**.
 
 ## Daily Cadence
 
-- ✅ **Pipeline PR #6** (2026-04-03): RL Refinement Evaluation + Metrics Hardening (SFT vs RL Comparison)
+- ✅ **Pipeline PR #31** (2026-04-04): Contrastive SSL with Synthetic Waymo Episodes
 - ✅ **Pipeline PR #30** (2026-04-03): Kinematics Waypoint RL Wrapper for PPO
 - ✅ **Pipeline PR #29** (2026-04-03): Synthetic Episode Generator for Waymo-Style Data
 - ✅ **Pipeline PR #28** (2026-04-03): CARLA ScenarioRunner Agent for Closed-Loop Evaluation
@@ -35,6 +35,35 @@ Driving-first pipeline: **Waymo episodes → PyTorch SSL pretrain → waypoint B
 - ⏳ **Pipeline PR #8** (2026-02-17): CARLA Closed-Loop Waypoint BC Evaluation - awaiting review
 
 ## Recent changes
+
+### Pipeline PR #31: Contrastive SSL with Synthetic Waymo Episodes (2026-04-04)
+- **Created: `data/waymo/generate_synthetic_images.py`**
+  - Generates synthetic camera images for Waymo-style episodes
+  - Creates 800x600 images with procedural road/sky patterns
+  - Different patterns per camera (front/left/right/rear)
+  - Supports parallel processing for speed
+  - Generated 4,160 images across 22 episodes
+
+- **Created: `training/pretrain/train_contrastive_ssl_synthetic.py`**
+  - `SyntheticEpisodesDataset` for multi-camera frame loading
+  - `TinyMultiCamEncoder` with per-camera encoders
+  - `multi_camera_simclr_loss` - SimCLR-style contrastive loss
+  - Treats different cameras as different "views" of the same scene
+  - Positives: other cameras at same frame; Negatives: all other frames
+  - CLI: --episodes-dir, --images-dir, --batch-size, --num-steps, --lr, --temperature
+
+- **Test results (50 steps, batch=8)**:
+  - Loss: 12.73 → 3.33 (converged)
+  - Output: out/pretrain_contrastive_full/encoder_final.pt
+
+- **Note:** Connects synthetic episode generation to actual SSL pretraining.
+
+- **Branch:** `feature/daily-2026-04-04-a`
+- **Commit:** `8347352`
+
+- **PR URL:** https://github.com/Capri2014/AIResearch/pull/new/feature/daily-2026-04-04-a
+
+- **Output:** `out/pretrain_contrastive_full/encoder_final.pt`
 
 ### Pipeline PR #6: RL Refinement Evaluation + Metrics Hardening (SFT vs RL Comparison) (2026-04-03)
 - **Ran deterministic evaluation on toy waypoint environment**
