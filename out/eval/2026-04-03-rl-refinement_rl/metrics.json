@@ -1,0 +1,330 @@
+{
+  "run_id": "2026-04-03-rl-refinement_rl",
+  "domain": "rl",
+  "timestamp": "2026-04-03T21:33:09",
+  "git": {
+    "repo": "git@github.com:Capri2014/AIResearch.git",
+    "commit": "992fcba438321084c824b95babfe31da4ce66319",
+    "branch": "feature/daily-2026-04-01-a"
+  },
+  "policy": {
+    "name": "toy_waypoint_rl",
+    "type": "rl"
+  },
+  "scenarios": [
+    {
+      "scenario_id": "seed:42",
+      "success": false,
+      "ade": 3.173984694480896,
+      "fde": 19.80689239501953,
+      "route_completion": 0.6,
+      "return": 5.099263735115528,
+      "steps": 50,
+      "num_waypoints_reached": 12,
+      "final_dist": 19.80689239501953,
+      "comfort": {
+        "max_accel": 0.39710068702697754,
+        "max_jerk": 0.36625152826309204
+      }
+    },
+    {
+      "scenario_id": "seed:43",
+      "success": false,
+      "ade": 15.807796287536622,
+      "fde": 43.16164779663086,
+      "route_completion": 0.4,
+      "return": 4.455195177346468,
+      "steps": 50,
+      "num_waypoints_reached": 8,
+      "final_dist": 43.16164779663086,
+      "comfort": {
+        "max_accel": 0.39710068702697754,
+        "max_jerk": 0.36625152826309204
+      }
+    },
+    {
+      "scenario_id": "seed:44",
+      "success": false,
+      "ade": 7.601137351989746,
+      "fde": 18.463687896728516,
+      "route_completion": 0.5,
+      "return": 7.262425389140844,
+      "steps": 50,
+      "num_waypoints_reached": 10,
+      "final_dist": 18.463687896728516,
+      "comfort": {
+        "max_accel": 0.39710068702697754,
+        "max_jerk": 0.36625149846076965
+      }
+    },
+    {
+      "scenario_id": "seed:45",
+      "success": false,
+      "ade": 5.952769088745117,
+      "fde": 11.712093353271484,
+      "route_completion": 0.4,
+      "return": 4.519921272993088,
+      "steps": 50,
+      "num_waypoints_reached": 8,
+      "final_dist": 11.712093353271484,
+      "comfort": {
+        "max_accel": 0.39710068702697754,
+        "max_jerk": 0.36625152826309204
+      }
+    },
+    {
+      "scenario_id": "seed:46",
+      "success": false,
+      "ade": 13.068258571624757,
+      "fde": 50.92028045654297,
+      "route_completion": 0.45,
+      "return": 7.859649263322353,
+      "steps": 50,
+      "num_waypoints_reached": 9,
+      "final_dist": 50.92028045654297,
+      "comfort": {
+        "max_accel": 0.39710044860839844,
+        "max_jerk": 0.36625152826309204
+      }
+    },
+    {
+      "scenario_id": "seed:47",
+      "success": false,
+      "ade": 19.928454399108887,
+      "fde": 42.64247131347656,
+      "route_completion": 0.35,
+      "return": 4.047916121780872,
+      "steps": 50,
+      "num_waypoints_reached": 7,
+      "final_dist": 42.64247131347656,
+      "comfort": {
+        "max_accel": 0.39710068702697754,
+        "max_jerk": 0.36625152826309204
+      }
+    },
+    {
+      "scenario_id": "seed:48",
+      "success": false,
+      "ade": 24.33354535102844,
+      "fde": 68.33726501464844,
+      "route_completion": 0.35,
+      "return": 4.0479155741631985,
+      "steps": 50,
+      "num_waypoints_reached": 7,
+      "final_dist": 68.33726501464844,
+      "comfort": {
+        "max_accel": 0.39710044860839844,
+        "max_jerk": 0.3662514388561249
+      }
+    },
+    {
+      "scenario_id": "seed:49",
+      "success": false,
+      "ade": 23.481052541732787,
+      "fde": 60.20094299316406,
+      "route_completion": 0.35,
+      "return": 4.047913704067469,
+      "steps": 50,
+      "num_waypoints_reached": 7,
+      "final_dist": 60.20094299316406,
+      "comfort": {
+        "max_accel": 0.39710044860839844,
+        "max_jerk": 0.36625149846076965
+      }
+    },
+    {
+      "scenario_id": "seed:50",
+      "success": false,
+      "ade": 9.003160333633422,
+      "fde": 39.14623260498047,
+      "route_completion": 0.55,
+      "return": 6.396106913685799,
+      "steps": 50,
+      "num_waypoints_reached": 11,
+      "final_dist": 39.14623260498047,
+      "comfort": {
+        "max_accel": 0.39710068702697754,
+        "max_jerk": 0.36625152826309204
+      }
+    },
+    {
+      "scenario_id": "seed:51",
+      "success": false,
+      "ade": 14.656671524047852,
+      "fde": 57.226985931396484,
+      "route_completion": 0.5,
+      "return": 6.834641430526972,
+      "steps": 50,
+      "num_waypoints_reached": 10,
+      "final_dist": 57.226985931396484,
+      "comfort": {
+        "max_accel": 0.39710068702697754,
+        "max_jerk": 0.3662515878677368
+      }
+    },
+    {
+      "scenario_id": "seed:52",
+      "success": false,
+      "ade": 14.221028280258178,
+      "fde": 27.932924270629883,
+      "route_completion": 0.35,
+      "return": 4.047917425632477,
+      "steps": 50,
+      "num_waypoints_reached": 7,
+      "final_dist": 27.932924270629883,
+      "comfort": {
+        "max_accel": 0.39710068702697754,
+        "max_jerk": 0.3662515878677368
+      }
+    },
+    {
+      "scenario_id": "seed:53",
+      "success": false,
+      "ade": 4.163779449462891,
+      "fde": 7.761264801025391,
+      "route_completion": 0.4,
+      "return": 5.087549094110727,
+      "steps": 50,
+      "num_waypoints_reached": 8,
+      "final_dist": 7.761264801025391,
+      "comfort": {
+        "max_accel": 0.39710068702697754,
+        "max_jerk": 0.36625152826309204
+      }
+    },
+    {
+      "scenario_id": "seed:54",
+      "success": false,
+      "ade": 16.340377426147462,
+      "fde": 30.782489776611328,
+      "route_completion": 0.35,
+      "return": 4.047915417701006,
+      "steps": 50,
+      "num_waypoints_reached": 7,
+      "final_dist": 30.782489776611328,
+      "comfort": {
+        "max_accel": 0.39710068702697754,
+        "max_jerk": 0.36625149846076965
+      }
+    },
+    {
+      "scenario_id": "seed:55",
+      "success": false,
+      "ade": 12.954822158813476,
+      "fde": 48.93163299560547,
+      "route_completion": 0.45,
+      "return": 6.989667385816574,
+      "steps": 50,
+      "num_waypoints_reached": 9,
+      "final_dist": 48.93163299560547,
+      "comfort": {
+        "max_accel": 0.39710044860839844,
+        "max_jerk": 0.3662514388561249
+      }
+    },
+    {
+      "scenario_id": "seed:56",
+      "success": false,
+      "ade": 15.999125337600708,
+      "fde": 47.8465690612793,
+      "route_completion": 0.35,
+      "return": 4.047914784401655,
+      "steps": 50,
+      "num_waypoints_reached": 7,
+      "final_dist": 47.8465690612793,
+      "comfort": {
+        "max_accel": 0.39710044860839844,
+        "max_jerk": 0.36625149846076965
+      }
+    },
+    {
+      "scenario_id": "seed:57",
+      "success": false,
+      "ade": 23.745656490325928,
+      "fde": 62.2498779296875,
+      "route_completion": 0.35,
+      "return": 4.047917064279318,
+      "steps": 50,
+      "num_waypoints_reached": 7,
+      "final_dist": 62.2498779296875,
+      "comfort": {
+        "max_accel": 0.39710068702697754,
+        "max_jerk": 0.3662515878677368
+      }
+    },
+    {
+      "scenario_id": "seed:58",
+      "success": false,
+      "ade": 1.0679691314697266,
+      "fde": 13.245784759521484,
+      "route_completion": 0.85,
+      "return": 22.596562277525663,
+      "steps": 50,
+      "num_waypoints_reached": 17,
+      "final_dist": 13.245784759521484,
+      "comfort": {
+        "max_accel": 0.45180416107177734,
+        "max_jerk": 0.383247971534729
+      }
+    },
+    {
+      "scenario_id": "seed:59",
+      "success": false,
+      "ade": 7.321626663208008,
+      "fde": 21.486478805541992,
+      "route_completion": 0.55,
+      "return": 7.106023773550987,
+      "steps": 50,
+      "num_waypoints_reached": 11,
+      "final_dist": 21.486478805541992,
+      "comfort": {
+        "max_accel": 0.39710044860839844,
+        "max_jerk": 0.3662514388561249
+      }
+    },
+    {
+      "scenario_id": "seed:60",
+      "success": false,
+      "ade": 8.419417762756348,
+      "fde": 14.578962326049805,
+      "route_completion": 0.35,
+      "return": 4.047915201634169,
+      "steps": 50,
+      "num_waypoints_reached": 7,
+      "final_dist": 14.578962326049805,
+      "comfort": {
+        "max_accel": 0.39710068702697754,
+        "max_jerk": 0.36625149846076965
+      }
+    },
+    {
+      "scenario_id": "seed:61",
+      "success": false,
+      "ade": 19.31755452156067,
+      "fde": 45.54302215576172,
+      "route_completion": 0.35,
+      "return": 4.047916632145643,
+      "steps": 50,
+      "num_waypoints_reached": 7,
+      "final_dist": 45.54302215576172,
+      "comfort": {
+        "max_accel": 0.39710068702697754,
+        "max_jerk": 0.36625149846076965
+      }
+    }
+  ],
+  "summary": {
+    "ade_mean": 13.027909368276596,
+    "ade_std": 6.85187311986259,
+    "fde_mean": 36.59887533187866,
+    "fde_std": 18.339902199553368,
+    "success_rate": 0.0,
+    "return_mean": 6.03191238194704,
+    "return_std": 4.025235551121182,
+    "num_episodes": 20,
+    "max_accel_mean": 0.3998357892036438,
+    "max_accel_std": 0.01192236217067544,
+    "max_jerk_mean": 0.3671013370156288,
+    "max_jerk_std": 0.003704292007983302
+  }
+}
