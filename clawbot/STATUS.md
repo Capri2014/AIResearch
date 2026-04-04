@@ -7,6 +7,7 @@ Driving-first pipeline: **Waymo episodes → PyTorch SSL pretrain → waypoint B
 
 ## Daily Cadence
 
+- ✅ **Pipeline PR #6** (2026-04-03): RL Refinement Evaluation + Metrics Hardening (SFT vs RL Comparison)
 - ✅ **Pipeline PR #30** (2026-04-03): Kinematics Waypoint RL Wrapper for PPO
 - ✅ **Pipeline PR #29** (2026-04-03): Synthetic Episode Generator for Waymo-Style Data
 - ✅ **Pipeline PR #28** (2026-04-03): CARLA ScenarioRunner Agent for Closed-Loop Evaluation
@@ -34,6 +35,26 @@ Driving-first pipeline: **Waymo episodes → PyTorch SSL pretrain → waypoint B
 - ⏳ **Pipeline PR #8** (2026-02-17): CARLA Closed-Loop Waypoint BC Evaluation - awaiting review
 
 ## Recent changes
+
+### Pipeline PR #6: RL Refinement Evaluation + Metrics Hardening (SFT vs RL Comparison) (2026-04-03)
+- **Ran deterministic evaluation on toy waypoint environment**
+  - 20 episodes comparing SFT-only vs RL-refined policy on same seeds (42-61)
+  - Output: `out/eval/2026-04-03-rl-refinement_{sft,rl}/metrics.json`
+  - Schema validation: both pass against `data/schema/metrics.json`
+
+- **Results (ADE/FDE improvements)**:
+  - ADE: 13.305m (SFT) → 13.028m (RL) = 2.1% improvement
+  - FDE: 37.166m (SFT) → 36.599m (RL) = 1.5% improvement
+  - Success rate: 0% both (hard env, different seed range needed for success)
+
+- **Note:** Establishes eval baseline for RL refinement after SFT waypoint BC.
+
+- **Branch:** `feature/daily-2026-04-01-a`
+- **Commit:** `2651bb6` — 2 files (metrics.json outputs)
+
+- **PR:** Skipped - gh not authenticated. Branch pushed, user can create PR manually.
+
+- **Output:** `out/eval/2026-04-03-rl-refinement_{sft,rl}/metrics.json`
 
 ### Pipeline PR #30: Kinematics Waypoint RL Wrapper for PPO (2026-04-03)
 - **Created: `training/rl/kinematics_waypoint_rl_wrapper.py`**
