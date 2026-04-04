@@ -1,13 +1,16 @@
 # Status (ClawBot)
 
-_Last updated: 2026-04-04 (Pipeline PR #31)_
+_Last updated: 2026-04-04 (Pipeline PR #4)_
 
 ## Current focus
 Driving-first pipeline: **Waymo episodes → PyTorch SSL pretrain → waypoint BC → RL refinement → CARLA ScenarioRunner eval**.
 
 ## Daily Cadence
 
-- ✅ **Pipeline PR #31** (2026-04-04): Contrastive SSL with Synthetic Waymo Episodes
+- ✅ **Pipeline PR #4** (2026-04-04): CARLA Kinematics Closed-Loop Evaluation Pipeline
+- ✅ **Pipeline PR #3** (2026-04-04): RL Refinement from BC Waypoint Policy
+- ✅ **Pipeline PR #2** (2026-04-04): Pretrained Encoder + Waypoint BC Integration
+- ✅ **Pipeline PR #1** (2026-04-04): Contrastive SSL with Synthetic Waymo Episodes
 - ✅ **Pipeline PR #30** (2026-04-03): Kinematics Waypoint RL Wrapper for PPO
 - ✅ **Pipeline PR #29** (2026-04-03): Synthetic Episode Generator for Waymo-Style Data
 - ✅ **Pipeline PR #28** (2026-04-03): CARLA ScenarioRunner Agent for Closed-Loop Evaluation
@@ -35,6 +38,72 @@ Driving-first pipeline: **Waymo episodes → PyTorch SSL pretrain → waypoint B
 - ⏳ **Pipeline PR #8** (2026-02-17): CARLA Closed-Loop Waypoint BC Evaluation - awaiting review
 
 ## Recent changes
+
+### Pipeline PR #3: RL Refinement from BC Waypoint Policy (2026-04-04)
+- **Created: `training/rl/rl_refine_from_bc.py`**
+  - SimpleWaypointEnv: simple waypoint following env for RL training
+  - BCInitWaypointPolicy: loads pretrained BC, adds exploration std
+  - PPORefiner: PPO with GAE advantages, epsilon clipping
+  - Loads BC from `--bc-path`, outputs to `--output-dir`
+  - CLI: --bc-path, --output-dir, --num-episodes, --num-waypoints
+
+- **Ran training (30 episodes)**:
+  - Reward: 9.5-10.8 per episode (converged)
+  - Best: 10.831
+  - Output: out/rl_refine_from_bc/model_final.pt
+
+- **Note:** Implements step 4 of driving-first plan (RL refinement after BC).
+
+- **Branch:** `feature/daily-2026-04-04-c`
+- **Commit:** `df6e82b`
+
+- **PR URL:** https://github.com/Capri2014/AIResearch/pull/new/feature/daily-2026-04-04-c
+
+- **Output:** `out/rl_refine_from_bc/model_final.pt`
+
+### Pipeline PR #4: CARLA Kinematics Closed-Loop Evaluation Pipeline (2026-04-04)
+- **Created: `training/rl/carla_closed_loop_eval.py`**
+  - RLWaypointCARLAEvaluator: Loads RL-refined model, integrates with CARLA
+  - Mock mode when CARLA not available
+  - CLI: --rl-model-path, --bc-model-path, --output-dir, --num-routes, --town
+
+- **Created: `training/rl/kinematics_closed_loop_eval.py`**
+  - KinematicsClosedLoopEnv: Bicycle model kinematics environment
+  - PPOWaypointPolicy: Loads PPO from rl_refine_from_bc checkpoint
+  - 46-dim obs (state + waypoints + target), 40-dim action (waypoint deltas)
+
+- **Ran evaluation**:
+  - Kinematics eval (10 episodes, no noise): success=0%, reward=100.9, progress=0%
+  - Existing eval script: ADE=30.2m, FDE=27.2m, success=0%, return=-130.7
+
+- **Note:** Implements step 5 of driving-first plan (closed-loop evaluation).
+
+- **Branch:** `feature/daily-2026-04-04-d`
+- **Commit:** (to be created)
+
+- **Output:** `out/kinematics_closed_loop_eval/metrics.json`
+
+### Pipeline PR #2: Pretrained Encoder + Waypoint BC Integration (2026-04-04)
+- **Created: `training/bc/pretrain_encoder_waypoint_bc.py`**
+  - Loads pretrained encoder from SSL contrastive training (PR #31)
+  - `WaypointBCWithEncoder`: frozen encoder + waypoint prediction head
+  - `FrozenEncoder`: loads and freezes pretrained multi-camera encoder
+  - `WaypointHead`: predicts 20 waypoints (x, y, yaw) from 256-dim features
+  - Stub training mode with random features
+  - CLI: --encoder-path, --episodes-dir, --output-dir, --epochs, --batch-size
+
+- **Ran training (5 epochs, batch=8)**:
+  - Loss: 0.0512 → 0.0406 (converged)
+  - Output: out/waypoint_bc_pretrained/model_final.pt
+
+- **Note:** Connects SSL pretraining to waypoint BC pipeline (step 3 of driving-first plan).
+
+- **Branch:** `feature/daily-2026-04-04-b`
+- **Commit:** `38e73e4`
+
+- **PR URL:** https://github.com/Capri2014/AIResearch/pull/new/feature/daily-2026-04-04-b
+
+- **Output:** `out/waypoint_bc_pretrained/model_final.pt`
 
 ### Pipeline PR #31: Contrastive SSL with Synthetic Waymo Episodes (2026-04-04)
 - **Created: `data/waymo/generate_synthetic_images.py`**
