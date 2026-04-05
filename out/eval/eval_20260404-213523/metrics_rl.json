@@ -1,0 +1,137 @@
+{
+  "run_id": "eval_20260404-213523_rl",
+  "domain": "rl",
+  "policy": {
+    "name": "rl_refined"
+  },
+  "scenarios": [
+    {
+      "scenario_id": "seed:42",
+      "success": false,
+      "ade": 8.884060525894165,
+      "fde": 19.80689239501953
+    },
+    {
+      "scenario_id": "seed:43",
+      "success": false,
+      "ade": 20.93175106048584,
+      "fde": 43.16164779663086
+    },
+    {
+      "scenario_id": "seed:44",
+      "success": false,
+      "ade": 10.5428551197052,
+      "fde": 18.463687896728516
+    },
+    {
+      "scenario_id": "seed:45",
+      "success": false,
+      "ade": 11.349429845809937,
+      "fde": 11.712093353271484
+    },
+    {
+      "scenario_id": "seed:46",
+      "success": false,
+      "ade": 14.542211294174194,
+      "fde": 50.92028045654297
+    },
+    {
+      "scenario_id": "seed:47",
+      "success": false,
+      "ade": 25.95032593011856,
+      "fde": 42.64247131347656
+    },
+    {
+      "scenario_id": "seed:48",
+      "success": false,
+      "ade": 30.35541812777519,
+      "fde": 68.33726501464844
+    },
+    {
+      "scenario_id": "seed:49",
+      "success": false,
+      "ade": 29.502921760082245,
+      "fde": 60.20094299316406
+    },
+    {
+      "scenario_id": "seed:50",
+      "success": false,
+      "ade": 14.037645816802979,
+      "fde": 39.14623260498047
+    },
+    {
+      "scenario_id": "seed:51",
+      "success": false,
+      "ade": 18.910934162139892,
+      "fde": 57.226985931396484
+    },
+    {
+      "scenario_id": "seed:52",
+      "success": false,
+      "ade": 20.242899942398072,
+      "fde": 27.932924270629883
+    },
+    {
+      "scenario_id": "seed:53",
+      "success": false,
+      "ade": 8.000639390945434,
+      "fde": 7.761264801025391
+    },
+    {
+      "scenario_id": "seed:54",
+      "success": false,
+      "ade": 22.362247920036317,
+      "fde": 30.782489776611328
+    },
+    {
+      "scenario_id": "seed:55",
+      "success": false,
+      "ade": 15.691542077064515,
+      "fde": 48.93163299560547
+    },
+    {
+      "scenario_id": "seed:56",
+      "success": false,
+      "ade": 22.020996874570848,
+      "fde": 47.8465690612793
+    },
+    {
+      "scenario_id": "seed:57",
+      "success": false,
+      "ade": 29.76752896308899,
+      "fde": 62.2498779296875
+    },
+    {
+      "scenario_id": "seed:58",
+      "success": false,
+      "ade": 2.6899218410253525,
+      "fde": 13.245784759521484
+    },
+    {
+      "scenario_id": "seed:59",
+      "success": false,
+      "ade": 12.943025398254395,
+      "fde": 21.486478805541992
+    },
+    {
+      "scenario_id": "seed:60",
+      "success": false,
+      "ade": 14.441288024187088,
+      "fde": 14.578962326049805
+    },
+    {
+      "scenario_id": "seed:61",
+      "success": false,
+      "ade": 25.339427131414414,
+      "fde": 45.54302215576172
+    }
+  ],
+  "summary": {
+    "ade_mean": 17.92535356029868,
+    "ade_std": 7.6766302157323745,
+    "fde_mean": 36.59887533187866,
+    "fde_std": 18.339902199553368,
+    "success_rate": 0.0,
+    "num_episodes": 20
+  }
+}

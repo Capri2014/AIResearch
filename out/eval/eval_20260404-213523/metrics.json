@@ -1,0 +1,22 @@
+{
+  "run_id": "eval_20260404-213523",
+  "domain": "rl",
+  "sft_summary": {
+    "ade_mean": 18.328180066645146,
+    "ade_std": 7.595173983395482,
+    "fde_mean": 37.166106605529784,
+    "fde_std": 18.23981884840418,
+    "success_rate": 0.0,
+    "num_episodes": 20
+  },
+  "rl_summary": {
+    "ade_mean": 17.92535356029868,
+    "ade_std": 7.6766302157323745,
+    "fde_mean": 36.59887533187866,
+    "fde_std": 18.339902199553368,
+    "success_rate": 0.0,
+    "num_episodes": 20
+  },
+  "ade_improvement": 0.40282650634646444,
+  "fde_improvement": 0.5672312736511245
+}
