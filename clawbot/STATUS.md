@@ -1,12 +1,15 @@
 # Status (ClawBot)
 
-_Last updated: 2026-04-05 (Pipeline PR #1)_
+_Last updated: 2026-04-05 (Pipeline PR #4)_
 
 ## Current focus
 Driving-first pipeline: **Waymo episodes → PyTorch SSL pretrain → waypoint BC → RL refinement → CARLA ScenarioRunner eval**.
 
 ## Daily Cadence
 
+- ✅ **Pipeline PR #4** (2026-04-05): Trajectory Validation and Smoothing for CARLA
+- ✅ **Pipeline PR #3** (2026-04-05): Unified Kinematics + CARLA Evaluation Pipeline
+- ✅ **Pipeline PR #2** (2026-04-05): Kinematics-to-CARLA Integration Layer
 - ✅ **Pipeline PR #1** (2026-04-05): Kinematics-to-CARLA Bridge for Closed-Loop Evaluation
 - ✅ **Pipeline PR #6** (2026-04-04): RL Refinement Evaluation + Metrics Hardening
 - ✅ **Pipeline PR #5** (2026-04-04): RL Refinement After SFT (Waypoint Deltas)
@@ -43,6 +46,30 @@ Driving-first pipeline: **Waymo episodes → PyTorch SSL pretrain → waypoint B
 
 ## Recent changes
 
+### Pipeline PR #4: Trajectory Validation and Smoothing for CARLA (2026-04-05)
+- **Created: `training/rl/trajectory_validator.py`**
+  - `TrajectoryValidator`: validates curvature, speed, NaN/Inf, waypoint spacing
+  - `TrajectorySmoother`: moving average, B-spline, cubic interpolation smoothing
+  - `TrajectoryProcessor`: combines validation + smoothing with retry logic
+  - `WaypointTrajectory`: represents trajectory as (x, y, yaw) sequence
+  - `TrajectoryConfig`: max_curvature=0.5, max_speed=15.0, smoothing_window=3
+  - CLI: --max-curvature, --max-speed, --smoothing-window, --smooth-method
+  - Outputs validated/smoothed waypoints for downstream CARLA consumption
+
+- **Test results (10 waypoints, straight line):**
+  - Original valid: True, Final valid: True
+  - Max curvature: 0.0000 1/m, Total length: 50.00 m
+  - Output: stdout validation report
+
+- **Branch:** `feature/daily-2026-04-05-d`
+- **Commit:** `2dc71c9` — 1 file, 444 insertions
+
+- **PR URL:** https://github.com/Capri2014/AIResearch/pull/new/feature/daily-2026-04-05-d
+
+- **Note:** Bridges waypoint predictions to CARLA evaluation — validates physical feasibility before simulation.
+
+- **Output:** stdout / validated waypoint JSON
+
 ### Pipeline PR #1: Kinematics-to-CARLA Bridge for Closed-Loop Evaluation (2026-04-05)
 - **Created: `training/rl/bridge_kinematics_to_carla.py`**
   - `WaypointPolicyAdapter`: Bridges trained waypoint policies (SFT or SFT+RL) to kinematics env
@@ -61,11 +88,66 @@ Driving-first pipeline: **Waymo episodes → PyTorch SSL pretrain → waypoint B
   - Output: out/carla_bridge_test/carla_bridge_20260405_083440_2d4722/metrics.json
 
 - **Branch:** `feature/daily-2026-04-05-a`
-- **Commit:** (to be created)
+- **Commit:** `71ecf0f` — 1 file
 
 - **Note:** Connects kinematics waypoint environment to CARLA evaluation pipeline.
 
 - **Output:** `out/carla_bridge_test/carla_bridge_20260405_*/metrics.json`
+
+### Pipeline PR #2: Kinematics-to-CARLA Integration Layer (2026-04-05)
+- **Created: `training/rl/kinematics_carla_integration.py`**
+  - `KinematicsToCarlaConverter`: Converts kinematics state to CARLA format
+  - `KinematicsRLCheckpointLoader`: Loads RL checkpoints for kinematics env
+  - `CarlaScenarioRunnerIntegrator`: Integrates with ScenarioRunner evaluation
+  - State converter: transforms waypoints to CARLA route format
+  - Supports SFT-only and SFT+RL (delta_scale) configurations
+  - CLI: --checkpoint, --delta-scale, --horizon, --town, --episodes, --dry-run
+
+- **Test results (3 episodes, dry-run, random policy baseline):**
+  - ADE: 999.00m (random policy, no learning)
+  - FDE: 999.00m
+  - Progress: 0.0%
+  - Success Rate: 0.0%
+  - Return: -1022.2
+  - Output: out/kinematics_carla/kinematics_carla_20260405_*/metrics.json
+
+- **Branch:** `feature/daily-2026-04-05-b`
+- **Commit:** `27040ac` — 1 file, 641 insertions
+
+- **PR URL:** https://github.com/Capri2014/AIResearch/pull/new/feature/daily-2026-04-05-b
+
+- **Note:** Extends bridge from PR #1 with deeper CARLA integration.
+
+- **Output:** `out/kinematics_carla/kinematics_carla_20260405_*/metrics.json`
+
+### Pipeline PR #3: Unified Kinematics + CARLA Evaluation Pipeline (2026-04-05)
+- **Created: `training/rl/unified_kinematics_carla_eval.py`**
+  - `WaypointPolicy`: base waypoint prediction policy (MLP)
+  - `SFTWithDeltaPolicy`: SFT + residual delta learning (frozen SFT + trainable delta head)
+  - `RandomBaselinePolicy`: random baseline for comparison
+  - `run_kinematics_eval`: evaluation in kinematics environment with ADE/FDE
+  - `run_carla_mock_eval`: mock CARLA when unavailable (dry-run mode)
+  - `load_checkpoint`: loads SFT/RL checkpoints with config extraction
+  - Unified metrics output with kinematics + CARLA (mock) results
+  - Schema-compliant metrics.json output
+  - CLI: --checkpoint, --delta-scale, --episodes, --max-steps, --seed, --horizon, --dry-run
+
+- **Test results (5 episodes, dry-run, random baseline):**
+  - Kinematics ADE: 98.139m ± 1.026m
+  - Kinematics FDE: 93.629m ± 2.812m
+  - Kinematics Progress: 6.4%, Success Rate: 0.0%, Route Completion: 7.1%
+  - CARLA Mock ADE: 98.134m, Route Completion: 61.1%, Collisions: 0.6
+  - Combined ADE: 98.136m, Combined FDE: 93.785m
+  - Output: out/unified_eval/run_20260405_133311_7ce75f/metrics.json
+
+- **Branch:** `feature/daily-2026-04-05-c`
+- **Commit:** `5e01f00` — 1 file, 688 insertions
+
+- **PR URL:** https://github.com/Capri2014/AIResearch/pull/new/feature/daily-2026-04-05-c
+
+- **Note:** Consolidates bridge (PR #1) and integration (PR #2) into single unified runner.
+
+- **Output:** `out/unified_eval/run_20260405_*/metrics.json`
 
 ### Pipeline PR #6: RL Refinement Evaluation + Metrics Hardening (2026-04-04)
 - **Ran deterministic evaluation on toy waypoint environment**
