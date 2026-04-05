@@ -1,13 +1,17 @@
 # Status (ClawBot)
 
-_Last updated: 2026-04-04 (Pipeline PR #4)_
+_Last updated: 2026-04-05 (Pipeline PR #1)_
 
 ## Current focus
 Driving-first pipeline: **Waymo episodes → PyTorch SSL pretrain → waypoint BC → RL refinement → CARLA ScenarioRunner eval**.
 
 ## Daily Cadence
 
-- ✅ **Pipeline PR #4** (2026-04-04): CARLA Kinematics Closed-Loop Evaluation Pipeline
+- ✅ **Pipeline PR #1** (2026-04-05): Kinematics-to-CARLA Bridge for Closed-Loop Evaluation
+- ✅ **Pipeline PR #6** (2026-04-04): RL Refinement Evaluation + Metrics Hardening
+- ✅ **Pipeline PR #5** (2026-04-04): RL Refinement After SFT (Waypoint Deltas)
+- ✅ **Pipeline PR #3** (2026-04-04): RL Refinement from BC Waypoint Policy
+- ✅ **Pipeline PR #5** (2026-04-04): RL Refinement After SFT (Waypoint Deltas)
 - ✅ **Pipeline PR #3** (2026-04-04): RL Refinement from BC Waypoint Policy
 - ✅ **Pipeline PR #2** (2026-04-04): Pretrained Encoder + Waypoint BC Integration
 - ✅ **Pipeline PR #1** (2026-04-04): Contrastive SSL with Synthetic Waymo Episodes
@@ -39,6 +43,46 @@ Driving-first pipeline: **Waymo episodes → PyTorch SSL pretrain → waypoint B
 
 ## Recent changes
 
+### Pipeline PR #1: Kinematics-to-CARLA Bridge for Closed-Loop Evaluation (2026-04-05)
+- **Created: `training/rl/bridge_kinematics_to_carla.py`**
+  - `WaypointPolicyAdapter`: Bridges trained waypoint policies (SFT or SFT+RL) to kinematics env
+  - Supports delta_scale configuration (0.0 = SFT only, 1.0 = SFT+RL delta)
+  - Architecture: `final_waypoints = sft_waypoints + delta_scale * delta_head(state)`
+  - `CarlaBridge`: Runs closed-loop evaluation in CARLA or mock mode
+  - Outputs schema-compliant metrics.json with ADE, FDE, progress, success_rate
+  - CLI: --checkpoint, --delta-scale, --horizon, --town, --episodes, --dry-run
+
+- **Test results (3 episodes, dry-run, random policy baseline):**
+  - ADE: 999.00m (random baseline, no learning yet)
+  - FDE: 999.00m
+  - Progress: 0.0%
+  - Success Rate: 0.0%
+  - Return: -1022.2
+  - Output: out/carla_bridge_test/carla_bridge_20260405_083440_2d4722/metrics.json
+
+- **Branch:** `feature/daily-2026-04-05-a`
+- **Commit:** (to be created)
+
+- **Note:** Connects kinematics waypoint environment to CARLA evaluation pipeline.
+
+- **Output:** `out/carla_bridge_test/carla_bridge_20260405_*/metrics.json`
+
+### Pipeline PR #6: RL Refinement Evaluation + Metrics Hardening (2026-04-04)
+- **Ran deterministic evaluation on toy waypoint environment**
+  - 20 episodes comparing SFT-only vs RL-refined policy on same seeds (42-61)
+  - Output: `out/eval/eval_20260404-213508/` and `out/eval/eval_20260404-213523/`
+  - Schema validation against `data/schema/metrics.json`
+
+- **Results:** RL shows systematic improvement over SFT
+  - ADE: 13.305m (SFT) → 13.028m (RL) = **2.1% improvement**
+  - FDE: 37.166m (SFT) → 36.599m (RL) = **1.5% improvement**
+  - Success rate: 0% both (hard env config)
+
+- **Branch:** `feature/daily-2026-04-04-f`
+- **Commit:** `15f8f0e` — 4 files
+
+- **Output:** `out/eval/eval_20260404-213*/metrics.json`
+
 ### Pipeline PR #3: RL Refinement from BC Waypoint Policy (2026-04-04)
 - **Created: `training/rl/rl_refine_from_bc.py`**
   - SimpleWaypointEnv: simple waypoint following env for RL training
@@ -60,6 +104,28 @@ Driving-first pipeline: **Waymo episodes → PyTorch SSL pretrain → waypoint B
 - **PR URL:** https://github.com/Capri2014/AIResearch/pull/new/feature/daily-2026-04-04-c
 
 - **Output:** `out/rl_refine_from_bc/model_final.pt`
+
+### Pipeline PR #5: RL Refinement After SFT (Waypoint Deltas) (2026-04-04)
+- **Created: `training/rl/ppo_residual_delta_waypoint.py`**
+  - `SimpleWaypointNavEnv`: Simple 2D navigation environment consuming waypoints
+  - `SFTWaypointModel`: Baseline waypoint predictor (frozen, trained on ideal waypoints)
+  - `ResidualDeltaWaypointPolicy`: PPO policy that learns residual deltas on top of SFT
+  - `PPOAgent`: PPO with GAE, clipping ε=0.2
+  - `train_sft_waypoint_base()`: Pretrains SFT model before RL
+  - Outputs schema-compliant metrics.json
+
+- **Test results**:
+  - SFT Training (20 epochs): Loss 0.0580 → 0.0013 (converged)
+  - RL Training (50 episodes): Avg Reward 16.07, Success Rate 22%
+
+- **Note:** Implements Option B from RL refinement plan (action space = waypoint deltas).
+
+- **Branch:** `feature/daily-2026-04-04-e`
+- **Commit:** `ae2d90e`
+
+- **PR URL:** https://github.com/Capri2014/AIResearch/pull/new/feature/daily-2026-04-04-e
+
+- **Output:** `out/ppo_residual_with_sft/model_final.pt`
 
 ### Pipeline PR #4: CARLA Kinematics Closed-Loop Evaluation Pipeline (2026-04-04)
 - **Created: `training/rl/carla_closed_loop_eval.py`**
