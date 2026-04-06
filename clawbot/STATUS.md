@@ -7,6 +7,7 @@ Driving-first pipeline: **Waymo episodes → PyTorch SSL pretrain → waypoint B
 
 ## Daily Cadence
 
+- ✅ **Pipeline PR #7** (2026-04-06): RL After SFT Waypoint Delta Training
 - ✅ **Pipeline PR #6** (2026-04-02): Deterministic Eval Runner + Metrics Hardening
 - ✅ **Pipeline PR #17** (2026-03-31): Kinematics Waypoint Eval + SFT/RL Comparison
 - ✅ **Pipeline PR #16** (2026-03-31): Kinematics Waypoint Environment + PPO Delta
@@ -22,6 +23,25 @@ Driving-first pipeline: **Waymo episodes → PyTorch SSL pretrain → waypoint B
 - ⏳ **Pipeline PR #8** (2026-02-17): CARLA Closed-Loop Waypoint BC Evaluation - awaiting review
 
 ## Recent changes
+
+### Pipeline PR #7: RL After SFT Waypoint Delta Training (2026-04-06)
+- **Created: `training/rl/rl_after_sft_waypoint_delta.py`**
+  - Implements Option B: action space = waypoints / waypoint deltas
+  - Loads frozen SFT waypoint model as base (mock SFT for now)
+  - Learns residual delta-waypoint head with PPO
+  - Key classes: RLAfterSFTPPOAgent, RLAfterSFTWaypointActor, DeltaWaypointHead
+  - CLI: --num-episodes, --out-dir, --sft-checkpoint, --delta-scale, --learning-rate
+
+- **Smoke test results**:
+  - 128 episodes, 13.7s elapsed
+  - Output: `out/rl_after_sft_smoke/run_20260406_193354/`
+  - Files: config.json, final_model.pt, metrics.json, train_metrics.json
+  - Final avg reward: -35.09 (early training)
+
+- **Branch:** `feature/daily-2026-04-06-e`
+- **Commit:** `1e36d0b` — 1 file, 640 insertions
+
+- **Next steps:** Wire real SFT checkpoint, add ADE/FDE metrics, scale up training
 
 ### Pipeline PR #6: Deterministic Eval Runner + Metrics Hardening (2026-04-02)
 - **Created: `training/rl/run_deterministic_eval.py`**
