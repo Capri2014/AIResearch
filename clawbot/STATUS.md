@@ -1,13 +1,19 @@
 # Status (ClawBot)
 
-_Last updated: 2026-04-05 (Pipeline PR #4)_
+_Last updated: 2026-04-06 (Pipeline PR #3)_
 
 ## Current focus
 Driving-first pipeline: **Waymo episodes → PyTorch SSL pretrain → waypoint BC → RL refinement → CARLA ScenarioRunner eval**.
 
+## Pipeline PR #1 (2026-04-06)
+- ✅ **Pipeline PR #1** (2026-04-06): Scenario Diversity Evaluator for CARLA
+- ✅ **Pipeline PR #2** (2026-04-06): Traffic Simulation for CARLA ScenarioRunner
+- ✅ **Pipeline PR #3** (2026-04-06): Unified Evaluation Wrapper for Driving Pipeline
+
 ## Daily Cadence
 
-- ✅ **Pipeline PR #4** (2026-04-05): Trajectory Validation and Smoothing for CARLA
+- ✅ **Pipeline PR #6** (2026-04-05): Eval Report Generator - RL Metrics Hardening
+- ✅ **Pipeline PR #5** (2026-04-05): Trajectory Validation and Smoothing for CARLA
 - ✅ **Pipeline PR #3** (2026-04-05): Unified Kinematics + CARLA Evaluation Pipeline
 - ✅ **Pipeline PR #2** (2026-04-05): Kinematics-to-CARLA Integration Layer
 - ✅ **Pipeline PR #1** (2026-04-05): Kinematics-to-CARLA Bridge for Closed-Loop Evaluation
@@ -45,6 +51,33 @@ Driving-first pipeline: **Waymo episodes → PyTorch SSL pretrain → waypoint B
 - ⏳ **Pipeline PR #8** (2026-02-17): CARLA Closed-Loop Waypoint BC Evaluation - awaiting review
 
 ## Recent changes
+
+### Pipeline PR #3: Unified Evaluation Wrapper for Driving Pipeline (2026-04-06)
+- **Created: `training/rl/unified_eval_wrapper.py`**
+  - `EvalConfig`: checkpoint paths, eval settings, domain config
+  - `CheckpointLoader`: loads encoder/BC/RL checkpoints from any pipeline stage
+  - `UnifiedPolicy`: unified interface for waypoint prediction from any checkpoint
+  - `KinematicsEvaluator`: runs evaluation in kinematics environment
+  - `CarlaEvaluator`: CARLA or mock evaluation with dry-run support
+  - `save_metrics()`: schema-compliant metrics.json output
+  - CLI: --encoder-path, --bc-checkpoint, --rl-checkpoint, --domain, --episodes, --delta-scale, --dry-run
+
+- **Test results (5 episodes, BC checkpoint loaded):**
+  - Kinematics ADE: 15.379 ± 5.866m
+  - Kinematics FDE: 1.722 ± 0.606m
+  - Kinematics Progress: 96.6%, Success: 80.0%
+  - CARLA Mock ADE: 9.418 ± 1.267m
+  - Route Completion: 65.5%, Collisions: 0.96
+  - Output: out/unified_eval/metrics.json
+
+- **Branch:** `feature/daily-2026-04-06-c`
+- **Commit:** `11c1db2` — 2 files, 775 insertions
+
+- **PR URL:** https://github.com/Capri2014/AIResearch/pull/new/feature/daily-2026-04-06-c
+
+- **Note:** Bridges all pipeline stages (SSL encoder, waypoint BC, RL refinement) into unified evaluation. Works with existing checkpoints and integrates with prior work (traffic_simulation.py, scenario_diversity.py, trajectory_validator.py).
+
+- **Output:** `out/unified_eval/metrics.json`
 
 ### Pipeline PR #4: Trajectory Validation and Smoothing for CARLA (2026-04-05)
 - **Created: `training/rl/trajectory_validator.py`**
