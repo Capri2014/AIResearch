@@ -1,6 +1,6 @@
 # Status (ClawBot)
 
-_Last updated: 2026-04-02 (Pipeline PR #6 — daily cadence)_
+_Last updated: 2026-04-06 (Pipeline PR #6 — daily cadence)_
 
 ## Current focus
 Driving-first pipeline: **Waymo episodes → PyTorch SSL pretrain → waypoint BC → RL refinement → CARLA ScenarioRunner eval**.
@@ -8,6 +8,7 @@ Driving-first pipeline: **Waymo episodes → PyTorch SSL pretrain → waypoint B
 ## Daily Cadence
 
 - ✅ **Pipeline PR #7** (2026-04-06): RL After SFT Waypoint Delta Training
+- ✅ **Pipeline PR #6** (2026-04-06): Deterministic Eval Runner + Metrics Hardening (comfort + route_completion) ← NEW
 - ✅ **Pipeline PR #6** (2026-04-02): Deterministic Eval Runner + Metrics Hardening
 - ✅ **Pipeline PR #17** (2026-03-31): Kinematics Waypoint Eval + SFT/RL Comparison
 - ✅ **Pipeline PR #16** (2026-03-31): Kinematics Waypoint Environment + PPO Delta
@@ -42,6 +43,26 @@ Driving-first pipeline: **Waymo episodes → PyTorch SSL pretrain → waypoint B
 - **Commit:** `1e36d0b` — 1 file, 640 insertions
 
 - **Next steps:** Wire real SFT checkpoint, add ADE/FDE metrics, scale up training
+
+### Pipeline PR #6: Deterministic Eval Runner + Metrics Hardening (2026-04-06) ← TODAY
+- **Updated: `training/rl/compare_sft_vs_rl.py`**
+  - Added comfort metrics (max_accel, max_jerk) using speed changes (matching eval_deterministic.py approach)
+  - Added route_completion field (fraction of waypoints reached)
+  - Updated compute_summary_metrics to include all schema fields
+  - Added policy type (sft/rl) to metrics output
+  - Added timestamp to metrics.json output for schema compliance
+  - Results now match data/schema/metrics.json and align with existing 2026-04-03-rl-refinement outputs
+
+- **Test results (5 episodes, seeds 42-46)**:
+  - SFT: ADE=9.76m, FDE=29.91m, MaxAccel=0.423 m/s², MaxJerk=0.375 m/s³, Route=46%
+  - RL:  ADE=9.12m, FDE=28.81m, MaxAccel=0.397 m/s², MaxJerk=0.366 m/s³, Route=47%
+  - Delta: ADE +6.5%, FDE +3.7%, MaxAccel -6.1%, MaxJerk -2.4%
+  - RL shows modest improvements across all metrics
+
+- **Branch:** `feature/daily-2026-04-06-e`
+- **Commit:** `d05c8c4` — 1 file, 74 insertions, 9 deletions
+
+- **Output:** `out/eval/2026-04-06-pr6_{sft,rl}/metrics.json`
 
 ### Pipeline PR #6: Deterministic Eval Runner + Metrics Hardening (2026-04-02)
 - **Created: `training/rl/run_deterministic_eval.py`**
