@@ -51,6 +51,16 @@ def _git_info(repo_root: Path) -> Dict[str, Any]:
     }
 
 
+def compute_comfort_metrics_from_env(env, dt: float = 0.1) -> dict:
+    """Compute comfort metrics (max_accel, max_jerk) using speed differences.
+    
+    This matches the approach in eval_deterministic.py - uses speed changes
+    from the environment state rather than full trajectory simulation.
+    """
+    # This will be populated during episode run - placeholder for schema
+    return {"max_accel": 0.0, "max_jerk": 0.0}
+
+
 def run_policy_on_env(
     policy_fn,
     policy_name: str,
@@ -75,6 +85,12 @@ def run_policy_on_env(
         # Get full observation with embedded waypoints
         full_obs = env.get_observation()
         
+        # Track comfort metrics during episode
+        accelerations = []
+        jerks = []
+        prev_speed = float(env.state[3])  # speed is index 3 in state
+        prev_accel = 0.0
+        
         done = False
         total_reward = 0.0
         steps = 0
@@ -88,6 +104,15 @@ def run_policy_on_env(
             steps += 1
             done = terminated or truncated
             last_info = dict(info)
+            
+            # Comfort: compute from speed changes (matching eval_deterministic.py approach)
+            speed = float(env.state[3])
+            accel = abs(speed - prev_speed)
+            jerk = abs(accel - prev_accel)
+            accelerations.append(accel)
+            jerks.append(jerk)
+            prev_speed = speed
+            prev_accel = accel
         
         final_dist = float(last_info.get("dist", float("nan")))
         success = bool(last_info.get("success", False))
@@ -109,28 +134,51 @@ def run_policy_on_env(
         ade = float(sum(dists) / len(dists)) if dists else float("nan")
         fde = float(dists[-1]) if dists else float("nan")
         
+        # Route completion: fraction of path completed based on waypoint progress
+        total_waypoints = len(waypoints)
+        route_completion = float(num_reached / total_waypoints) if total_waypoints > 0 else 0.0
+        
+        # Comfort metrics from speed changes
+        max_accel = max(accelerations) if accelerations else 0.0
+        max_jerk = max(jerks) if jerks else 0.0
+        
         scenarios.append({
             "scenario_id": f"seed:{seed}",
             "success": success,
             "ade": ade,
             "fde": fde,
+            "route_completion": route_completion,
             "return": float(total_reward),
             "steps": int(steps),
             "num_waypoints_reached": int(num_reached),
             "final_dist": final_dist,
+            "comfort": {
+                "max_accel": max_accel,
+                "max_jerk": max_jerk,
+            },
         })
     
     return scenarios
 
 
 def compute_summary_metrics(scenarios: list[dict]) -> dict:
-    """Compute aggregate metrics from scenario results."""
+    """Compute aggregate metrics from scenario results.
+    
+    Includes all fields required by data/schema/metrics.json.
+    """
     if not scenarios:
         return {"ade_mean": float("nan"), "fde_mean": float("nan"), "success_rate": 0.0}
     
     ades = [s.get("ade", float("nan")) for s in scenarios]
     fdes = [s.get("fde", float("nan")) for s in scenarios]
     successes = [1 if s.get("success") else 0 for s in scenarios]
+    routes = [s.get("route_completion", 0.0) for s in scenarios]
+    returns = [s.get("return", 0.0) for s in scenarios]
+    steps = [s.get("steps", 0) for s in scenarios]
+    
+    # Comfort metrics
+    max_accels = [s.get("comfort", {}).get("max_accel", 0.0) for s in scenarios]
+    max_jerks = [s.get("comfort", {}).get("max_jerk", 0.0) for s in scenarios]
     
     valid_ades = [a for a in ades if not np.isnan(a)]
     valid_fdes = [f for f in fdes if not np.isnan(f)]
@@ -141,9 +189,15 @@ def compute_summary_metrics(scenarios: list[dict]) -> dict:
         "fde_mean": float(np.mean(valid_fdes)) if valid_fdes else float("nan"),
         "fde_std": float(np.std(valid_fdes)) if len(valid_fdes) > 1 else 0.0,
         "success_rate": float(np.mean(successes)) if successes else 0.0,
+        "route_completion_mean": float(np.mean(routes)) if routes else 0.0,
+        "return_mean": float(np.mean(returns)) if returns else 0.0,
+        "return_std": float(np.std(returns)) if len(returns) > 1 else 0.0,
+        "steps_mean": float(np.mean(steps)) if steps else 0.0,
         "num_episodes": len(scenarios),
-        "avg_return": float(np.mean([s.get("return", 0) for s in scenarios])),
-        "avg_steps": float(np.mean([s.get("steps", 0) for s in scenarios])),
+        "max_accel_mean": float(np.mean(max_accels)) if max_accels else 0.0,
+        "max_accel_std": float(np.std(max_accels)) if len(max_accels) > 1 else 0.0,
+        "max_jerk_mean": float(np.mean(max_jerks)) if max_jerks else 0.0,
+        "max_jerk_std": float(np.std(max_jerks)) if len(max_jerks) > 1 else 0.0,
     }
 
 
@@ -162,7 +216,10 @@ def main() -> None:
     run_id = args.run_id or time.strftime("%Y%m%d-%H%M%S")
     
     # Capture git metadata
+    import time
+    
     git = {k: v for k, v in _git_info(repo_root).items() if v is not None}
+    timestamp = time.strftime("%Y-%m-%dT%H:%M:%S")
     
     # Run SFT policy
     print(f"\n[compare_sft_vs_rl] Running SFT policy on {args.episodes} episodes (seeds {seeds[0]}-{seeds[-1]})...")
@@ -174,8 +231,9 @@ def main() -> None:
     sft_metrics = {
         "run_id": f"{run_id}_sft",
         "domain": "rl",
+        "timestamp": timestamp,
         "git": git,
-        "policy": {"name": "toy_waypoint_sft"},
+        "policy": {"name": "toy_waypoint_sft", "type": "sft"},
         "scenarios": sft_scenarios,
         "summary": compute_summary_metrics(sft_scenarios),
     }
@@ -193,8 +251,9 @@ def main() -> None:
     rl_metrics = {
         "run_id": f"{run_id}_rl",
         "domain": "rl",
+        "timestamp": timestamp,
         "git": git,
-        "policy": {"name": "toy_waypoint_rl"},
+        "policy": {"name": "toy_waypoint_rl", "type": "rl"},
         "scenarios": rl_scenarios,
         "summary": compute_summary_metrics(rl_scenarios),
     }
@@ -214,15 +273,21 @@ def main() -> None:
     print(f"  ADE: {sft_summary['ade_mean']:.4f} ± {sft_summary['ade_std']:.4f}m")
     print(f"  FDE: {sft_summary['fde_mean']:.4f} ± {sft_summary['fde_std']:.4f}m")
     print(f"  Success Rate: {sft_summary['success_rate']:.1%}")
-    print(f"  Avg Return: {sft_summary['avg_return']:.3f}")
-    print(f"  Avg Steps: {sft_summary['avg_steps']:.1f}")
+    print(f"  Return: {sft_summary['return_mean']:.3f} ± {sft_summary['return_std']:.3f}")
+    print(f"  Route Completion: {sft_summary['route_completion_mean']:.1%}")
+    print(f"  Max Accel: {sft_summary['max_accel_mean']:.3f} m/s²")
+    print(f"  Max Jerk: {sft_summary['max_jerk_mean']:.3f} m/s³")
+    print(f"  Steps: {sft_summary['steps_mean']:.1f}")
     
     print(f"\nRL-Refined Policy:")
     print(f"  ADE: {rl_summary['ade_mean']:.4f} ± {rl_summary['ade_std']:.4f}m")
     print(f"  FDE: {rl_summary['fde_mean']:.4f} ± {rl_summary['fde_std']:.4f}m")
     print(f"  Success Rate: {rl_summary['success_rate']:.1%}")
-    print(f"  Avg Return: {rl_summary['avg_return']:.3f}")
-    print(f"  Avg Steps: {rl_summary['avg_steps']:.1f}")
+    print(f"  Return: {rl_summary['return_mean']:.3f} ± {rl_summary['return_std']:.3f}")
+    print(f"  Route Completion: {rl_summary['route_completion_mean']:.1%}")
+    print(f"  Max Accel: {rl_summary['max_accel_mean']:.3f} m/s²")
+    print(f"  Max Jerk: {rl_summary['max_jerk_mean']:.3f} m/s³")
+    print(f"  Steps: {rl_summary['steps_mean']:.1f}")
     
     # Compute improvements
     ade_improvement = sft_summary['ade_mean'] - rl_summary['ade_mean']
