@@ -1,9 +1,12 @@
 # Status (ClawBot)
 
-_Last updated: 2026-04-06 (Pipeline PR #4)_
+_Last updated: 2026-04-07 (Pipeline PR #1)_
 
 ## Current focus
 Driving-first pipeline: **Waymo episodes → PyTorch SSL pretrain → waypoint BC → RL refinement → CARLA ScenarioRunner eval**.
+
+## Pipeline PRs (2026-04-07)
+- ✅ **Pipeline PR #1** (2026-04-07): Waymo Episode Data Augmentation and Quality Enhancement
 
 ## Pipeline PRs (2026-04-06)
 - ✅ **Pipeline PR #1** (2026-04-06): Scenario Diversity Evaluator for CARLA
