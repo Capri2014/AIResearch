@@ -202,6 +202,8 @@ def compute_summary_metrics(scenarios: list[dict]) -> dict:
 
 
 def main() -> None:
+    import time
+    
     import numpy as np
     
     p = argparse.ArgumentParser(description="Compare SFT vs RL policies on toy waypoint env")
@@ -216,8 +218,6 @@ def main() -> None:
     run_id = args.run_id or time.strftime("%Y%m%d-%H%M%S")
     
     # Capture git metadata
-    import time
-    
     git = {k: v for k, v in _git_info(repo_root).items() if v is not None}
     timestamp = time.strftime("%Y-%m-%dT%H:%M:%S")
     
