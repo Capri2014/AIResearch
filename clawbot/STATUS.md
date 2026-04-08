@@ -1,12 +1,13 @@
 # Status (ClawBot)
 
-_Last updated: 2026-04-06 (Pipeline PR #6 — daily cadence)_
+_Last updated: 2026-04-07 (Pipeline PR #6 — daily cadence)_
 
 ## Current focus
 Driving-first pipeline: **Waymo episodes → PyTorch SSL pretrain → waypoint BC → RL refinement → CARLA ScenarioRunner eval**.
 
 ## Daily Cadence
 
+- ✅ **Pipeline PR #6** (2026-04-07): Deterministic Eval Runner Fix + RL comparison run ← TODAY
 - ✅ **Pipeline PR #7** (2026-04-06): RL After SFT Waypoint Delta Training
 - ✅ **Pipeline PR #6** (2026-04-06): Deterministic Eval Runner + Metrics Hardening (comfort + route_completion) ← NEW
 - ✅ **Pipeline PR #6** (2026-04-02): Deterministic Eval Runner + Metrics Hardening
@@ -63,6 +64,22 @@ Driving-first pipeline: **Waymo episodes → PyTorch SSL pretrain → waypoint B
 - **Commit:** `d05c8c4` — 1 file, 74 insertions, 9 deletions
 
 - **Output:** `out/eval/2026-04-06-pr6_{sft,rl}/metrics.json`
+
+### Pipeline PR #6: Deterministic Eval Runner Fix + RL comparison run (2026-04-07) ← TODAY
+- **Fixed: `training/rl/compare_sft_vs_rl.py`**
+  - UnboundLocalError fix: moved `import time` to top of main() function
+  - The time module was imported after use, causing runtime error
+
+- **Test results (10 episodes, seeds 42-51)**:
+  - SFT: ADE=14.12m ± 6.79m, FDE=41.92m ± 17.86m, Success=0%, Route=43.5%
+  - RL:  ADE=13.70m ± 6.95m, FDE=41.16m ± 18.17m, Success=0%, Route=44.5%
+  - Improvement: ADE +3%, FDE +2%, Route +1%
+  - Both policies are toy proxies (not real SFT/RL models)
+
+- **Branch:** `feature/daily-2026-04-07-b`
+- **Commit:** `33d3c28` — 1 file, 2 insertions, 2 deletions
+
+- **Output:** `out/eval/20260407-213343_sft/metrics.json`, `out/eval/20260407-213343_rl/metrics.json`
 
 ### Pipeline PR #6: Deterministic Eval Runner + Metrics Hardening (2026-04-02)
 - **Created: `training/rl/run_deterministic_eval.py`**
