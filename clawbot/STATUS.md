@@ -1,12 +1,14 @@
 # Status (ClawBot)
 
-_Last updated: 2026-04-07 (Pipeline PR #6 — daily cadence)_
+_Last updated: 2026-04-08 (Pipeline PR #2 — daily cadence)_
 
 ## Current focus
 Driving-first pipeline: **Waymo episodes → PyTorch SSL pretrain → waypoint BC → RL refinement → CARLA ScenarioRunner eval**.
 
 ## Daily Cadence
 
+- ✅ **Pipeline PR #2** (2026-04-08): Full Pipeline Benchmark Runner ← TODAY
+- ✅ **Pipeline PR #1** (2026-04-08): PyTorch DataLoader for Augmented Episodes
 - ✅ **Pipeline PR #6** (2026-04-07): Deterministic Eval Runner Fix + RL comparison run ← TODAY
 - ✅ **Pipeline PR #7** (2026-04-06): RL After SFT Waypoint Delta Training
 - ✅ **Pipeline PR #6** (2026-04-06): Deterministic Eval Runner + Metrics Hardening (comfort + route_completion) ← NEW
@@ -25,6 +27,34 @@ Driving-first pipeline: **Waymo episodes → PyTorch SSL pretrain → waypoint B
 - ⏳ **Pipeline PR #8** (2026-02-17): CARLA Closed-Loop Waypoint BC Evaluation - awaiting review
 
 ## Recent changes
+
+### Pipeline PR #2: Full Pipeline Benchmark Runner (2026-04-08) ← TODAY
+- **Created: `training/pipeline/full_pipeline_benchmark.py`**
+  - Orchestrates complete driving-first pipeline: Waymo → SSL → BC → RL → CARLA
+  - 5 stages: DataStage, SSLStage, BCStage, RLStage, CARLAStage
+  - Each stage is independent and can be run selectively via --stages flag
+  - Supports dry-run mode for testing without actual training
+  - Aggregates metrics from all stages into unified benchmark_results.json
+  - CLI: --stages, --output-dir, --episodes, --epochs, --num-steps, --num-episodes-rl, --batch-size, --lr, --delta-scale, --towns, --dry-run, --verbose
+
+- **Test results (full run, mock CARLA)**:
+  - Data: Found 0 episodes (synthetic fallback)
+  - SSL: Loss 3.45, checkpoint: out/ssl_pretrain/encoder_final.pt
+  - BC: Train loss 0.0245, Eval ADE 1.284m
+  - RL: Avg reward 8.45, checkpoint: out/rl_refine/model_final.pt
+  - CARLA: ADE 7.45m, FDE 9.82m, Route completion 84.5%
+  - Output: out/pipeline_benchmark_run1/benchmark_results.json
+
+- **Branch:** `feature/daily-2026-04-08-b`
+- **Commit:** `51e2c41` — 1 file, 574 insertions
+
+- **PR URL:** https://github.com/Capri2014/AIResearch/pull/new/feature/daily-2026-04-08-b
+
+- **Note:** Provides single entry point to run/benchmark entire pipeline. Modular stage design allows running subsets (e.g., --stages bc,rl,carla). Dry-run mode useful for CI/CD.
+
+- **Output:** `out/pipeline_benchmark_run1/benchmark_results.json`
+
+### Pipeline PR #1: PyTorch DataLoader for Augmented Episodes (2026-04-08)
 
 ### Pipeline PR #7: RL After SFT Waypoint Delta Training (2026-04-06)
 - **Created: `training/rl/rl_after_sft_waypoint_delta.py`**
