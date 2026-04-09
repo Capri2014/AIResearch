@@ -1,13 +1,14 @@
 # Status (ClawBot)
 
-_Last updated: 2026-04-08 (Pipeline PR #2 — daily cadence)_
+_Last updated: 2026-04-09 (Pipeline PR #5 — daily cadence)_
 
 ## Current focus
 Driving-first pipeline: **Waymo episodes → PyTorch SSL pretrain → waypoint BC → RL refinement → CARLA ScenarioRunner eval**.
 
 ## Daily Cadence
 
-- ✅ **Pipeline PR #2** (2026-04-08): Full Pipeline Benchmark Runner ← TODAY
+- ✅ **Pipeline PR #5** (2026-04-09): RL after SFT waypoint delta training stub ← TODAY
+- ✅ **Pipeline PR #2** (2026-04-08): Full Pipeline Benchmark Runner
 - ✅ **Pipeline PR #1** (2026-04-08): PyTorch DataLoader for Augmented Episodes
 - ✅ **Pipeline PR #6** (2026-04-07): Deterministic Eval Runner Fix + RL comparison run ← TODAY
 - ✅ **Pipeline PR #7** (2026-04-06): RL After SFT Waypoint Delta Training
@@ -55,6 +56,25 @@ Driving-first pipeline: **Waymo episodes → PyTorch SSL pretrain → waypoint B
 - **Output:** `out/pipeline_benchmark_run1/benchmark_results.json`
 
 ### Pipeline PR #1: PyTorch DataLoader for Augmented Episodes (2026-04-08)
+
+### Pipeline PR #5: RL After SFT Waypoint Delta Training Stub (2026-04-09) ← TODAY
+- **Created: `training/rl/run_delta_waypoint_rl.py`**
+  - Toy kinematics environment that consumes predicted waypoints
+  - SFTWaypointModel: frozen base waypoint predictor (identity for toy)
+  - DeltaWaypointHead: learnable residual delta network
+  - RLDeltaWaypointPolicy: final_waypoints = sft_waypoints + delta_scale * delta
+  - PPODeltaAgent: simple PPO training for delta head only
+  - Design (Option B): action space = waypoints / waypoint deltas
+
+- **Test results (100 episodes, latent_dim=128, delta_hidden_dim=64)**:
+  - Final reward: -126.35, loss: 0.68
+  - Output: `out/rl_delta_waypoint_e/run_20260409_193457/`
+  - Files: final_model.pt, metrics.json, train_metrics.json
+
+- **Branch:** `feature/daily-2026-04-09-e`
+- **Commit:** `981f120` — 1 file, 503 insertions
+
+- **Next:** Wire real SFT checkpoint, add ADE/FDE metrics to reward
 
 ### Pipeline PR #7: RL After SFT Waypoint Delta Training (2026-04-06)
 - **Created: `training/rl/rl_after_sft_waypoint_delta.py`**
