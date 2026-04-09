@@ -1,53 +1,74 @@
 ## Summary
 
-Implements deterministic evaluation infrastructure for comparing SFT-only vs RL-refined policies on the toy waypoint environment. Enables reproducible metrics collection and 3-line comparison reports.
+Implements a Pipeline Integration Layer that bridges all stages of the driving-first pipeline (SSL → BC → RL → eval) with automatic checkpoint discovery, state management, and unified evaluation.
 
 ## Changes
 
 ### New Features
 
-1. **Toy environment policies** (`training/rl/toy_waypoint_env.py`)
-   - `policy_sft`: Heuristic baseline that drives toward target waypoints
-   - `policy_rl_refined`: Enhanced policy with lookahead and predictive speed control
-   - Both policies support both tuple (state, info) and array observation formats
-   - Environment constructor now accepts optional `seed` parameter for reproducibility
+1. **PipelineState** (`training/rl/pipeline_integration.py`)
+   - Tracks completed pipeline stages and checkpoints across runs
+   - Persists state to checkpoints/pipeline_state.json
+   - Methods: set_stage(), get_stage(), is_complete(), get_latest_checkpoint()
 
-2. **Deterministic comparison script** (`training/rl/compare_sft_vs_rl.py`)
-   - Runs both policies on identical seeds for fair comparison
-   - Outputs `out/eval/<run_id>_sft/metrics.json` and `out/eval/<run_id>_rl/metrics.json`
-   - Prints 3-line summary report with ADE, FDE, and success rate improvements
+2. **CheckpointDiscovery**
+   - Auto-finds latest checkpoints by stage (ssl/bc/rl)
+   - Supports pattern matching and timestamp-based sorting
+   - Methods: find_ssl_checkpoints(), find_bc_checkpoints(), find_rl_checkpoints()
 
-3. **Metrics schema compatibility**
-   - Output format follows `data/schema/metrics.json` (domain="rl")
-   - Includes per-episode ADE/FDE, success rate, return, and steps
+3. **PipelineValidator**
+   - Validates checkpoint files exist and are non-empty
+   - Validates evaluation metrics against schema
+   - Methods: validate_checkpoint(), validate_metrics()
 
-## Usage Example
+4. **PipelineRunner**
+   - Orchestrates chained pipeline stages (SSL → BC → RL → eval)
+   - Auto-discovers checkpoints when paths not provided
+   - Methods: run_ssl(), run_bc(), run_rl(), run_eval(), run_full()
+
+5. **EndToEndRunner**
+   - Simplified CLI for status/check/clean operations
+   - Quick pipeline status overview
+
+### CLI Usage
 
 ```bash
-# Run comparison on 20 episodes with deterministic seeds
-python -m training.rl.compare_sft_vs_rl --episodes 20 --seed-base 42 --max-steps 30
+# Check pipeline status
+python -m training.rl.pipeline_integration --run status --checkpoint-dir checkpoints
 
-# Quick sanity check
-python -m training.rl.compare_sft_vs_rl --episodes 5 --seed-base 0
-```
+# Run SSL stage
+python -m training.rl.pipeline_integration --run ssl --episodes 100 --seed 42
 
-## 3-Line Report Example
+# Run BC stage (auto-discovers SSL encoder)
+python -m training.rl.pipeline_integration --run bc --episodes 100
 
-```
-ADE: 20.79m (SFT) → 21.02m (RL) [-1%]
-FDE: 45.72m (SFT) → 45.69m (RL) [+0%]
-Success: 0% (SFT) → 0% (RL) [+0%]
+# Run RL stage
+python -m training.rl.pipeline_integration --run rl --episodes 100
+
+# Run evaluation
+python -m training.rl.pipeline_integration --run eval --episodes 10
+
+# Run full pipeline
+python -m training.rl.pipeline_integration --run full --episodes 100 --eval-episodes 10
+
+# Clean all checkpoints
+python -m training.rl.pipeline_integration --run clean
 ```
 
 ## Context
 
-Part of the driving-first pipeline evaluation hardening:
-- Waymo episodes → SSL pretrain → waypoint BC → **RL refinement** → eval comparison
-- This PR establishes the evaluation infrastructure for measuring RL improvement
+Part of the driving-first pipeline (Waymo episodes → SSL pretrain → waypoint BC → RL refinement → CARLA eval). This PR unifies checkpoint management across all stages and provides automatic discovery to reduce manual configuration.
+
+## Works With
+
+- training.pretrain.train_augmented_ssl
+- training.bc.augmented_encoder_waypoint_bc
+- training.rl.rl_refine_after_sft
+- training.rl.full_pipeline_benchmark
 
 ## Checklist
 
 - [x] Code compiles without errors
-- [x] Deterministic evaluation produces reproducible results
-- [x] Output follows metrics schema
-- [x] 3-line report format is clear and actionable
+- [x] Status command shows empty checkpoint state
+- [x] Integrates with existing pipeline modules
+- [x] Supports checkpoint auto-discovery

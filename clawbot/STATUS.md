@@ -1,12 +1,12 @@
 # Status (ClawBot)
 
-_Last updated: 2026-04-08 (Pipeline PR #1)_
+_Last updated: 2026-04-09 (Pipeline PR #1)_
 
 ## Current focus
 Driving-first pipeline: **Waymo episodes → PyTorch SSL pretrain → waypoint BC → RL refinement → CARLA ScenarioRunner eval**.
 
-## Pipeline PRs (2026-04-08)
-- ✅ **Pipeline PR #1** (2026-04-08): Full Pipeline Benchmark Runner
+## Pipeline PRs (2026-04-09)
+- ✅ **Pipeline PR #1** (2026-04-09): Pipeline Integration Layer
 
 ## Pipeline PRs (2026-04-07)
 - ✅ **Pipeline PR #5** (2026-04-07): RL Refinement After SFT (Waypoint Delta Learning)
