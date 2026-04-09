@@ -6,6 +6,8 @@ _Last updated: 2026-04-09 (Pipeline PR #1)_
 Driving-first pipeline: **Waymo episodes → PyTorch SSL pretrain → waypoint BC → RL refinement → CARLA ScenarioRunner eval**.
 
 ## Pipeline PRs (2026-04-09)
+- ✅ **Pipeline PR #3** (2026-04-09): Pipeline Data Loader
+- ✅ **Pipeline PR #2** (2026-04-09): Pipeline Checkpoint Manager
 - ✅ **Pipeline PR #1** (2026-04-09): Pipeline Integration Layer
 
 ## Pipeline PRs (2026-04-07)
