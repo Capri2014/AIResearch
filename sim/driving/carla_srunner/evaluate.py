@@ -141,6 +141,8 @@ def parse_srunner_output(log_path: Path) -> ScenarioResult:
     Returns:
         ScenarioResult with extracted metrics
     """
+    import re
+    
     result = ScenarioResult(scenario_id="unknown", success=False)
     
     if not log_path.exists():
@@ -151,38 +153,58 @@ def parse_srunner_output(log_path: Path) -> ScenarioResult:
         with open(log_path, "r") as f:
             content = f.read()
         
-        # Extract route completion
-        if "route_completion:" in content:
-            # Format: route_completion: 85.5%
-            import re
-            match = re.search(r"route_completion:\s*([\d.]+)", content)
-            if match:
-                result.route_completion = float(match.group(1))
+        # Extract route completion (-100 to 100 scale)
+        rc_match = re.search(r"route_completion[=:\s]+([-\d.]+)", content, re.IGNORECASE)
+        if rc_match:
+            result.route_completion = float(rc_match.group(1))
         
-        # Extract average speed
-        if "average_speed:" in content or "avg_speed:" in content:
-            import re
-            match = re.search(r"(?:average_speed|avg_speed):\s*([\d.]+)", content)
-            if match:
-                result.avg_speed = float(match.group(1))
-        
-        # Check for collision
-        result.collision = "collision" in content.lower() or " COLLISION " in content
-        
-        # Check for red light violation
-        result.red_light_violation = "red_light" in content.lower() or "RED_LIGHT" in content
-        
-        # Check for stop sign violation
-        result.stop_sign_violation = "stop_sign" in content.lower() or "STOP_SIGN" in content
+        # Extract average speed (m/s)
+        speed_match = re.search(r"(?:average_speed|avg_speed)[=:\s]+([\d.]+)\s*m/s", content, re.IGNORECASE)
+        if speed_match:
+            result.avg_speed = float(speed_match.group(1))
         
         # Extract duration
-        if "duration:" in content or "elapsed:" in content:
-            import re
-            match = re.search(r"(?:duration|elapsed):\s*([\d.]+)", content)
-            if match:
-                result.duration_s = float(match.group(1))
+        duration_match = re.search(r"(?:duration|elapsed|time)[=:\s]+([\d.]+)\s*s", content, re.IGNORECASE)
+        if duration_match:
+            result.duration_s = float(duration_match.group(1))
         
-        # Determine success
+        # Check for infractions (multiple pattern matching for robustness)
+        content_lower = content.lower()
+        
+        # Collision detection
+        collision_patterns = [
+            r"collision\s+detected",
+            r"collision_with\s+\w+",
+            r"ego_.*collision",
+            r" COLLISION ",
+            r"collided",
+            r"crash",
+        ]
+        result.collision = any(re.search(p, content) for p in collision_patterns)
+        
+        # Red light violation
+        red_light_patterns = [
+            r"red.light.*violation",
+            r"traffic.light.*violation",
+            r"running.red",
+            r"tl_violation",
+        ]
+        result.red_light_violation = any(re.search(p, content_lower) for p in red_light_patterns)
+        
+        # Stop sign violation
+        stop_patterns = [
+            r"stop.sign.*violation",
+            r"stop_violation",
+            r"running.stop",
+        ]
+        result.stop_sign_violation = any(re.search(p, content_lower) for p in stop_patterns)
+        
+        # Extract scenario ID if present
+        id_match = re.search(r"scenario[=:\s]+(\w+)", content, re.IGNORECASE)
+        if id_match:
+            result.scenario_id = id_match.group(1)
+        
+        # Determine success: positive route completion and no infractions
         result.success = (
             result.route_completion > 0.0
             and not result.collision

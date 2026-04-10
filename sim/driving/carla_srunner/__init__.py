@@ -47,6 +47,14 @@ from sim.driving.carla_srunner.policy_wrapper import (
     load_policy,
 )
 
+from sim.driving.carla_srunner.visualize import (
+    plot_single_run,
+    plot_comparison,
+    load_metrics,
+    load_all_runs,
+    generate_markdown_table,
+)
+
 __all__ = [
     # Scenarios
     "SCENARIO_CATALOG",
@@ -80,6 +88,12 @@ __all__ = [
     "WaypointPolicyWrapper",
     "StubPolicyWrapper",
     "load_policy",
+    # Visualize
+    "plot_single_run",
+    "plot_comparison",
+    "load_metrics",
+    "load_all_runs",
+    "generate_markdown_table",
 ]
 
-__version__ = "0.1.0"
+__version__ = "0.2.0"
