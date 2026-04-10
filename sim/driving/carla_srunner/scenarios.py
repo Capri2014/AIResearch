@@ -423,7 +423,7 @@ def main() -> None:
         if rd is None:
             print(f"Error: unknown route '{a.route}'")
             return
-        print(json.dumps(asdict(rd), indent=2)
+        print(json.dumps(asdict(rd), indent=2))
         return
 
     # Default: list all
