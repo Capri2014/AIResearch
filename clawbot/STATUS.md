@@ -1,13 +1,14 @@
 # Status (ClawBot)
 
-_Last updated: 2026-04-10 (Pipeline PR #34)_
+_Last updated: 2026-04-10 (Pipeline PR #35)_
 
 ## Current focus
 Driving-first pipeline: **Waymo episodes → PyTorch SSL pretrain → waypoint BC → RL refinement → CARLA ScenarioRunner eval**.
 
 ## Daily Cadence
 
-- ✅ **Pipeline PR #34** (2026-04-10): Closed-Loop Evaluation Harness (evaluate.py)
+- ✅ **Pipeline PR #35** (2026-04-10): Visualization Utilities - pushed
+- ⏳ **Pipeline PR #34** (2026-04-10): Closed-Loop Evaluation Harness (evaluate.py) - awaiting review
 - ⏳ **Pipeline PR #33** (2026-04-10): CARLA ScenarioRunner Integration (runner.py) - awaiting review
 - ⏳ **Pipeline PR #32** (2026-04-10): CARLA Scenario Definitions - awaiting review
 - ⏳ **Pipeline PR #6** (2026-02-28): RL Refinement Evaluation + Metrics Hardening - awaiting review
@@ -17,6 +18,20 @@ Driving-first pipeline: **Waymo episodes → PyTorch SSL pretrain → waypoint B
 - ⏳ **Pipeline PR #5** (2026-02-16): RL Refinement Stub for Residual Delta-Waypoint Learning - awaiting review
 
 ## Recent changes
+
+### Pipeline PR #35: Visualization Utilities (Today, 4:30pm PT)
+- **Created: `sim/driving/carla_srunner/visualize.py`**
+  - `plot_single_run()`: Plot single evaluation run with scenario bars
+  - `plot_comparison()`: Compare multiple evaluation runs
+  - `load_metrics()`: Load metrics from run directory
+  - `load_all_runs()`: Batch load all runs from parent directory
+  - `generate_markdown_table()`: Markdown table summary
+  - `main()`: CLI with --run-dir, --runs-dir, --output, --format options
+- **Updated: `sim/driving/carla_srunner/evaluate.py`**
+  - Enhanced parse_srunner_output with robust regex matching
+  - Multiple pattern matching for collisions/infractions
+- **Updated: `sim/driving/carla_srunner/__init__.py`**: Added visualize exports, version -> 0.2.0
+- **Branch**: `feature/daily-2026-04-10-d`
 
 ### Pipeline PR #34: Closed-Loop Evaluation Harness (evaluate.py) (Today, 10:30am PT)
 - **Created: `sim/driving/carla_srunner/evaluate.py`**
