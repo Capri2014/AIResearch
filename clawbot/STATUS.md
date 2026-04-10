@@ -1,13 +1,16 @@
 # Status (ClawBot)
 
-_Last updated: 2026-02-28 (Pipeline PR #6)_
+_Last updated: 2026-04-10 (Pipeline PR #34)_
 
 ## Current focus
 Driving-first pipeline: **Waymo episodes → PyTorch SSL pretrain → waypoint BC → RL refinement → CARLA ScenarioRunner eval**.
 
 ## Daily Cadence
 
-- ✅ **Pipeline PR #6** (2026-02-28): RL Refinement Evaluation + Metrics Hardening
+- ✅ **Pipeline PR #34** (2026-04-10): Closed-Loop Evaluation Harness (evaluate.py)
+- ⏳ **Pipeline PR #33** (2026-04-10): CARLA ScenarioRunner Integration (runner.py) - awaiting review
+- ⏳ **Pipeline PR #32** (2026-04-10): CARLA Scenario Definitions - awaiting review
+- ⏳ **Pipeline PR #6** (2026-02-28): RL Refinement Evaluation + Metrics Hardening - awaiting review
 - ⏳ **Pipeline PR #1** (2026-02-18): RL Checkpoint Selection with Policy Entropy - awaiting review
 - ⏳ **Pipeline PR #9** (2026-02-17): Evaluation + Metrics Hardening for RL Refinement - awaiting review
 - ⏳ **Pipeline PR #8** (2026-02-17): CARLA Closed-Loop Waypoint BC Evaluation - awaiting review
@@ -15,55 +18,41 @@ Driving-first pipeline: **Waymo episodes → PyTorch SSL pretrain → waypoint B
 
 ## Recent changes
 
-### Pipeline PR #6: RL Refinement Evaluation + Metrics Hardening (Today, 6:30pm PT)
-- **Updated: `training/rl/compare_sft_vs_rl.py`**
-  - Added git metadata capture (repo, commit, branch) for reproducibility
-  - Now outputs proper git info in metrics.json
-  
-- **Created: `training/rl/validate_metrics.py`**
-  - Validates metrics.json against `data/schema/metrics.json`
-  - Checks required fields, domain enum, scenario structure
-  - Supports --compare flag to compare SFT vs RL metrics files
-  - Prints 3-line summary report when comparing
+### Pipeline PR #34: Closed-Loop Evaluation Harness (evaluate.py) (Today, 10:30am PT)
+- **Created: `sim/driving/carla_srunner/evaluate.py`**
+  - `EvalRunConfig`: Configuration dataclass for evaluation run
+  - `ScenarioResult`: Result from single scenario evaluation
+  - `EvalMetrics`: Aggregated metrics across suite
+  - `run_single_scenario()`: Run single scenario with policy, collect metrics
+  - `run_suite_evaluation()`: Batch evaluate all scenarios in a suite
+  - `parse_srunner_output()`: Parse ScenarioRunner logs for metrics
+  - `save_metrics()`: Save metrics + results + config to JSON
+  - `print_summary()`: Pretty-print evaluation summary
+- **Updated: `sim/driving/carla_srunner/__init__.py`**: Exports for evaluate + policy_wrapper
 
-**Key additions:**
-- `_git_info()`: Captures repo, commit, branch for reproducibility
-- `validate_metrics()`: Schema validation without jsonschema dependency
-- `compare_metrics()`: Computes improvement metrics between policies
-- CLI: `--compare` flag for loading and comparing saved metrics
+### Pipeline PR #33: CARLA ScenarioRunner Integration (runner.py) (Today, 7:30am PT)
+- **Created: `sim/driving/carla_srunner/runner.py`**
+  - `RunnerConfig`: Configuration dataclass for CARLA connection, checkpoint, timeout
+  - `ScenarioRunner`: Main class for executing scenarios via ScenarioRunner
+  - `build_srunner_command()`: Builds ScenarioRunner CLI from ScenarioDef
+  - `run_scenario()`: Execute single scenario
+  - `run_route()`: Execute route-based evaluation
+  - `run_suite()`: Batch evaluation of scenario suites
+  - `_compute_aggregate()`: Aggregate metrics across scenarios
+- **Created: `sim/driving/carla_srunner/__init__.py`**: Package exports
 
-### Pipeline PR #1: RL Checkpoint Selection with Policy Entropy (2026-02-18)
-- **Updated: `training/rl/train_rl_delta_waypoint.py`**
-  - Added `policy_entropy` field to evaluation metrics
-  - Best checkpoint selection: saves `best_entropy.pt` when entropy improves
-  - Entropy history tracking: `entropy_history.json` with episode-wise records
-  - Enhanced training summary with `best_checkpoint` section
-  - Higher entropy = more exploration = better for RL generalization
-
-**Key additions:**
-- `_save_best_checkpoint()`: Saves checkpoint when entropy reaches new best
-- `_save_entropy_history()`: Records entropy per eval interval
-- Updated `compute_metrics()` to include entropy
-- Updated `_save_train_summary()` with best checkpoint metadata
-
-### Pipeline PR #9: Evaluation + Metrics Hardening for RL Refinement (Yesterday)
-- `training/rl/eval_toy_waypoint_env.py`: Deterministic evaluation with ADE/FDE
-- ADE/FDE computation per episode for measuring RL refinement quality
-- Summary metrics with mean/std, success_rate
-- 3-line comparison report (ADE, FDE, Success Rate)
-
-### Pipeline PR #8: CARLA Closed-Loop Waypoint BC Evaluation (Yesterday)
-- `training/eval/run_carla_closed_loop_eval.py`: Comprehensive closed-loop evaluation
-- 5 scenarios: straight_clear, straight_cloudy, straight_night, straight_rain, turn_clear
-- WaypointBCModelWrapper for checkpoint loading
+### Pipeline PR #32: CARLA Scenario Definitions (2026-04-10)
+- `sim/driving/carla_srunner/scenarios.py`: Scenario/route definitions
+- 11 standard scenarios, 8 routes, 4 scenario suites
+- XML generation for ScenarioRunner
 
 ## Next (top 3)
-1. Run RL training with entropy-based checkpoint selection
-2. Validate metrics from full CARLA evaluation runs
-3. Compare entropy curves across different seeds
+1. Test evaluate.py with stub policy
+2. Connect with real waypoint policy checkpoints
+3. Run full smoke suite with CARLA server
 
 ## Blockers / questions for owner
-- PR reviews pending for #9, #8, #5
+- PR reviews pending for #32, #9, #8, #5, #1
 
 ## Architecture Reference
 
@@ -79,9 +68,9 @@ final_waypoints = sft_waypoints + delta_head(z)
 
 **Checkpoint Selection:**
 - Reward-based: best_reward.pt
-- Entropy-based: best_entropy.pt (NEW)
+- Entropy-based: best_entropy.pt
 - Metrics: ADE/FDE, route_completion, collisions
 
 ## Links
-- Daily notes: `clawbot/daily/2026-02-28.md`
-- Branch: `feature/contingency-planning-v3`
+- Daily notes: `clawbot/daily/2026-04-10.md`
+- Branch: `feature/daily-2026-04-10-c`
