@@ -1,13 +1,14 @@
 # Status (ClawBot)
 
-_Last updated: 2026-04-11 (Pipeline PR #36, morning)_
+_Last updated: 2026-04-11 (Pipeline PR #37, morning)_
 
 ## Current focus
 Driving-first pipeline: **Waymo episodes → PyTorch SSL pretrain → waypoint BC → RL refinement → CARLA ScenarioRunner eval**.
 
 ## Daily Cadence
 
-- ✅ **Pipeline PR #36** (2026-04-11): Test Harness for CARLA Evaluation - pushed
+- ✅ **Pipeline PR #37** (2026-04-11): Waypoint BC Training Script - pushed
+- ⏳ **Pipeline PR #36** (2026-04-11): Test Harness for CARLA Evaluation - awaiting review
 - ⏳ **Pipeline PR #35** (2026-04-10): Visualization Utilities - awaiting review
 - ⏳ **Pipeline PR #34** (2026-04-10): Closed-Loop Evaluation Harness (evaluate.py) - awaiting review
 - ⏳ **Pipeline PR #33** (2026-04-10): CARLA ScenarioRunner Integration (runner.py) - awaiting review
@@ -19,6 +20,16 @@ Driving-first pipeline: **Waymo episodes → PyTorch SSL pretrain → waypoint B
 - ⏳ **Pipeline PR #5** (2026-02-16): RL Refinement Stub for Residual Delta-Waypoint Learning - awaiting review
 
 ## Recent changes
+
+### Pipeline PR #37: Waypoint BC Training Script (Today, 7:30am PT)
+- **Created: `training/sft/train_waypoint_bc.py`**
+  - WaypointBCConfig for hyperparameters (data, model, training, loss weights)
+  - WaypointDataset for Waymo episode loading
+  - WaypointBCModel: temporal transformer + prediction heads
+  - L1 waypoint loss, MSE speed/progress losses
+  - OneCycleLR scheduler, best-model checkpointing
+  - CLI: --episodes, --epochs, --batchSize, --output, --dryRun
+- **Branch**: `feature/daily-2026-04-11-b`
 
 ### Pipeline PR #36: Test Harness for CARLA Evaluation (Today, 5:30am PT)
 - **Created: `sim/driving/carla_srunner/test_harness.py`**
@@ -106,4 +117,4 @@ final_waypoints = sft_waypoints + delta_head(z)
 
 ## Links
 - Daily notes: `clawbot/daily/2026-04-11.md`
-- Branch: `feature/daily-2026-04-11-a`
+- Branch: `feature/daily-2026-04-11-b`
