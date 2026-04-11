@@ -1,6 +1,6 @@
 # Status (ClawBot)
 
-_Last updated: 2026-04-10 (Pipeline PR #35)_
+_Last updated: 2026-04-11 (Pipeline PR #6, evening)_
 
 ## Current focus
 Driving-first pipeline: **Waymo episodes → PyTorch SSL pretrain → waypoint BC → RL refinement → CARLA ScenarioRunner eval**.
