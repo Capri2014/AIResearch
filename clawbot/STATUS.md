@@ -1,13 +1,14 @@
 # Status (ClawBot)
 
-_Last updated: 2026-04-11 (Pipeline PR #6, evening)_
+_Last updated: 2026-04-11 (Pipeline PR #36, morning)_
 
 ## Current focus
 Driving-first pipeline: **Waymo episodes → PyTorch SSL pretrain → waypoint BC → RL refinement → CARLA ScenarioRunner eval**.
 
 ## Daily Cadence
 
-- ✅ **Pipeline PR #35** (2026-04-10): Visualization Utilities - pushed
+- ✅ **Pipeline PR #36** (2026-04-11): Test Harness for CARLA Evaluation - pushed
+- ⏳ **Pipeline PR #35** (2026-04-10): Visualization Utilities - awaiting review
 - ⏳ **Pipeline PR #34** (2026-04-10): Closed-Loop Evaluation Harness (evaluate.py) - awaiting review
 - ⏳ **Pipeline PR #33** (2026-04-10): CARLA ScenarioRunner Integration (runner.py) - awaiting review
 - ⏳ **Pipeline PR #32** (2026-04-10): CARLA Scenario Definitions - awaiting review
@@ -19,7 +20,24 @@ Driving-first pipeline: **Waymo episodes → PyTorch SSL pretrain → waypoint B
 
 ## Recent changes
 
-### Pipeline PR #35: Visualization Utilities (Today, 4:30pm PT)
+### Pipeline PR #36: Test Harness for CARLA Evaluation (Today, 5:30am PT)
+- **Created: `sim/driving/carla_srunner/test_harness.py`**
+  - Comprehensive test suite with 6 test classes, 14 tests
+  - TestPolicyWrapper: stub policy initialization, prediction, control
+  - TestScenarios: scenario definitions, suites, routes
+  - TestRunner: RunnerConfig, command building
+  - TestEvaluate: EvalConfig, ScenarioResult, metrics aggregation
+  - TestIntegration: full stub evaluation, log parsing
+  - TestVisualize: markdown table generation
+- **Fixed: `sim/driving/carla_srunner/policy_wrapper.py`**
+  - Made PolicyConfig.checkpoint optional (was required)
+- **Fixed: `sim/driving/carla_srunner/visualize.py`**
+  - Syntax error: missing closing parenthesis in plt.subplots()
+- **Updated: `sim/driving/carla_srunner/__init__.py`**
+  - Added test exports, fixed import errors
+- **Branch**: `feature/daily-2026-04-11-a`
+
+### Pipeline PR #35: Visualization Utilities (2026-04-10, 4:30pm PT)
 - **Created: `sim/driving/carla_srunner/visualize.py`**
   - `plot_single_run()`: Plot single evaluation run with scenario bars
   - `plot_comparison()`: Compare multiple evaluation runs
@@ -62,12 +80,12 @@ Driving-first pipeline: **Waymo episodes → PyTorch SSL pretrain → waypoint B
 - XML generation for ScenarioRunner
 
 ## Next (top 3)
-1. Test evaluate.py with stub policy
+1. Review pending PRs (#32-35)
 2. Connect with real waypoint policy checkpoints
 3. Run full smoke suite with CARLA server
 
 ## Blockers / questions for owner
-- PR reviews pending for #32, #9, #8, #5, #1
+- PR reviews pending for #32, #33, #34, #35, #6, #9, #8, #5, #1
 
 ## Architecture Reference
 
@@ -87,5 +105,5 @@ final_waypoints = sft_waypoints + delta_head(z)
 - Metrics: ADE/FDE, route_completion, collisions
 
 ## Links
-- Daily notes: `clawbot/daily/2026-04-10.md`
-- Branch: `feature/daily-2026-04-10-c`
+- Daily notes: `clawbot/daily/2026-04-11.md`
+- Branch: `feature/daily-2026-04-11-a`
