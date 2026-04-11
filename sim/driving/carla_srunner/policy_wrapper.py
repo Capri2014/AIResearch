@@ -23,7 +23,7 @@ import numpy as np
 @dataclass
 class PolicyConfig:
     """Configuration for policy wrapper."""
-    checkpoint: Path
+    checkpoint: Path | None = None
     camera_name: str = "front"
     horizon_steps: int = 20
     device: str = "auto"

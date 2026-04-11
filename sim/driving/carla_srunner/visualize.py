@@ -234,7 +234,7 @@ def plot_comparison(
         avg_completions.append(ac)
     
     # Create figure
-    fig, axes = plt.subplots(2, 1, figsize=(max(10, len(runs) * 2), 6)
+    fig, axes = plt.subplots(2, 1, figsize=(max(10, len(runs) * 2), 6))
     fig.suptitle("Evaluation Runs Comparison", fontsize=14)
     
     x = range(len(runs))

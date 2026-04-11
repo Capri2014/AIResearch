@@ -28,7 +28,6 @@ from sim.driving.carla_srunner.runner import (
     ScenarioRunner,
     build_srunner_command,
     build_srunner_command_for_route,
-    check_carla_connection,
 )
 
 from sim.driving.carla_srunner.evaluate import (
@@ -55,6 +54,16 @@ from sim.driving.carla_srunner.visualize import (
     generate_markdown_table,
 )
 
+from sim.driving.carla_srunner.test_harness import (
+    run_tests,
+    TestPolicyWrapper,
+    TestScenarios,
+    TestRunner,
+    TestEvaluate,
+    TestIntegration,
+    TestVisualize,
+)
+
 __all__ = [
     # Scenarios
     "SCENARIO_CATALOG",
@@ -75,7 +84,6 @@ __all__ = [
     "ScenarioRunner",
     "build_srunner_command",
     "build_srunner_command_for_route",
-    "check_carla_connection",
     # Evaluate
     "EvalRunConfig",
     "EvalMetrics",
@@ -94,6 +102,14 @@ __all__ = [
     "load_metrics",
     "load_all_runs",
     "generate_markdown_table",
+    # Test harness
+    "run_tests",
+    "TestPolicyWrapper",
+    "TestScenarios",
+    "TestRunner",
+    "TestEvaluate",
+    "TestIntegration",
+    "TestVisualize",
 ]
 
 __version__ = "0.2.0"
