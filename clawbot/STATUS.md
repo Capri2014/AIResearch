@@ -1,13 +1,16 @@
 # Status (ClawBot)
 
-_Last updated: 2026-04-12 (Pipeline PR #1, 5:30am PT)_
+_Last updated: 2026-04-12 (Pipeline PR #4, 1:30pm PT)_
 
 ## Current focus
 Driving-first pipeline: **Waymo episodes → PyTorch SSL pretrain → waypoint BC → RL refinement → CARLA ScenarioRunner eval**.
 
 ## Daily Cadence
 
-- ⏳ **Pipeline PR #1** (2026-04-12): MIM (Masked Image Modeling) Objective - pushed
+- ✅ **Pipeline PR #4** (2026-04-12): Waypoint Visualization Script - pushed
+- ✅ **Pipeline PR #3** (2026-04-12): SSL Encoder to Waypoint BC Bridge - pushed
+- ⏳ **Pipeline PR #2** (2026-04-12): Combined SSL Training Script - pushed
+- ✅ **Pipeline PR #1** (2026-04-12): MIM (Masked Image Modeling) Objective - pushed
 - ✅ **Pipeline PR #38** (2026-04-11): RL Refinement from SFT Checkpoint - pushed
 - ✅ **Pipeline PR #37** (2026-04-11): Waypoint BC Training Script - pushed
 - ⏳ **Pipeline PR #36** (2026-04-11): Test Harness for CARLA Evaluation - awaiting review
@@ -23,6 +26,20 @@ Driving-first pipeline: **Waymo episodes → PyTorch SSL pretrain → waypoint B
 
 ## Recent changes
 
+### Pipeline PR #4: Waypoint Visualization Script (Today, 1:30pm PT)
+- **Created: `training/sft/visualize_waypoints.py`**
+  - Visualization script for waypoint predictions from trained models
+  - `WaypointSample`, `VisualizationConfig`, `VisualizationMetrics` dataclasses
+  - `load_predictions()`: Load from JSONL predictions file
+  - `compute_path_length()` / `compute_waypoint_spacing()`: Statistics
+  - `visualize_single_sample()`: Single sample PNG output
+  - `visualize_batch()`: Batch visualization to directory
+  - `visualize_comparison()`: Compare multiple runs
+  - CLI: --predictions, --runs-dir, --output, --num-samples, --figsize, --dpi
+  - Bridges waypoint BC → downstream analysis and CARLA evaluation
+- **Smoke test**: ✅ SUCCESS (path length, waypoint spacing computed)
+- **Branch**: `feature/daily-2026-04-12-d`
+
 ### Pipeline PR #1: MIM (Masked Image Modeling) Objective (Today, 5:30am PT)
 - **Created: `training/pretrain/objectives/masked_image_modeling.py`**
   - `random_masking()`: Apply random spatial masking to image tensors
@@ -35,6 +52,29 @@ Driving-first pipeline: **Waymo episodes → PyTorch SSL pretrain → waypoint B
   - Encoder + decoder architecture
   - Checkpointing with final.pt + metrics.json
 - **Branch**: `feature/daily-2026-04-12-a`
+
+### Pipeline PR #3: SSL Encoder to Waypoint BC Bridge (10:30am PT)
+- **Created: `training/sft/load_ssl_encoder.py`**
+  - `load_ssl_encoder()`: Extract encoder weights from SSL checkpoints (CombinedSSLModel, contrastive, JEPA)
+  - `save_encoder_weights()`: Save extracted weights to .pt file
+  - `verify_encoder()`: Smoke test for encoder extraction
+  - `WaypointBCWithSSL`: BC model with `load_ssl_encoder()` method
+  - `test_encoder_loading()`: Integration test
+  - CLI: --ssl-checkpoint, --output, --encoder-type, --verify, --test-loading
+- **Smoke test**: Forward pass successful - waypoints (2,8,2), speed (2,1), progress (2,1)
+- **Branch**: `feature/daily-2026-04-12-b`
+
+### Pipeline PR #2: Combined SSL Training Script (7:30am PT)
+- **Created: `training/pretrain/run_combined_ssl.py`**
+  - Combined SSL model merging invariant (contrastive) + generative (MIM) objectives
+  - SSLEncoder: CNN-based encoder for embeddings
+  - MIMDecoder: Transformer decoder for patch reconstruction
+  - CombinedSSLModel: unified model with forward_contrastive() and forward_mim()
+  - Configurable loss weights (--mim-weight, --contrastive-weight)
+  - OneCycleLR scheduler, checkpointing (checkpoint.pt, best.pt, final.pt)
+  - Metrics output to metrics.json
+  - CLI: --episodes-glob, --batch-size, --epochs, --lr, --mim-weight, --out-dir
+- **Branch**: `feature/daily-2026-04-12-b`
 
 ### Pipeline PR #38: RL Refinement from SFT Checkpoint (2026-04-11, 4:30pm PT)
 - **Created: `training/rl/train_rl_refine_from_sft.py`**
@@ -142,5 +182,5 @@ final_waypoints = sft_waypoints + delta_head(z)
 
 ## Links
 - Daily notes: `clawbot/daily/2026-04-12.md`
-- Branch: `feature/daily-2026-04-12-a`
-- PR: https://github.com/Capri2014/AIResearch/pull/new/feature/daily-2026-04-12-a
+- Branch: `feature/daily-2026-04-12-d`
+- PR: https://github.com/Capri2014/AIResearch/pull/new/feature/daily-2026-04-12-d
