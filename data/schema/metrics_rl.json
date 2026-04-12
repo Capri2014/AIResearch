@@ -1,0 +1,77 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "RL Evaluation Metrics Schema",
+  "description": "Schema for RL evaluation metrics on waypoint navigation tasks",
+  "type": "object",
+  "required": ["run_id", "domain", "timestamp", "config", "sft_only", "rl_refined", "comparison"],
+  "properties": {
+    "run_id": {
+      "type": "string",
+      "description": "Unique run identifier (format: YYYYMMDD-HHMMSS_<suffix>)"
+    },
+    "domain": {
+      "type": "string",
+      "enum": ["rl_eval_comparison"],
+      "description": "Evaluation domain"
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 timestamp"
+    },
+    "config": {
+      "type": "object",
+      "description": "Evaluation configuration",
+      "required": ["episodes", "seed_base", "max_steps"],
+      "properties": {
+        "episodes": {"type": "integer", "minimum": 1},
+        "seed_base": {"type": "integer"},
+        "max_steps": {"type": "integer", "minimum": 1},
+        "world_size": {"type": "number"},
+        "delta_scale": {"type": "number"}
+      }
+    },
+    "sft_only": {
+      "type": "object",
+      "description": "SFT-only policy metrics",
+      "required": ["ade_mean", "fde_mean", "success_rate"],
+      "properties": {
+        "ade_mean": {"type": "number", "description": "Average Displacement Error (meters)"},
+        "ade_std": {"type": "number"},
+        "fde_mean": {"type": "number", "description": "Final Displacement Error (meters)"},
+        "fde_std": {"type": "number"},
+        "success_rate": {"type": "number", "minimum": 0, "maximum": 1},
+        "avg_return": {"type": "number"},
+        "avg_waypoints_reached": {"type": "number"},
+        "episodes": {"type": "integer"}
+      }
+    },
+    "rl_refined": {
+      "type": "object",
+      "description": "RL-refined (SFT + delta) policy metrics",
+      "required": ["ade_mean", "fde_mean", "success_rate"],
+      "properties": {
+        "ade_mean": {"type": "number"},
+        "ade_std": {"type": "number"},
+        "fde_mean": {"type": "number"},
+        "fde_std": {"type": "number"},
+        "success_rate": {"type": "number", "minimum": 0, "maximum": 1},
+        "avg_return": {"type": "number"},
+        "avg_waypoints_reached": {"type": "number"},
+        "episodes": {"type": "integer"}
+      }
+    },
+    "comparison": {
+      "type": "object",
+      "description": "Comparison between policies",
+      "required": ["ade_delta", "improvement"],
+      "properties": {
+        "ade_delta": {"type": "number", "description": "ADE delta (RL - SFT)"},
+        "ade_delta_pct": {"type": "number", "description": "ADE delta percentage"},
+        "fde_delta": {"type": "number"},
+        "fde_delta_pct": {"type": "number"},
+        "improvement": {"type": "string", "enum": ["yes", "no"], "description": "Whether RL improved over SFT"}
+      }
+    }
+  }
+}
