@@ -1,25 +1,50 @@
 # Status (ClawBot)
 
-_Last updated: 2026-04-11 (Pipeline PR #37, morning)_
+_Last updated: 2026-04-12 (Pipeline PR #1, 5:30am PT)_
 
 ## Current focus
 Driving-first pipeline: **Waymo episodes → PyTorch SSL pretrain → waypoint BC → RL refinement → CARLA ScenarioRunner eval**.
 
 ## Daily Cadence
 
+- ⏳ **Pipeline PR #1** (2026-04-12): MIM (Masked Image Modeling) Objective - pushed
+- ✅ **Pipeline PR #38** (2026-04-11): RL Refinement from SFT Checkpoint - pushed
 - ✅ **Pipeline PR #37** (2026-04-11): Waypoint BC Training Script - pushed
 - ⏳ **Pipeline PR #36** (2026-04-11): Test Harness for CARLA Evaluation - awaiting review
 - ⏳ **Pipeline PR #35** (2026-04-10): Visualization Utilities - awaiting review
 - ⏳ **Pipeline PR #34** (2026-04-10): Closed-Loop Evaluation Harness (evaluate.py) - awaiting review
 - ⏳ **Pipeline PR #33** (2026-04-10): CARLA ScenarioRunner Integration (runner.py) - awaiting review
 - ⏳ **Pipeline PR #32** (2026-04-10): CARLA Scenario Definitions - awaiting review
-- ⏳ **Pipeline PR #6** (2026-02-28): RL Refinement Evaluation + Metrics Hardening - awaiting review
+- ✅ **Pipeline PR #6** (2026-04-11): RL Refinement Evaluation + Metrics Hardening - committed & pushed
 - ⏳ **Pipeline PR #1** (2026-02-18): RL Checkpoint Selection with Policy Entropy - awaiting review
 - ⏳ **Pipeline PR #9** (2026-02-17): Evaluation + Metrics Hardening for RL Refinement - awaiting review
 - ⏳ **Pipeline PR #8** (2026-02-17): CARLA Closed-Loop Waypoint BC Evaluation - awaiting review
 - ⏳ **Pipeline PR #5** (2026-02-16): RL Refinement Stub for Residual Delta-Waypoint Learning - awaiting review
 
 ## Recent changes
+
+### Pipeline PR #1: MIM (Masked Image Modeling) Objective (Today, 5:30am PT)
+- **Created: `training/pretrain/objectives/masked_image_modeling.py`**
+  - `random_masking()`: Apply random spatial masking to image tensors
+  - `mim_loss()`: Compute MIM loss (MSE on masked positions)
+  - `MIMObjective`: PyTorch module interface
+  - `combine_contrastive_and_mim()`: Multi-objective learning (invariant + generative)
+- **Created: `training/pretrain/run_mim_pretrain.py`**
+  - End-to-end MIM pretraining script
+  - MIMConfig with --episodes-glob, --batch-size, --mask-ratio, etc.
+  - Encoder + decoder architecture
+  - Checkpointing with final.pt + metrics.json
+- **Branch**: `feature/daily-2026-04-12-a`
+
+### Pipeline PR #38: RL Refinement from SFT Checkpoint (2026-04-11, 4:30pm PT)
+- **Created: `training/rl/train_rl_refine_from_sft.py`**
+  - RL-after-SFT pipeline: loads SFT waypoint model, adds residual delta head
+  - final_waypoints = sft_waypoints + delta_scale * delta_head(obs)
+  - Trains with PPO on toy kinematics environment
+  - Outputs schema-compliant metrics.json + train_metrics.json
+  - CLI: --sft-checkpoint, --toy-sft, --num-iterations, --output-dir
+- **Smoke test**: Ran 20 iterations - working (output: out/rl_refine_from_sft/run_20260411_193300/)
+- **Branch**: `feature/daily-2026-04-11-e`
 
 ### Pipeline PR #37: Waypoint BC Training Script (Today, 7:30am PT)
 - **Created: `training/sft/train_waypoint_bc.py`**
@@ -116,5 +141,6 @@ final_waypoints = sft_waypoints + delta_head(z)
 - Metrics: ADE/FDE, route_completion, collisions
 
 ## Links
-- Daily notes: `clawbot/daily/2026-04-11.md`
-- Branch: `feature/daily-2026-04-11-b`
+- Daily notes: `clawbot/daily/2026-04-12.md`
+- Branch: `feature/daily-2026-04-12-a`
+- PR: https://github.com/Capri2014/AIResearch/pull/new/feature/daily-2026-04-12-a
