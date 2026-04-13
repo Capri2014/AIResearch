@@ -1,12 +1,14 @@
 # Status (ClawBot)
 
-_Last updated: 2026-04-12 (Pipeline PR #4, 1:30pm PT)_
+_Last updated: 2026-04-13 (Pipeline PR #1, 5:30am PT)_
 
 ## Current focus
 Driving-first pipeline: **Waymo episodes → PyTorch SSL pretrain → waypoint BC → RL refinement → CARLA ScenarioRunner eval**.
 
 ## Daily Cadence
 
+- ✅ **Pipeline PR #1** (2026-04-13): Pipeline Orchestrator - pushed
+- ✅ **Pipeline PR #5** (2026-04-12): RL Refinement AFTER SFT (Residual Delta-Waypoint) - pushed
 - ✅ **Pipeline PR #4** (2026-04-12): Waypoint Visualization Script - pushed
 - ✅ **Pipeline PR #3** (2026-04-12): SSL Encoder to Waypoint BC Bridge - pushed
 - ⏳ **Pipeline PR #2** (2026-04-12): Combined SSL Training Script - pushed
@@ -26,7 +28,34 @@ Driving-first pipeline: **Waymo episodes → PyTorch SSL pretrain → waypoint B
 
 ## Recent changes
 
-### Pipeline PR #4: Waypoint Visualization Script (Today, 1:30pm PT)
+### Pipeline PR #1: Pipeline Orchestrator (5:30am PT)
+- **Created: `training/pipeline_orchestrator.py`**
+  - Unified end-to-end orchestrator for full driving-first pipeline
+  - Coordinates: Waymo episodes → SSL pretrain → Waypoint BC → RL refinement
+  - `PipelineConfig`: Dataclass for all pipeline hyperparameters
+  - `PipelineOrchestrator`: Main class with stage execution
+  - Individual stage execution: pretrain, waypoint_bc, rl_refinement
+  - Full pipeline mode: all stages in sequence with checkpoint passing
+  - Dry-run mode for config verification
+  - CLI: --stage, --episodes-glob, --pretrain-epochs, --bc-epochs, --rl-iterations, --dry-run
+- **Smoke test**: ✅ SUCCESS (dry-run verified)
+- **Branch**: `feature/daily-2026-04-13-a`
+
+### Pipeline PR #5: RL Refinement AFTER SFT (Residual Delta-Waypoint) (4:30pm PT)
+- **Created: `training/rl/run_refine_delta_waypoint.py`**
+  - Training entry point for RL refinement after SFT (Option B: waypoint deltas)
+  - `RefineDeltaConfig`: Dataclass for hyperparameters (num_waypoints, lr, delta_scale, etc.)
+  - `ToyWaypointEnv`: Simplified car-like environment consuming waypoints
+  - `RefinementPolicy`: SFT model (frozen) + delta head (trainable)
+    - final_waypoints = sft_waypoints + delta_scale * delta_head(obs)
+  - PPO-style training with value loss and MSE policy loss
+  - GAE advantage estimation (simplified)
+  - Outputs schema-compliant metrics.json + train_metrics.json to out/<run_id>/
+  - CLI: --num-waypoints, --lr, --delta-scale, --sft-checkpoint, --num-iterations, --output-dir
+- **Smoke test**: ✅ SUCCESS (20 iteration training test completed)
+- **Branch**: `feature/daily-2026-04-12-e`
+
+### Pipeline PR #4: Waypoint Visualization Script (1:30pm PT)
 - **Created: `training/sft/visualize_waypoints.py`**
   - Visualization script for waypoint predictions from trained models
   - `WaypointSample`, `VisualizationConfig`, `VisualizationMetrics` dataclasses
