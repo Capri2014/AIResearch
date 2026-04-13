@@ -1,12 +1,13 @@
 # Status (ClawBot)
 
-_Last updated: 2026-04-13 (Pipeline PR #1, 5:30am PT)_
+_Last updated: 2026-04-13 (Pipeline PR #2, 7:30am PT)_
 
 ## Current focus
 Driving-first pipeline: **Waymo episodes → PyTorch SSL pretrain → waypoint BC → RL refinement → CARLA ScenarioRunner eval**.
 
 ## Daily Cadence
 
+- ✅ **Pipeline PR #2** (2026-04-13): JEPA Pretraining Script - pushed
 - ✅ **Pipeline PR #1** (2026-04-13): Pipeline Orchestrator - pushed
 - ✅ **Pipeline PR #5** (2026-04-12): RL Refinement AFTER SFT (Residual Delta-Waypoint) - pushed
 - ✅ **Pipeline PR #4** (2026-04-12): Waypoint Visualization Script - pushed
@@ -40,6 +41,23 @@ Driving-first pipeline: **Waymo episodes → PyTorch SSL pretrain → waypoint B
   - CLI: --stage, --episodes-glob, --pretrain-epochs, --bc-epochs, --rl-iterations, --dry-run
 - **Smoke test**: ✅ SUCCESS (dry-run verified)
 - **Branch**: `feature/daily-2026-04-13-a`
+
+### Pipeline PR #2: JEPA Pretraining Script (7:30am PT)
+- **Created: `training/pretrain/run_jepa_pretrain.py`**
+  - Standalone JEPA (Joint Embedding Predictive Architecture) pretraining script
+  - Masks encoder embeddings and predicts them from visible context
+  - `JEPAConfig`: Dataclass for hyperparameters (encoder dim, pred dim, mask ratio, etc.)
+  - `ConvEncoder`: CNN backbone + temporal transformer for sequential embeddings
+  - `JEPAPredictor`: Transformer-based predictor for masked latent prediction
+  - `JEPAModel`: Combined encoder + predictor with forward pass
+  - `compute_jepa_loss()`: MSE loss on masked positions only
+  - `create_mask()`: Random masking with at least one masked position per sample
+  - OneCycleLR scheduler, checkpointing (best.pt, epoch_*.pt, final.pt)
+  - Metrics output to metrics.json
+  - CLI: --episodes-glob, --batch-size, --epochs, --lr, --encoder-dim, --pred-dim, --mask-ratio, --out-dir, --dry-run
+  - Complements existing contrastive (run_combined_ssl.py) and MIM (run_mim_pretrain.py) objectives
+- **Smoke test**: ✅ SUCCESS (dry-run verified)
+- **Branch**: `feature/daily-2026-04-13-b`
 
 ### Pipeline PR #5: RL Refinement AFTER SFT (Residual Delta-Waypoint) (4:30pm PT)
 - **Created: `training/rl/run_refine_delta_waypoint.py`**
