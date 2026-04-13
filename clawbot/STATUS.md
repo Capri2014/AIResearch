@@ -1,12 +1,14 @@
 # Status (ClawBot)
 
-_Last updated: 2026-04-13 (Pipeline PR #2, 7:30am PT)_
+_Last updated: 2026-04-13 (Pipeline PR #4, 1:30pm PT)_
 
 ## Current focus
 Driving-first pipeline: **Waymo episodes → PyTorch SSL pretrain → waypoint BC → RL refinement → CARLA ScenarioRunner eval**.
 
 ## Daily Cadence
 
+- ✅ **Pipeline PR #4** (2026-04-13): Checkpoint Manager - pushed
+- ✅ **Pipeline PR #3** (2026-04-13): Dataset Splitter - pushed
 - ✅ **Pipeline PR #2** (2026-04-13): JEPA Pretraining Script - pushed
 - ✅ **Pipeline PR #1** (2026-04-13): Pipeline Orchestrator - pushed
 - ✅ **Pipeline PR #5** (2026-04-12): RL Refinement AFTER SFT (Residual Delta-Waypoint) - pushed
@@ -58,6 +60,21 @@ Driving-first pipeline: **Waymo episodes → PyTorch SSL pretrain → waypoint B
   - Complements existing contrastive (run_combined_ssl.py) and MIM (run_mim_pretrain.py) objectives
 - **Smoke test**: ✅ SUCCESS (dry-run verified)
 - **Branch**: `feature/daily-2026-04-13-b`
+
+### Pipeline PR #4: Checkpoint Manager (1:30pm PT)
+- **Created: `training/checkpoint_manager.py`**
+  - Manages, lists, and selects checkpoints across pipeline stages
+  - `CheckpointInfo`: Dataclass for checkpoint metadata (path, stage, run_id, epoch, metrics)
+  - `CheckpointManager`: Main class with stage-aware checkpoint handling
+  - `list_checkpoints()`: List all checkpoints, filterable by stage/run_id
+  - `compare_checkpoints()`: Compare multiple checkpoints
+  - `select_best_checkpoint()`: Select best by metric (loss/reward/entropy)
+  - `get_checkpoint_summary()`: Summary of available checkpoints
+  - Supports SSL, BC, and RL stage directories
+  - Handles final.pt, best.pt, best_reward.pt, best_entropy.pt, checkpoint.pt
+  - CLI: list, compare, select, summary subcommands
+- **Smoke test**: ✅ SUCCESS (import verified, summary functional)
+- **Branch**: `feature/daily-2026-04-13-d`
 
 ### Pipeline PR #5: RL Refinement AFTER SFT (Residual Delta-Waypoint) (4:30pm PT)
 - **Created: `training/rl/run_refine_delta_waypoint.py`**
