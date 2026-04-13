@@ -1,13 +1,14 @@
 # Status (ClawBot)
 
-_Last updated: 2026-04-09 (Pipeline PR #5 — daily cadence)_
+_Last updated: 2026-04-12 (Pipeline PR #6 — daily cadence)_
 
 ## Current focus
 Driving-first pipeline: **Waymo episodes → PyTorch SSL pretrain → waypoint BC → RL refinement → CARLA ScenarioRunner eval**.
 
 ## Daily Cadence
 
-- ✅ **Pipeline PR #5** (2026-04-09): RL after SFT waypoint delta training stub ← TODAY
+- ✅ **Pipeline PR #6** (2026-04-12): Deterministic Eval SFT vs RL Metrics ← TODAY
+- ✅ **Pipeline PR #5** (2026-04-09): RL after SFT waypoint delta training stub
 - ✅ **Pipeline PR #2** (2026-04-08): Full Pipeline Benchmark Runner
 - ✅ **Pipeline PR #1** (2026-04-08): PyTorch DataLoader for Augmented Episodes
 - ✅ **Pipeline PR #6** (2026-04-07): Deterministic Eval Runner Fix + RL comparison run ← TODAY
@@ -75,6 +76,24 @@ Driving-first pipeline: **Waymo episodes → PyTorch SSL pretrain → waypoint B
 - **Commit:** `981f120` — 1 file, 503 insertions
 
 - **Next:** Wire real SFT checkpoint, add ADE/FDE metrics to reward
+
+### Pipeline PR #6: Deterministic Eval SFT vs RL Metrics (2026-04-12) ← TODAY
+- **Added: eval metrics for SFT vs RL comparison on toy waypoint environment**
+  - Ran 20 deterministic episodes (seeds 42-61) comparing both policies
+  - Output: `out/eval/20260412-213437_sft/`, `out/eval/20260412-213437_rl/`, `out/eval/20260412-213437_comparison/`
+  - Metrics follow `data/schema/metrics_rl.json` schema
+
+- **Results**:
+  - SFT: ADE=13.305m, FDE=37.166m, Success=0%
+  - RL:  ADE=13.028m, FDE=36.599m, Success=0%
+  - RL shows **2.08% ADE improvement** over SFT
+
+- **Branch:** `feature/daily-2026-04-09-e`
+- **Commit:** `93dc788` — 1 file, 33 insertions (daily log)
+
+- **Test command:** `python3 -m training.rl.eval_deterministic --compare --episodes 20 --seed-base 42`
+
+- **Next:** Wire real SFT checkpoint, add success criteria, scale episodes
 
 ### Pipeline PR #7: RL After SFT Waypoint Delta Training (2026-04-06)
 - **Created: `training/rl/rl_after_sft_waypoint_delta.py`**
