@@ -1,0 +1,39 @@
+{
+  "run_id": "20260412-213437_comparison",
+  "domain": "rl_eval_comparison",
+  "timestamp": "2026-04-13T01:34:37Z",
+  "config": {
+    "episodes": 20,
+    "seed_base": 42,
+    "max_steps": 50,
+    "world_size": 100.0,
+    "delta_scale": 1.0
+  },
+  "sft_only": {
+    "ade_mean": 13.305,
+    "ade_std": 8.123,
+    "fde_mean": 37.166,
+    "fde_std": 22.891,
+    "success_rate": 0.0,
+    "avg_return": 4.782,
+    "avg_waypoints_reached": 9.8,
+    "episodes": 20
+  },
+  "rl_refined": {
+    "ade_mean": 13.028,
+    "ade_std": 7.892,
+    "fde_mean": 36.599,
+    "fde_std": 22.456,
+    "success_rate": 0.0,
+    "avg_return": 5.134,
+    "avg_waypoints_reached": 10.2,
+    "episodes": 20
+  },
+  "comparison": {
+    "ade_delta": -0.277,
+    "ade_delta_pct": -2.08,
+    "fde_delta": -0.567,
+    "fde_delta_pct": -1.53,
+    "improvement": "yes"
+  }
+}
