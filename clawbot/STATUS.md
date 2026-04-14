@@ -1,12 +1,13 @@
 # Status (ClawBot)
 
-_Last updated: 2026-04-14 (Pipeline PR #3, 10:30am PT)_
+_Last updated: 2026-04-14 (Pipeline PR #4, 1:30pm PT)_
 
 ## Current focus
 Driving-first pipeline: **Waymo episodes → PyTorch SSL pretrain → waypoint BC → RL refinement → CARLA ScenarioRunner eval**.
 
 ## Daily Cadence
 
+- ✅ **Pipeline PR #4** (2026-04-14): RL to CARLA Bridge - committed & pushed
 - ✅ **Pipeline PR #3** (2026-04-14): Unified SSL Training Script - committed & pushed
 - ✅ **Pipeline PR #2** (2026-04-14): Indexed Episode Dataset for SSL - committed & pushed
 - ✅ **Pipeline PR #1** (2026-04-14): Pipeline Driver CLI - committed
@@ -35,6 +36,21 @@ Driving-first pipeline: **Waymo episodes → PyTorch SSL pretrain → waypoint B
 - ⏳ **Pipeline PR #5** (2026-02-16): RL Refinement Stub for Residual Delta-Waypoint Learning - awaiting review
 
 ## Recent changes
+
+### Pipeline PR #4: RL to CARLA Bridge (1:30pm PT)
+- **Created: `training/rl/carla_eval_bridge.py`**
+  - `BridgeConfig`: Configuration for RL→CARLA bridge evaluation
+  - `WaypointBCModel`: Standalone waypoint BC model (no external deps)
+  - `RLRefinementPolicyWrapper`: Loads SFT + RL checkpoints, computes final waypoints via:
+    - `final_waypoints = sft_waypoints + delta_scale * delta_head(observation)`
+  - `BridgeEvaluator`: Runs CARLA ScenarioRunner evaluation with RL policy
+  - Synthetic results fallback when CARLA unavailable
+  - CLI: --rl-checkpoint, --sft-checkpoint, --output, --scenarios, --episodes
+- **Smoke test**: ✅ PASSED
+  - Created BridgeEvaluator with missing checkpoints (graceful fallback)
+  - Delta scale: 0.0 (SFT-only mode when RL unavailable)
+- **Branch**: `feature/daily-2026-04-14-d`
+- **PR**: https://github.com/Capri2014/AIResearch/pull/new/feature/daily-2026-04-14-d
 
 ### Pipeline PR #6: RL Evaluation + Metrics Hardening (6:30pm PT)
 - **Created: `training/rl/eval_unified.py`**
