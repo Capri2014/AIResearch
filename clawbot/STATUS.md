@@ -1,12 +1,14 @@
 # Status (ClawBot)
 
-_Last updated: 2026-04-13 (Pipeline PR #4, 1:30pm PT)_
+_Last updated: 2026-04-13 (Pipeline PR #6, 6:30pm PT)_
 
 ## Current focus
 Driving-first pipeline: **Waymo episodes → PyTorch SSL pretrain → waypoint BC → RL refinement → CARLA ScenarioRunner eval**.
 
 ## Daily Cadence
 
+- ✅ **Pipeline PR #6** (2026-04-13): RL Evaluation + Metrics Hardening - committed
+- ✅ **Pipeline PR #5** (2026-04-13): PPO Residual Delta-Waypoint Refiner - pushed
 - ✅ **Pipeline PR #4** (2026-04-13): Checkpoint Manager - pushed
 - ✅ **Pipeline PR #3** (2026-04-13): Dataset Splitter - pushed
 - ✅ **Pipeline PR #2** (2026-04-13): JEPA Pretraining Script - pushed
@@ -30,6 +32,23 @@ Driving-first pipeline: **Waymo episodes → PyTorch SSL pretrain → waypoint B
 - ⏳ **Pipeline PR #5** (2026-02-16): RL Refinement Stub for Residual Delta-Waypoint Learning - awaiting review
 
 ## Recent changes
+
+### Pipeline PR #6: RL Evaluation + Metrics Hardening (6:30pm PT)
+- **Created: `training/rl/eval_unified.py`**
+  - Unified evaluation runner that runs deterministic eval for both SFT and RL policies
+  - Runs N episodes for SFT policy → `<run_id>_sft/metrics.json`
+  - Runs N episodes for RL policy → `<run_id>_rl/metrics.json`
+  - Writes combined comparison → `combined_<run_id>/metrics.json`
+  - Prints 3-line comparison report (ADE, FDE, Success Rate)
+  - Compatible with `data/schema/metrics.json` (domain="rl")
+  - CLI: --output-root, --run-id, --episodes, --seed-base, --max-steps
+- **Smoke test**: ✅ SUCCESS
+  - 20 episodes, seeds 0-19, max-steps 50
+  - SFT ADE: 15.7239m, RL ADE: 15.6186m (+0.7% improvement)
+  - SFT FDE: 45.1627m, RL FDE: 44.8539m (+0.7% improvement)
+  - Success rate: both 0.0% (toy env is challenging)
+  - Outputs: out/eval/unified_20260413-213720_sft/, _rl/, combined_/
+- **Branch**: `feature/daily-2026-04-13-d`
 
 ### Pipeline PR #1: Pipeline Orchestrator (5:30am PT)
 - **Created: `training/pipeline_orchestrator.py`**
