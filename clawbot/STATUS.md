@@ -1,12 +1,15 @@
 # Status (ClawBot)
 
-_Last updated: 2026-04-13 (Pipeline PR #6, 6:30pm PT)_
+_Last updated: 2026-04-14 (Pipeline PR #3, 10:30am PT)_
 
 ## Current focus
 Driving-first pipeline: **Waymo episodes → PyTorch SSL pretrain → waypoint BC → RL refinement → CARLA ScenarioRunner eval**.
 
 ## Daily Cadence
 
+- ✅ **Pipeline PR #3** (2026-04-14): Unified SSL Training Script - committed & pushed
+- ✅ **Pipeline PR #2** (2026-04-14): Indexed Episode Dataset for SSL - committed & pushed
+- ✅ **Pipeline PR #1** (2026-04-14): Pipeline Driver CLI - committed
 - ✅ **Pipeline PR #6** (2026-04-13): RL Evaluation + Metrics Hardening - committed
 - ✅ **Pipeline PR #5** (2026-04-13): PPO Residual Delta-Waypoint Refiner - pushed
 - ✅ **Pipeline PR #4** (2026-04-13): Checkpoint Manager - pushed
@@ -49,6 +52,22 @@ Driving-first pipeline: **Waymo episodes → PyTorch SSL pretrain → waypoint B
   - Success rate: both 0.0% (toy env is challenging)
   - Outputs: out/eval/unified_20260413-213720_sft/, _rl/, combined_/
 - **Branch**: `feature/daily-2026-04-13-d`
+
+### Pipeline PR #3: Unified SSL Training Script (10:30am PT)
+- **Created: `training/pretrain/run_unified_ssl.py`**
+  - Unified SSL training script supporting multiple objectives: JEPA, MIM, Contrastive
+  - `UnifiedSSLConfig`: Dataclass for all hyperparameters
+  - `ConvEncoder`: CNN backbone + temporal transformer (4.4M params)
+  - `MIMDecoder`: Transformer decoder for masked image modeling
+  - `JEPAPredictor`: Predicts masked embeddings from visible context
+  - `UnifiedSSLModel`: Combined model with forward_contrastive/mim_jepa methods
+  - OneCycleLR scheduler, checkpointing (best.pt, epoch_*.pt, final.pt)
+  - CLI: --objective, --epochs, --batch-size, --index-path, --out-dir
+- **Smoke test**: ✅ SUCCESS
+  - 1 epoch, batch=4, 1040 frames from IndexedEpisodeSSL
+  - Loss converged: 1.31 → 0.06 (JEPA objective)
+  - Output: out/ssl_unified_test/final.pt
+- **Branch**: `feature/daily-2026-04-14-c`
 
 ### Pipeline PR #1: Pipeline Orchestrator (5:30am PT)
 - **Created: `training/pipeline_orchestrator.py`**
