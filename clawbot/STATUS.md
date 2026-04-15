@@ -1,12 +1,26 @@
 # Status (ClawBot)
 
-_Last updated: 2026-04-14 (Pipeline PR #4, 1:30pm PT)_
+_Last updated: 2026-04-15 (Pipeline PR #1, 5:30am PT)_
 
 ## Current focus
 Driving-first pipeline: **Waymo episodes → PyTorch SSL pretrain → waypoint BC → RL refinement → CARLA ScenarioRunner eval**.
 
+## Today's Progress
+
+### Pipeline PR #1: Model Inference API (5:30am PT)
+- **Created: `training/inference/model_inference.py`**
+  - Unified inference API for pipeline forward passes
+  - SSLEncoderInference, WaypointBCInference, RLRefinementInference classes
+  - CLI: --checkpoint, --stage, --input, --output, --find-latest
+  - Auto-discovers latest checkpoints by stage
+- **Smoke test**: ✅ SUCCESS (waypoints shape: (8, 2))
+- **Branch**: `feature/daily-2026-04-15-a`
+- **PR**: https://github.com/Capri2014/AIResearch/pull/new/feature/daily-2026-04-15-a
+
 ## Daily Cadence
 
+- ✅ **Pipeline PR #6** (2026-04-14): RL Evaluation + Metrics Hardening - committed & pushed
+- ✅ **Pipeline PR #5** (2026-04-14): PPO Delta-Waypoint Refiner - committed & pushed
 - ✅ **Pipeline PR #4** (2026-04-14): RL to CARLA Bridge - committed & pushed
 - ✅ **Pipeline PR #3** (2026-04-14): Unified SSL Training Script - committed & pushed
 - ✅ **Pipeline PR #2** (2026-04-14): Indexed Episode Dataset for SSL - committed & pushed
@@ -36,6 +50,18 @@ Driving-first pipeline: **Waymo episodes → PyTorch SSL pretrain → waypoint B
 - ⏳ **Pipeline PR #5** (2026-02-16): RL Refinement Stub for Residual Delta-Waypoint Learning - awaiting review
 
 ## Recent changes
+
+### Pipeline PR #5: RL Refinement AFTER SFT - Waypoint Policy (4:30pm PT)
+- **Created: `training/rl/train_ppo_delta_waypoint.py`**
+  - PPO training for delta-waypoint refinement after SFT
+  - Schema: `final_waypoints = sft_waypoints + delta_scale * delta_head(obs)`
+  - Inline ToyWaypointKinematicsEnv for standalone execution
+  - GAE, value loss, entropy bonus for PPO training
+  - Schema-compliant metrics.json and train_metrics.json output
+  - CLI: --out-dir, --num-waypoints, --delta-scale, --iterations
+- **Smoke test**: ✅ SUCCESS (10 iterations, best reward: -4.73)
+- **Branch**: `feature/daily-2026-04-14-e`
+- **PR**: https://github.com/Capri2014/AIResearch/pull/new/feature/daily-2026-04-14-e
 
 ### Pipeline PR #4: RL to CARLA Bridge (1:30pm PT)
 - **Created: `training/rl/carla_eval_bridge.py`**
