@@ -1,6 +1,6 @@
 # Status (ClawBot)
 
-_Last updated: 2026-04-15 (Pipeline PR #1, 5:30am PT)_
+_Last updated: 2026-04-15 (Pipeline PR #2, 7:30am PT)_
 
 ## Current focus
 Driving-first pipeline: **Waymo episodes → PyTorch SSL pretrain → waypoint BC → RL refinement → CARLA ScenarioRunner eval**.
@@ -16,6 +16,18 @@ Driving-first pipeline: **Waymo episodes → PyTorch SSL pretrain → waypoint B
 - **Smoke test**: ✅ SUCCESS (waypoints shape: (8, 2))
 - **Branch**: `feature/daily-2026-04-15-a`
 - **PR**: https://github.com/Capri2014/AIResearch/pull/new/feature/daily-2026-04-15-a
+
+### Pipeline PR #2: Waypoint Trajectory Post-Processor (7:30am PT)
+- **Created: `training/sft/postprocess_waypoints.py`**
+  - Applies kinematic constraints (velocity/acceleration limits)
+  - Temporal smoothing: EMA and Gaussian methods
+  - Trajectory validation (reachability, feasibility checks)
+  - Speed profile generation: constant, trapezoidal, adaptive
+  - CLI: --predictions, --output, --max-velocity, --max-acceleration, --smoothing
+  - Schema-compatible output for CARLA integration
+- **Smoke test**: ✅ SUCCESS (synthetic waypoints processed)
+- **Branch**: `feature/daily-2026-04-15-b`
+- **PR**: https://github.com/Capri2014/AIResearch/pull/new/feature/daily-2026-04-15-b
 
 ## Daily Cadence
 
