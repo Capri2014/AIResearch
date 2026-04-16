@@ -1,11 +1,56 @@
 # Status (ClawBot)
 
-_Last updated: 2026-04-16 (Pipeline PR #1, 5:30am PT)_
+_Last updated: 2026-04-16 (Pipeline PR #4, 1:30pm PT)_
 
 ## Current focus
 Driving-first pipeline: **Waymo episodes → PyTorch SSL pretrain → waypoint BC → RL refinement → CARLA ScenarioRunner eval**.
 
 ## Today's Progress
+
+### Pipeline PR #4: Waypoint Extraction from Waymo Episodes (1:30pm PT)
+- **Created: `training/pretrain/extract_waypoints.py`**
+  - Extracts waypoints from Waymo episode trajectories for BC training
+  - Uses existing `data/waymo/waypoint_extraction.py` utilities
+  - WaypointConfig: num_waypoints (8), horizon (3s), sampling_rate (2Hz)
+  - WaypointExtractor: extracts ego-frame waypoints from poses
+  - Computes speed and progress per sample
+  - Synthetic data fallback for testing
+  - CLI: --episodes, --output, --num-waypoints, --horizon, --synthetic
+- **Smoke test**: ✅ PASSED (3 synthetic episodes, 12 samples, waypoints OK)
+- **Commit**: `c6457b8` - Waypoint extraction from Waymo episodes for BC training
+- **Branch**: `feature/daily-2026-04-16-d`
+- **PR**: https://github.com/Capri2014/AIResearch/pull/new/feature/daily-2026-04-16-d
+
+### Pipeline PR #3: Pipeline Checkpoint Manager (10:30am PT)
+- **Created: `training/checkpoint_manager_stage.py`**
+  - Unified checkpoint management across all pipeline stages
+  - PipelineCheckpointManager: finds, checks health, compares checkpoints
+  - CheckpointHealth: validates existence, loadability, type, metrics
+  - CheckpointLineage: traces checkpoint lineage through pipeline
+  - find_checkpoints(): discovery by stage with run_id, epoch
+  - check_health(): validates checkpoint file and model type
+  - trace_lineage(): traces data→SSL→BC→RL checkpoint chain
+  - validate_pipeline(): validates all stages have checkpoints
+  - load_checkpoint_for_stage(): stage-aware checkpoint loading
+  - CLI: list, health, validate, compare, load
+- **Smoke test**: ✅ PASSED (validate_pipeline runs, reports gaps)
+- **Commit**: `bbfdb2d` - Pipeline Checkpoint Manager
+- **Branch**: `feature/daily-2026-04-16-c`
+- **PR**: https://github.com/Capri2014/AIResearch/pull/new/feature/daily-2026-04-16-c
+
+### Pipeline PR #2: Data Augmentation for Waymo Episodes (7:30am PT)
+- **Created: `training/pretrain/augment_episodes.py`**
+  - Applies geometric/photometric augmentations to Waymo episode data
+  - Geometric: random crop, flip, rotation (±15°)
+  - Photometric: color jitter, gaussian blur
+  - Temporal: speed variation
+  - Weather simulation: rain, fog, night
+  - PyTorch-based for efficient batch processing
+  - CLI: --input, --output, --methods, --seed
+- **Smoke test**: ✅ PASSED
+- **Commit**: `197d58a` - Data Augmentation for Waymo Episodes
+- **Branch**: `feature/daily-2026-04-16-b`
+- **PR**: https://github.com/Capri2014/AIResearch/pull/new/feature/daily-2026-04-16-b
 
 ### Pipeline PR #1: Pipeline Integration Test (5:30am PT)
 - **Created: `training/pipeline_integration_test.py`**
