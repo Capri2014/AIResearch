@@ -1,11 +1,86 @@
 # Status (ClawBot)
 
-_Last updated: 2026-04-15 (Pipeline PR #2, 7:30am PT)_
+_Last updated: 2026-04-16 (Pipeline PR #1, 5:30am PT)_
 
 ## Current focus
 Driving-first pipeline: **Waymo episodes → PyTorch SSL pretrain → waypoint BC → RL refinement → CARLA ScenarioRunner eval**.
 
 ## Today's Progress
+
+### Pipeline PR #1: Pipeline Integration Test (5:30am PT)
+- **Created: `training/pipeline_integration_test.py`**
+  - End-to-end test of the driving-first pipeline
+  - Tests 6 stages: DataLoading, SSL, WaypointBC, RL, Metrics, CARLA
+  - Creates synthetic Waymo-style episodes for smoke testing
+  - Verifies module imports and basic forward passes
+- **Smoke test**: ✅ SUCCESS (all 6 stages passed)
+  - SSL: ConvEncoder (1,4,3,224,224) → (1,4,128)
+  - WaypointBC: WaypointBCModel (2,4,128) → (2,2)
+  - RL: ToyWaypointKinematicsEnv + RefinementPolicy working
+- **Commit**: `c6c429c` - Pipeline integration test - verify all stages
+- **Branch**: `feature/daily-2026-04-16-a`
+- **PR**: https://github.com/Capri2014/AIResearch/pull/new/feature/daily-2026-04-16-a
+
+## Daily Cadence
+
+- ✅ **Pipeline PR #1** (2026-04-16): Pipeline Integration Test - committed & pushed
+- **Created: `training/rl/eval_toy_waypoint.py`**
+  - Deterministic evaluation runner for ToyWaypointEnv
+  - Runs N episodes, writes schema-compliant metrics.json
+  - Supports --policy sft|rl, --episodes, --seed-base, --max-steps
+  - Best-effort schema validation against data/schema/metrics.json
+  - Computes: ADE, FDE, Success Rate, Return, Steps
+- **Created: `training/rl/compare_policies.py`**
+  - Small loader that compares SFT-only vs RL-refined policy on same seeds
+  - Prints 3-line report: ADE, FDE, Success Rate
+  - Can load existing eval runs or run fresh evaluations
+- **Smoke test**: ✅ SUCCESS (10 episodes, ADE=18.6173m, FDE=53.0640m)
+- **Commit**: `14bd25a` - RL evaluation + metrics hardening
+- **Branch**: `feature/daily-2026-04-15-e`
+- **PR**: https://github.com/Capri2014/AIResearch/pull/new/feature/daily-2026-04-15-e
+
+### Pipeline PR #5: PPO Delta-Waypoint Refiner - RL after SFT (4:30pm PT)
+- **Created: `training/rl/ppo_delta_waypoint_refiner.py`**
+  - Trains residual delta-waypoint head on frozen SFT model
+  - Schema: `final_waypoints = sft_waypoints + delta_scale * delta_head(observation)`
+  - ToyWaypointKinematicsEnv for standalone execution
+  - PPO-style training with GAE, value loss, entropy bonus
+  - Schema-compliant metrics.json and train_metrics.json output
+  - CLI: --num-waypoints, --delta-scale, --lr, --num-iterations, --out-dir
+- **Smoke test**: ✅ SUCCESS (10 iterations, best reward: -38.07)
+- **Branch**: `feature/daily-2026-04-15-e`
+- **PR**: https://github.com/Capri2014/AIResearch/pull/new/feature/daily-2026-04-15-e
+
+### Pipeline PR #4: Dataset Validation Utility (1:30pm PT)
+- **Created: `training/pretrain/validate_dataset.py`**
+  - Validates Waymo episode datasets before SSL/Waypoint BC training
+  - Checks: missing frames, corrupt data, out-of-range values, temporal gaps
+  - Computes: frame counts, temporal coverage, velocity distributions
+  - Supports multiple schema variants (Waymo + synthetic)
+  - CLI: validate, check, stats subcommands
+- **Smoke test**: ✅ PASSED (12/12 episodes valid, 0 errors)
+- **Branch**: `feature/daily-2026-04-15-c`
+- **PR**: https://github.com/Capri2014/AIResearch/pull/new/feature/daily-2026-04-15-c
+- **Created: `training/metrics_aggregator.py`**
+  - Aggregates metrics across pipeline stages (SSL, Waypoint BC, RL)
+  - Collects from metrics.json/train_metrics.json files
+  - Tracks: loss, reward, ADE, FDE, success_rate, collisions
+  - Commands: aggregate, compare, latest, history
+  - CLI: --stage, --runs, --metric, --output, --base-dir
+- **Smoke test**: ✅ SUCCESS (runs correctly, finds 0 runs in out/)
+- **Branch**: `feature/daily-2026-04-15-c`
+- **PR**: https://github.com/Capri2014/AIResearch/pull/new/feature/daily-2026-04-15-c
+
+### Pipeline PR #2: Waypoint Trajectory Post-Processor (7:30am PT)
+- **Created: `training/sft/postprocess_waypoints.py`**
+  - Applies kinematic constraints (velocity/acceleration limits)
+  - Temporal smoothing: EMA and Gaussian methods
+  - Trajectory validation (reachability, feasibility checks)
+  - Speed profile generation: constant, trapezoidal, adaptive
+  - CLI: --predictions, --output, --max-velocity, --max-acceleration, --smoothing
+- **Smoke test**: ✅ SUCCESS (processed 10 waypoints)
+- **Branch**: `feature/daily-2026-04-15-b`
+- **PR**: https://github.com/Capri2014/AIResearch/pull/new/feature/daily-2026-04-15-b
 
 ### Pipeline PR #1: Model Inference API (5:30am PT)
 - **Created: `training/inference/model_inference.py`**
@@ -31,6 +106,8 @@ Driving-first pipeline: **Waymo episodes → PyTorch SSL pretrain → waypoint B
 
 ## Daily Cadence
 
+- ✅ **Pipeline PR #6** (2026-04-15): RL Evaluation + Metrics Hardening - committed & pushed
+- ✅ **Pipeline PR #5** (2026-04-15): PPO Delta-Waypoint Refiner - committed & pushed
 - ✅ **Pipeline PR #6** (2026-04-14): RL Evaluation + Metrics Hardening - committed & pushed
 - ✅ **Pipeline PR #5** (2026-04-14): PPO Delta-Waypoint Refiner - committed & pushed
 - ✅ **Pipeline PR #4** (2026-04-14): RL to CARLA Bridge - committed & pushed
