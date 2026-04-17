@@ -1,0 +1,263 @@
+{
+  "run_id": "toy_rl_eval_20260416",
+  "domain": "rl",
+  "git": {
+    "repo": "git@github.com:Capri2014/AIResearch.git",
+    "commit": "3936659e947503f473ad86025f5652fc2e1335de",
+    "branch": "feature/daily-2026-04-16-e"
+  },
+  "policy": {
+    "name": "toy_waypoint_rl"
+  },
+  "scenarios": [
+    {
+      "scenario_id": "seed:0",
+      "success": false,
+      "ade": 21.554311561584473,
+      "fde": 49.701473236083984,
+      "return": 4.047914896160364,
+      "steps": 50,
+      "final_dist": NaN,
+      "raw": {
+        "seed": 0
+      }
+    },
+    {
+      "scenario_id": "seed:1",
+      "success": false,
+      "ade": 21.195753049850463,
+      "fde": 51.88993835449219,
+      "return": 4.047915320843458,
+      "steps": 50,
+      "final_dist": NaN,
+      "raw": {
+        "seed": 1
+      }
+    },
+    {
+      "scenario_id": "seed:2",
+      "success": false,
+      "ade": 8.466232299804688,
+      "fde": 21.621212005615234,
+      "return": 7.166548028588295,
+      "steps": 50,
+      "final_dist": NaN,
+      "raw": {
+        "seed": 2
+      }
+    },
+    {
+      "scenario_id": "seed:3",
+      "success": false,
+      "ade": 23.239210510253905,
+      "fde": 60.41101837158203,
+      "return": 4.04791472107172,
+      "steps": 50,
+      "final_dist": NaN,
+      "raw": {
+        "seed": 3
+      }
+    },
+    {
+      "scenario_id": "seed:4",
+      "success": false,
+      "ade": 17.926471090316774,
+      "fde": 51.43967819213867,
+      "return": 6.47595514729619,
+      "steps": 50,
+      "final_dist": NaN,
+      "raw": {
+        "seed": 4
+      }
+    },
+    {
+      "scenario_id": "seed:5",
+      "success": false,
+      "ade": 24.376563453674315,
+      "fde": 68.46268463134766,
+      "return": 4.047915689647198,
+      "steps": 50,
+      "final_dist": NaN,
+      "raw": {
+        "seed": 5
+      }
+    },
+    {
+      "scenario_id": "seed:6",
+      "success": false,
+      "ade": 24.62408757209778,
+      "fde": 73.41329956054688,
+      "return": 4.047920595854521,
+      "steps": 50,
+      "final_dist": NaN,
+      "raw": {
+        "seed": 6
+      }
+    },
+    {
+      "scenario_id": "seed:7",
+      "success": false,
+      "ade": 24.624093341827393,
+      "fde": 73.41331481933594,
+      "return": 4.047916412353516,
+      "steps": 50,
+      "final_dist": NaN,
+      "raw": {
+        "seed": 7
+      }
+    },
+    {
+      "scenario_id": "seed:8",
+      "success": false,
+      "ade": 11.777248096466064,
+      "fde": 38.52302169799805,
+      "return": 8.990497812628746,
+      "steps": 50,
+      "final_dist": NaN,
+      "raw": {
+        "seed": 8
+      }
+    },
+    {
+      "scenario_id": "seed:9",
+      "success": false,
+      "ade": 7.716499137878418,
+      "fde": 39.06131362915039,
+      "return": 11.836088549345732,
+      "steps": 50,
+      "final_dist": NaN,
+      "raw": {
+        "seed": 9
+      }
+    },
+    {
+      "scenario_id": "seed:10",
+      "success": false,
+      "ade": 2.5586318969726562,
+      "fde": 5.1172637939453125,
+      "return": 6.079166408628225,
+      "steps": 50,
+      "final_dist": NaN,
+      "raw": {
+        "seed": 10
+      }
+    },
+    {
+      "scenario_id": "seed:11",
+      "success": false,
+      "ade": 19.58074908256531,
+      "fde": 41.6416015625,
+      "return": 4.047916013747454,
+      "steps": 50,
+      "final_dist": NaN,
+      "raw": {
+        "seed": 11
+      }
+    },
+    {
+      "scenario_id": "seed:12",
+      "success": false,
+      "ade": 15.256900215148926,
+      "fde": 52.309532165527344,
+      "return": 8.915161576122046,
+      "steps": 50,
+      "final_dist": NaN,
+      "raw": {
+        "seed": 12
+      }
+    },
+    {
+      "scenario_id": "seed:13",
+      "success": false,
+      "ade": 9.795896434783936,
+      "fde": 29.366361618041992,
+      "return": 6.643743570894003,
+      "steps": 50,
+      "final_dist": NaN,
+      "raw": {
+        "seed": 13
+      }
+    },
+    {
+      "scenario_id": "seed:14",
+      "success": false,
+      "ade": 5.174263191223145,
+      "fde": 10.849796295166016,
+      "return": 5.672907266765833,
+      "steps": 50,
+      "final_dist": NaN,
+      "raw": {
+        "seed": 14
+      }
+    },
+    {
+      "scenario_id": "seed:15",
+      "success": false,
+      "ade": 10.783302116394044,
+      "fde": 47.255977630615234,
+      "return": 9.166914317756891,
+      "steps": 50,
+      "final_dist": NaN,
+      "raw": {
+        "seed": 15
+      }
+    },
+    {
+      "scenario_id": "seed:16",
+      "success": false,
+      "ade": 17.023014402389528,
+      "fde": 34.94729995727539,
+      "return": 4.04791546612978,
+      "steps": 50,
+      "final_dist": NaN,
+      "raw": {
+        "seed": 16
+      }
+    },
+    {
+      "scenario_id": "seed:17",
+      "success": false,
+      "ade": 6.876595735549927,
+      "fde": 33.02301025390625,
+      "return": 6.424691926687956,
+      "steps": 50,
+      "final_dist": NaN,
+      "raw": {
+        "seed": 17
+      }
+    },
+    {
+      "scenario_id": "seed:18",
+      "success": false,
+      "ade": 23.52657413482666,
+      "fde": 64.7057876586914,
+      "return": 4.0479173846542835,
+      "steps": 50,
+      "final_dist": NaN,
+      "raw": {
+        "seed": 18
+      }
+    },
+    {
+      "scenario_id": "seed:19",
+      "success": false,
+      "ade": 16.295202350616456,
+      "fde": 49.923423767089844,
+      "return": 4.047915708273649,
+      "steps": 50,
+      "final_dist": NaN,
+      "raw": {
+        "seed": 19
+      }
+    }
+  ],
+  "summary": {
+    "ade_mean": 15.618579983711246,
+    "ade_std": 7.039679342728395,
+    "fde_mean": 44.85385046005249,
+    "fde_std": 18.527241994019963,
+    "success_rate": 0.0,
+    "num_episodes": 20,
+    "avg_return": 5.892541840672493
+  }
+}
