@@ -1,6 +1,6 @@
 # 3D Gaussian Splatting for Real-Time Neural Rendering (Kerbl et al., 2023) — Digest
 
-**Date:** March 28, 2026
+**Date:** April 17, 2026
 
 Source (paper): https://arxiv.org/abs/2308.04079  
 Project page + PDF: https://repo-sam.inria.fr/fungraph/3d-gaussian-splatting/  
