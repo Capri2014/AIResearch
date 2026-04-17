@@ -1,11 +1,60 @@
 # Status (ClawBot)
 
-_Last updated: 2026-04-16 (Pipeline PR #4, 1:30pm PT)_
+_Last updated: 2026-04-17 (Pipeline PR #4, 4:30pm PT)_
 
 ## Current focus
 Driving-first pipeline: **Waymo episodes → PyTorch SSL pretrain → waypoint BC → RL refinement → CARLA ScenarioRunner eval**.
 
 ## Today's Progress
+
+### Pipeline PR #4: CARLA Inference Bridge (4:30pm PT)
+- **Created: `sim/driving/carla_srunner/inference_bridge.py`**
+  - InferenceConfig: Configuration for CARLA inference (policy type, host/port, scenario/suite)
+  - InferenceResult: Structured result with ADE, FDE, collisions, violations
+  - WaypointPolicyWrapper: Loads BC/RL policy checkpoints, runs inference
+  - CarlaInferenceBridge: Main orchestrator connecting policies with CARLA
+  - Supports both BC and RL policy types
+  - Mock evaluation when CARLA is unavailable
+  - CLI: --policy-type, --policy-path, --scenario, --suite, --carla-host, --carla-port
+- **Smoke test**: ✅ PASSED (straight_clear scenario, ADE=0.65m, FDE=0.60m)
+- **Branch**: `feature/daily-2026-04-17-d`
+- **PR**: https://github.com/Capri2014/AIResearch/pull/new/feature/daily-2026-04-17-d
+
+### Pipeline PR #3: SSL Episode Dataset Loader (10:30am PT)
+- **Created: `training/pretrain/episode_ssl_dataset.py`**
+  - SSLEpisodeDataset: PyTorch Dataset for multi-view SSL training
+  - Supports contrastive (4 views), JEPA (encoder/decoder), MIM (15% masking)
+  - SSLDataConfig: Unified configuration for SSL data loading
+  - Integrated with episode index from build_episode_index.py
+  - CLI: list, stats, load subcommands
+- **Smoke test**: ✅ PASSED (600 frames, 5 episodes, 3 samples loaded)
+- **Commit**: `d49e38d` - SSL Episode Dataset Loader
+- **Branch**: `feature/daily-2026-04-17-c`
+- **PR**: https://github.com/Capri2014/AIResearch/pull/new/feature/daily-2026-04-17-c
+
+### Pipeline PR #6: RL Refinement AFTER SFT - Evaluation & Metrics Hardening (6:30pm PT)
+- **Evaluation runs**: Deterministic eval for both SFT and RL policies on 20 episodes
+  - SFT Policy: `out/eval/toy_sft_eval_20260416/metrics.json` (ADE=15.72m, FDE=45.16m)
+  - RL Policy: `out/eval/toy_rl_eval_20260416/metrics.json` (ADE=15.62m, FDE=44.85m)
+- **Metrics validation**: Both outputs validated against `data/schema/metrics.json` - ✅ VALID
+- **Policy comparison**: 3-line report shows +0.7% improvement in ADE/FDE for RL over SFT
+- **Commit**: `12c643c` - eval: Add deterministic evaluation runs for toy waypoint RL env
+- **Branch**: `feature/daily-2026-04-16-e`
+- **PR**: https://github.com/Capri2014/AIResearch/pull/new/feature/daily-2026-04-16-e
+
+### Pipeline PR #5: RL Refinement AFTER SFT - Residual Delta-Waypoint (4:30pm PT)
+- **Created: `training/rl/train_delta_waypoint_rl.py`**
+  - RL refinement stub for Option B (waypoint deltas)
+  - Schema: `final_waypoints = sft_waypoints + delta_scale * delta_head(z)`
+  - ToyWaypointKinematicsEnv: simplified car-like environment with bicycle model kinematics
+  - ResidualDeltaWaypointPolicy: learns delta-waypoint offsets on top of SFT predictions
+  - PPOAgent: GAE-based PPO with clipped surrogate objective
+  - Schema-compliant output: out/<run_id>/metrics.json, train_metrics.json
+  - CLI: --run-id, --num-waypoints, --delta-scale, --total-timesteps, --learning-rate
+- **Smoke test**: ✅ PASSED (500 timesteps, final reward: 30.73)
+- **Commit**: `3936659` - RL Refinement AFTER SFT - Residual Delta-Waypoint (Option B)
+- **Branch**: `feature/daily-2026-04-16-e`
+- **PR**: https://github.com/Capri2014/AIResearch/pull/new/feature/daily-2026-04-16-e
 
 ### Pipeline PR #4: Waypoint Extraction from Waymo Episodes (1:30pm PT)
 - **Created: `training/pretrain/extract_waypoints.py`**
