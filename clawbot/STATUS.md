@@ -1,11 +1,26 @@
 # Status (ClawBot)
 
-_Last updated: 2026-04-18 (Pipeline PR #4, 1:30pm PT)_
+_Last updated: 2026-04-18 (Pipeline PR #5, 4:30pm PT)_
 
 ## Current focus
 Driving-first pipeline: **Waymo episodes → PyTorch SSL pretrain → waypoint BC → RL refinement → CARLA ScenarioRunner eval**.
 
 ## Today's Progress
+
+### Pipeline PR #5: RL Refinement AFTER SFT - PPO Waypoint Agent (4:30pm PT)
+- **Created: `training/rl/ppo_waypoint_agent.py`**
+  - PPOWaypointAgent: PPO agent for waypoint/delta-waypoint action space
+  - SFTWrapper + SFTWaypointModel: Mock SFT backbone for RL integration
+  - Residual delta learning: final_waypoints = sft_waypoints + delta_scale * delta_head(obs)
+  - GAE-based advantage estimation
+  - PPO update with clipped surrogate objective
+  - ToyWaypointKinematicsEnv for standalone training
+  - CLI: --run-id, --num-iterations, --rollout-steps, --learning-rate, --delta-scale, --no-sft
+- **Smoke test**: ✅ PASSED (10 iterations, best reward -0.1271, mean reward -0.2475)
+- **Output**: out/test_ppo_waypoint/metrics.json, train_metrics.json, final.pt, sft_waypoint.pt
+- **Commit**: `9e8c5f1` - RL Refinement AFTER SFT - PPO Waypoint Agent with Delta-Waypoint Learning
+- **Branch**: `feature/daily-2026-04-18-e`
+- **PR**: https://github.com/Capri2014/AIResearch/pull/new/feature/daily-2026-04-18-e
 
 ### Pipeline PR #4: Pipeline Run Analyzer (1:30pm PT)
 - **Created: `training/pipeline_run_analyzer.py`**
