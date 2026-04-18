@@ -1,11 +1,20 @@
 # Status (ClawBot)
 
-_Last updated: 2026-04-18 (Pipeline PR #1, 5:30am PT)_
+_Last updated: 2026-04-18 (Pipeline PR #2, 7:30am PT)_
 
 ## Current focus
 Driving-first pipeline: **Waymo episodes → PyTorch SSL pretrain → waypoint BC → RL refinement → CARLA ScenarioRunner eval**.
 
 ## Today's Progress
+
+### Pipeline PR #2: Pipeline Stage Validator (7:30am PT)
+- **Created: `training/pipeline_stage_validator.py`**
+  - Validates 5 pipeline stages: data_loading, ssl_pretrain, waypoint_bc, rl_refinement, carla_eval
+  - Checks for checkpoints, scripts, scenarios, and data
+  - Provides detailed validation results with pass/fail and suggestions
+  - JSON output for automation integration
+  - Smoke test: data=✓, ssl=✓, bc=✓, rl=✗(needs checkpoint), eval=✗(missing scenarios)
+- **Commit**: `9e879a5` - Pipeline Stage Validator - validate each driving-first pipeline stage
 
 ### Pipeline PR #5: RL Refinement AFTER SFT - Experience Replay Buffer (4:30pm PT)
 - **Created: `training/rl/waypoint_replay_buffer.py`**
@@ -55,6 +64,15 @@ Driving-first pipeline: **Waymo episodes → PyTorch SSL pretrain → waypoint B
 - **Commit**: `12c643c` - eval: Add deterministic evaluation runs for toy waypoint RL env
 - **Branch**: `feature/daily-2026-04-16-e`
 - **PR**: https://github.com/Capri2014/AIResearch/pull/new/feature/daily-2026-04-16-e
+
+### Pipeline PR #2: Pipeline Stage Validator (7:30am PT)
+- **Created: `training/pipeline_stage_validator.py`**
+  - Validates 5 pipeline stages: data_loading, ssl_pretrain, waypoint_bc, rl_refinement, carla_eval
+  - Checks for checkpoints, scripts, scenarios, and data
+  - Provides detailed validation results with pass/fail and suggestions
+  - JSON output for automation integration
+  - Smoke test: data=✓, ssl=✓, bc=✓, rl=✗(needs checkpoint), eval=✗(missing scenarios)
+- **Commit**: `9e879a5` - Pipeline Stage Validator - validate each driving-first pipeline stage
 
 ### Pipeline PR #5: RL Refinement AFTER SFT - Residual Delta-Waypoint (4:30pm PT)
 - **Created: `training/rl/train_delta_waypoint_rl.py`**
@@ -248,6 +266,15 @@ Driving-first pipeline: **Waymo episodes → PyTorch SSL pretrain → waypoint B
 
 ## Recent changes
 
+### Pipeline PR #2: Pipeline Stage Validator (7:30am PT)
+- **Created: `training/pipeline_stage_validator.py`**
+  - Validates 5 pipeline stages: data_loading, ssl_pretrain, waypoint_bc, rl_refinement, carla_eval
+  - Checks for checkpoints, scripts, scenarios, and data
+  - Provides detailed validation results with pass/fail and suggestions
+  - JSON output for automation integration
+  - Smoke test: data=✓, ssl=✓, bc=✓, rl=✗(needs checkpoint), eval=✗(missing scenarios)
+- **Commit**: `9e879a5` - Pipeline Stage Validator - validate each driving-first pipeline stage
+
 ### Pipeline PR #5: RL Refinement AFTER SFT - Waypoint Policy (4:30pm PT)
 - **Created: `training/rl/train_ppo_delta_waypoint.py`**
   - PPO training for delta-waypoint refinement after SFT
@@ -352,6 +379,15 @@ Driving-first pipeline: **Waymo episodes → PyTorch SSL pretrain → waypoint B
   - CLI: list, compare, select, summary subcommands
 - **Smoke test**: ✅ SUCCESS (import verified, summary functional)
 - **Branch**: `feature/daily-2026-04-13-d`
+
+### Pipeline PR #2: Pipeline Stage Validator (7:30am PT)
+- **Created: `training/pipeline_stage_validator.py`**
+  - Validates 5 pipeline stages: data_loading, ssl_pretrain, waypoint_bc, rl_refinement, carla_eval
+  - Checks for checkpoints, scripts, scenarios, and data
+  - Provides detailed validation results with pass/fail and suggestions
+  - JSON output for automation integration
+  - Smoke test: data=✓, ssl=✓, bc=✓, rl=✗(needs checkpoint), eval=✗(missing scenarios)
+- **Commit**: `9e879a5` - Pipeline Stage Validator - validate each driving-first pipeline stage
 
 ### Pipeline PR #5: RL Refinement AFTER SFT (Residual Delta-Waypoint) (4:30pm PT)
 - **Created: `training/rl/run_refine_delta_waypoint.py`**
