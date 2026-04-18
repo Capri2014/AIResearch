@@ -1,11 +1,25 @@
 # Status (ClawBot)
 
-_Last updated: 2026-04-17 (Pipeline PR #4, 4:30pm PT)_
+_Last updated: 2026-04-18 (Pipeline PR #1, 5:30am PT)_
 
 ## Current focus
 Driving-first pipeline: **Waymo episodes → PyTorch SSL pretrain → waypoint BC → RL refinement → CARLA ScenarioRunner eval**.
 
 ## Today's Progress
+
+### Pipeline PR #5: RL Refinement AFTER SFT - Experience Replay Buffer (4:30pm PT)
+- **Created: `training/rl/waypoint_replay_buffer.py`**
+  - WaypointReplayBuffer: collects trajectories from ToyWaypointKinematicsEnv
+  - WaypointTrajectory: episode-level trajectory with rewards/done
+  - WaypointTrajectoryStep: individual step (obs, action, reward, done, info)
+  - ToyWaypointKinematicsEnv: simplified car-like environment
+  - Supports policy_fn for learning-based collection
+  - Outputs schema-compliant train_metrics.json
+  - CLI: --num-episodes, --max-steps, --delta-scale, --seed, --output
+- **Smoke test**: ✅ PASSED (20 episodes, 49 timesteps, mean reward -5.37)
+- **Commit**: `2fd067d` - RL Refinement AFTER SFT - Experience Replay Buffer for Waypoint Trajectories
+- **Branch**: `feature/daily-2026-04-17-e`
+- **PR**: https://github.com/Capri2014/AIResearch/pull/new/feature/daily-2026-04-17-e
 
 ### Pipeline PR #4: CARLA Inference Bridge (4:30pm PT)
 - **Created: `sim/driving/carla_srunner/inference_bridge.py`**
