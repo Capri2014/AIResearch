@@ -1,11 +1,25 @@
 # Status (ClawBot)
 
-_Last updated: 2026-04-18 (Pipeline PR #2, 7:30am PT)_
+_Last updated: 2026-04-18 (Pipeline PR #4, 1:30pm PT)_
 
 ## Current focus
 Driving-first pipeline: **Waymo episodes → PyTorch SSL pretrain → waypoint BC → RL refinement → CARLA ScenarioRunner eval**.
 
 ## Today's Progress
+
+### Pipeline PR #4: Pipeline Run Analyzer (1:30pm PT)
+- **Created: `training/pipeline_run_analyzer.py`**
+  - PipelineRunAnalyzer: Main analyzer class with RunInfo, StageMetrics
+  - find_runs(): Discover pipeline runs in output directory
+  - load_run_info(): Load from metadata JSON
+  - analyze_run(): Extract metrics and compute health score
+  - compare_runs(): Compare multiple runs
+  - print_summary(): Human-readable output
+  - CLI: --list, --run-id, --compare, --output, --base-dir
+- **Smoke test**: ✅ PASSED (found 4 runs)
+- **Commit**: `fb40577` - Add pipeline run analyzer for comparing and analyzing pipeline runs
+- **Branch**: `feature/daily-2026-04-18-d`
+- **PR**: https://github.com/Capri2014/AIResearch/pull/new/feature/daily-2026-04-18-d
 
 ### Pipeline PR #3: Pipeline Execution Runner (10:30am PT)
 - **Created: `training/pipeline_execution_runner.py`**
