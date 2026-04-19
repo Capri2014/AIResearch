@@ -7,7 +7,8 @@ Driving-first pipeline: **Waymo episodes → PyTorch SSL pretrain → waypoint B
 
 ## Daily Cadence
 
-- ✅ **Pipeline PR #6** (2026-04-12): Deterministic Eval SFT vs RL Metrics ← TODAY
+- ✅ **Pipeline PR #6** (2026-04-18): RL refinement eval + metrics hardening ← TODAY
+- ✅ **Pipeline PR #6** (2026-04-12): Deterministic Eval SFT vs RL Metrics
 - ✅ **Pipeline PR #5** (2026-04-09): RL after SFT waypoint delta training stub
 - ✅ **Pipeline PR #2** (2026-04-08): Full Pipeline Benchmark Runner
 - ✅ **Pipeline PR #1** (2026-04-08): PyTorch DataLoader for Augmented Episodes
