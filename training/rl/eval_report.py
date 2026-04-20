@@ -1,152 +1,89 @@
 #!/usr/bin/env python3
-"""Eval report generator - summarizes multiple eval runs.
+"""Generate evaluation report from SFT vs RL metrics.
 
-Reads metrics.json files from eval output directories and produces
-a comparative summary table.
+Loads metrics files and produces a formatted 3-line comparison report.
 
-Usage
------
-# Summarize last 5 eval runs
-python3 -m training.rl.eval_report --latest 5
-
-# Compare specific runs
-python3 -m training.rl.eval_report --run out/eval/20260405-213313_sft --run out/eval/20260405-213313_rl
+Usage:
+    python -m training.rl.eval_report --sft out/eval/<id>/metrics.json --rl out/eval/<id>/metrics.json
 """
 
 from __future__ import annotations
 
 import argparse
 import json
-import sys
 from pathlib import Path
-from typing import List, Optional
-
-import numpy as np
+from typing import Any, Dict, Optional
 
 
-def find_latest_runs(root: Path, n: int = 5) -> List[Path]:
-    """Find the n most recent eval directories."""
-    eval_dirs = sorted(root.glob("2026*"), key=lambda p: p.stat().st_mtime, reverse=True)
-    # Filter to directories with metrics.json
-    runs = [d for d in eval_dirs if (d / "metrics.json").exists()]
-    return runs[:n]
-
-
-def load_metrics(run_dir: Path) -> Optional[dict]:
-    """Load metrics.json from a run directory."""
-    metrics_path = run_dir / "metrics.json"
-    if not metrics_path.exists():
+def load_metrics(path: Path) -> Optional[Dict[str, Any]]:
+    """Load metrics from JSON file."""
+    if not path.exists():
+        print(f"[report] WARNING: {path} not found")
         return None
     try:
-        with open(metrics_path) as f:
-            return json.load(f)
-    except json.JSONDecodeError:
+        return json.loads(path.read_text())
+    except Exception as e:
+        print(f"[report] ERROR loading {path}: {e}")
         return None
 
 
-def format_value(v: any, decimals: int = 2) -> str:
-    """Format a numeric value for display."""
-    if v is None:
-        return "N/A"
-    if isinstance(v, bool):
-        return "✓" if v else "✗"
-    if isinstance(v, (int, float)):
-        return f"{float(v):.{decimals}f}"
-    return str(v)
+def extract_summary(metrics: Dict[str, Any], prefix: str) -> Dict[str, Any]:
+    """Extract summary stats from metrics."""
+    summary = metrics.get("summary", {})
+    return {
+        f"{prefix}_ade_mean": summary.get("ade_mean", float("nan")),
+        f"{prefix}_ade_std": summary.get("ade_std", 0.0),
+        f"{prefix}_fde_mean": summary.get("fde_mean", float("nan")),
+        f"{prefix}_fde_std": summary.get("fde_std", 0.0),
+        f"{prefix}_success_rate": summary.get("success_rate", 0.0),
+        f"{prefix}_num_episodes": summary.get("num_episodes", 0),
+    }
 
 
-def print_comparison(runs: List[Path]) -> None:
-    """Print a comparison table of multiple runs."""
-    if not runs:
-        print("No runs found")
-        return
+def print_report(sft_metrics: Dict[str, Any], rl_metrics: Dict[str, Any]) -> None:
+    """Print 3-line comparison report."""
+    sft = extract_summary(sft_metrics, "sft")
+    rl = extract_summary(rl_metrics, "rl")
 
-    # Load all metrics
-    metrics_list = []
-    for run in runs:
-        m = load_metrics(run)
-        if m:
-            m["_run_dir"] = run.name
-            metrics_list.append(m)
+    sft_ade = sft.get("sft_ade_mean", float("nan"))
+    rl_ade = rl.get("rl_ade_mean", float("nan"))
+    ade_pct = ((sft_ade - rl_ade) / sft_ade * 100) if sft_ade and sft_ade > 0 else 0.0
 
-    if not metrics_list:
-        print("No valid metrics found")
-        return
+    sft_fde = sft.get("sft_fde_mean", float("nan"))
+    rl_fde = rl.get("rl_fde_mean", float("nan"))
+    fde_pct = ((sft_fde - rl_fde) / sft_fde * 100) if sft_fde and sft_fde > 0 else 0.0
 
-    # Print header
-    print("\n" + "=" * 80)
-    print("EVAL COMPARISON REPORT")
-    print("=" * 80)
+    sft_sr = sft.get("sft_success_rate", 0.0)
+    rl_sr = rl.get("rl_success_rate", 0.0)
+    sr_diff = rl_sr - sft_sr
 
-    # Group by comparison type
-    sft_runs = [m for m in metrics_list if m.get("policy", {}).get("type") == "sft"]
-    rl_runs = [m for m in metrics_list if m.get("policy", {}).get("type") == "rl"]
+    sft_n = sft.get("sft_num_episodes", 0)
+    rl_n = rl.get("rl_num_episodes", 0)
 
-    if sft_runs:
-        print("\n--- SFT Policy Runs ---")
-        print(f"{'Run ID':<30} {'ADE':>8} {'FDE':>8} {'Success':>10} {'Return':>10}")
-        print("-" * 70)
-        for m in sft_runs:
-            summary = m.get("summary", {})
-            print(f"{m['_run_dir']:<30} "
-                  f"{format_value(summary.get('ade_mean')):>8} "
-                  f"{format_value(summary.get('fde_mean')):>8} "
-                  f"{format_value(summary.get('success_rate'), 1):>10} "
-                  f"{format_value(summary.get('return_mean')):>10}")
-
-    if rl_runs:
-        print("\n--- RL Policy Runs ---")
-        print(f"{'Run ID':<30} {'ADE':>8} {'FDE':>8} {'Success':>10} {'Return':>10}")
-        print("-" * 70)
-        for m in rl_runs:
-            summary = m.get("summary", {})
-            print(f"{m['_run_dir']:<30} "
-                  f"{format_value(summary.get('ade_mean')):>8} "
-                  f"{format_value(summary.get('fde_mean')):>8} "
-                  f"{format_value(summary.get('success_rate'), 1):>10} "
-                  f"{format_value(summary.get('return_mean')):>10}")
-
-    # Compute delta if we have matching SFT/RL runs
-    if sft_runs and rl_runs:
-        sft_sum = sft_runs[0].get("summary", {})
-        rl_sum = rl_runs[0].get("summary", {})
-        
-        print("\n--- SFT vs RL Delta ---")
-        ade_sft = sft_sum.get("ade_mean")
-        ade_rl = rl_sum.get("ade_mean")
-        fde_sft = sft_sum.get("fde_mean")
-        fde_rl = rl_sum.get("fde_mean")
-        succ_sft = sft_sum.get("success_rate", 0)
-        succ_rl = rl_sum.get("success_rate", 0)
-        
-        ade_delta = (ade_rl - ade_sft) if (ade_sft and ade_rl) else None
-        fde_delta = (fde_rl - fde_sft) if (fde_sft and fde_rl) else None
-        succ_delta = succ_rl - succ_sft
-        
-        print(f"ADE Delta:  {format_value(ade_delta, 3)} (RL - SFT)")
-        print(f"FDE Delta:  {format_value(fde_delta, 3)} (RL - SFT)")
-        print(f"Success Δ:  {succ_delta * 100:+.1f}% (RL - SFT)")
-
-    print("\n" + "=" * 80)
+    print("\n" + "=" * 60)
+    print(f"SFT vs RL Policy Comparison (Toy Waypoint Environment)")
+    print(f"Episode count: SFT={sft_n}, RL={rl_n}")
+    print("=" * 60)
+    print(f"ADE:  SFT={sft_ade:.3f}m (±{sft.get('sft_ade_std', 0):.3f})  RL={rl_ade:.3f}m (±{rl.get('rl_ade_std', 0):.3f})  ({ade_pct:+.2f}% improvement)")
+    print(f"FDE:  SFT={sft_fde:.3f}m (±{sft.get('sft_fde_std', 0):.3f})  RL={rl_fde:.3f}m (±{rl.get('rl_fde_std', 0):.3f})  ({fde_pct:+.2f}% improvement)")
+    print(f"Succ: SFT={sft_sr:.1%}  RL={rl_sr:.1%}  ({sr_diff:+.1%} diff)")
+    print("=" * 60)
 
 
 def main() -> None:
-    p = argparse.ArgumentParser(description="Generate eval comparison report")
-    p.add_argument("--latest", type=int, help="Show n latest runs")
-    p.add_argument("--run", type=Path, action="append", help="Specific run directory (can repeat)")
-    p.add_argument("--root", type=Path, default=Path(__file__).parent.parent / "out" / "eval",
-                   help="Root eval directory")
-    args = p.parse_args()
+    p = argparse.ArgumentParser(description="Generate SFT vs RL evaluation report")
+    p.add_argument("--sft", type=Path, required=True, help="SFT metrics JSON path")
+    p.add_argument("--rl", type=Path, required=True, help="RL metrics JSON path")
+    a = p.parse_args()
 
-    if args.latest:
-        runs = find_latest_runs(args.root, args.latest)
-        print_comparison(runs)
-    elif args.run:
-        print_comparison(args.run)
-    else:
-        # Default: show last 3
-        runs = find_latest_runs(args.root, 3)
-        print_comparison(runs)
+    sft_metrics = load_metrics(a.sft)
+    rl_metrics = load_metrics(a.rl)
+
+    if not sft_metrics or not rl_metrics:
+        print("[report] ERROR: Failed to load metrics files")
+        return
+
+    print_report(sft_metrics, rl_metrics)
 
 
 if __name__ == "__main__":
