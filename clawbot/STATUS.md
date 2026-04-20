@@ -7,6 +7,22 @@ Driving-first pipeline: **Waymo episodes → PyTorch SSL pretrain → waypoint B
 
 ## Today's Progress
 
+### Pipeline PR #2: Waypoint Policy Evaluator (7:30am PT)
+- **Created: `sim/driving/carla_srunner/waypoint_evaluator.py`**
+  - WaypointScenarioEvaluator: Main evaluator connecting scenario generation with inference
+  - EvaluatorConfig: policy_type, scenario/suite, waypoint config, CARLA settings
+  - EvaluationResult: per-scenario metrics (ADE, FDE, collisions, route completion)
+  - SuiteEvaluationResult: aggregated suite results
+  - Connects waypoint_scenario_config.py with inference_bridge.py
+  - Handles single scenario and suite evaluation
+  - Mock evaluation fallback when CARLA unavailable
+  - CLI: --policy-type, --policy-path, --scenario, --suite, --list-scenarios
+- **Smoke test**: ✅ PASSED (basic suite, 4 scenarios, 75% success rate)
+- **Output**: out/waypoint_evaluation/basic_suite_result.json
+- **Commit**: `bc853a9` - Waypoint Policy Evaluator - Connect scenario config with inference bridge
+- **Branch**: `feature/daily-2026-04-20-b`
+- **PR**: https://github.com/Capri2014/AIResearch/pull/new/feature/daily-2026-04-20-b
+
 ### Pipeline PR #1: CARLA ScenarioRunner Config Generator (5:30am PT)
 - **Created: `sim/driving/carla_srunner/waypoint_scenario_config.py`**
   - ScenarioConfigGenerator: generates CARLA srunner-compatible configs for waypoint eval
