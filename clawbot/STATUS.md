@@ -1,11 +1,42 @@
 # Status (ClawBot)
 
-_Last updated: 2026-04-20 (Pipeline PR #1, 5:30am PT)_
+_Last updated: 2026-04-20 (Pipeline PR #4, 1:30pm PT)_
 
 ## Current focus
 Driving-first pipeline: **Waymo episodes → PyTorch SSL pretrain → waypoint BC → RL refinement → CARLA ScenarioRunner eval**.
 
 ## Today's Progress
+
+### Pipeline PR #4: Waypoint Evaluation Pipeline - End-to-End (1:30pm PT)
+- **Created: `sim/driving/carla_srunner/waypoint_eval_pipeline.py`**
+  - WaypointEvalPipeline: End-to-end pipeline orchestrating checkpoint → evaluator → visualizer
+  - PipelineRunResult: Structured result dataclass with ADE, FDE, route_completion, collision_rate
+  - SCENARIO_SUITES: 5 pre-defined suites (basic:4, standard:8, full:12, weather:3, nightmare:6)
+  - run_mock_evaluation(): Generates realistic mock metrics when CARLA unavailable
+  - generate_visualizations(): ADE/FDE bar chart, route completion pie, per-scenario breakdown
+  - Supports batch mode with --base-dir for checkpoint discovery
+  - Single, multiple, or batch checkpoint evaluation modes
+  - CLI: --checkpoint, --suite, --scenarios, --base-dir, --output-dir, --visualize, --format, --dpi
+- **Smoke test**: ✅ PASSED (basic suite, 4 scenarios, ADE=3.14m, FDE=3.55m, 90.6% route completion)
+- **Output**: out/waypoint_eval_pipeline/ with visualizations/
+- **Commit**: `577a78d` - Waypoint Evaluation Pipeline
+- **Branch**: `feature/daily-2026-04-20-d`
+- **PR**: https://github.com/Capri2014/AIResearch/pull/new/feature/daily-2026-04-20-d
+
+### Pipeline PR #3: Waypoint Evaluation Visualizer (10:30am PT)
+- **Created: `sim/driving/carla_srunner/waypoint_evaluation_visualizer.py`**
+  - WaypointEvaluationVisualizer: visualizes evaluation results from WaypointScenarioEvaluator
+  - EvaluationVisualizerConfig: results_dir, output_dir, runs, format, dpi
+  - Loads from multiple formats: metrics.json, results.json, basic_suite_result.json
+  - Generates: ADE/FDE comparison, route completion, collision rate bar charts
+  - Per-scenario breakdown plots
+  - Markdown summary with best run detection
+  - CLI: --results-dir, --output-dir, --runs, --format, --dpi, --list
+- **Smoke test**: ✅ PASSED (5 outputs: 4 PNGs + 1 markdown)
+- **Output**: out/waypoint_evaluation/vis/*.png, summary.md
+- **Commit**: `d610967` - Waypoint Evaluation Visualizer
+- **Branch**: `feature/daily-2026-04-20-b`
+- **PR**: https://github.com/Capri2014/AIResearch/pull/new/feature/daily-2026-04-20-b
 
 ### Pipeline PR #2: Waypoint Policy Evaluator (7:30am PT)
 - **Created: `sim/driving/carla_srunner/waypoint_evaluator.py`**
@@ -287,11 +318,12 @@ Driving-first pipeline: **Waymo episodes → PyTorch SSL pretrain → waypoint B
 
 ## Daily Cadence
 
+- ✅ **Pipeline PR #4** (2026-04-20): Waypoint Evaluation Pipeline - committed & pushed
+- ✅ **Pipeline PR #3** (2026-04-20): Waypoint Evaluation Visualizer - committed & pushed
+- ✅ **Pipeline PR #2** (2026-04-20): Waypoint Policy Evaluator - committed & pushed
+- ✅ **Pipeline PR #1** (2026-04-20): CARLA ScenarioRunner Config Generator - committed & pushed
 - ✅ **Pipeline PR #6** (2026-04-19): RL refinement eval + metrics hardening - committed & pushed
 - ✅ **Pipeline PR #5** (2026-04-19): GAE Advantage Estimation - committed & pushed
-- ✅ **Pipeline PR #4** (2026-04-19): Waypoint BC Trainer - committed & pushed
-- ✅ **Pipeline PR #3** (2026-04-19): Waypoint Batch Collator - committed & pushed
-- ✅ **Pipeline PR #2** (2026-04-19): Waypoint Trajectory Sampler - committed & pushed
 
 ### Pipeline PR #1: Pipeline Integration Test (5:30am PT)
 - **Created: `training/rl/ppo_delta_waypoint_refiner.py`**
