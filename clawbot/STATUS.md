@@ -1,11 +1,89 @@
 # Status (ClawBot)
 
-_Last updated: 2026-04-18 (Pipeline PR #5, 4:30pm PT)_
+_Last updated: 2026-04-20 (Pipeline PR #1, 5:30am PT)_
 
 ## Current focus
 Driving-first pipeline: **Waymo episodes → PyTorch SSL pretrain → waypoint BC → RL refinement → CARLA ScenarioRunner eval**.
 
 ## Today's Progress
+
+### Pipeline PR #1: CARLA ScenarioRunner Config Generator (5:30am PT)
+- **Created: `sim/driving/carla_srunner/waypoint_scenario_config.py`**
+  - ScenarioConfigGenerator: generates CARLA srunner-compatible configs for waypoint eval
+  - 14 pre-defined scenarios: straight (100m, 200m, 800m), turns (90° left/right), lane changes, intersections (4-way, T), roundabout, navigate (Town01/03), weather variants (night, rain)
+  - 5 scenario suites: basic (4), standard (8), full (12), weather (3), nightmare (6)
+  - WaypointConfig: num_waypoints (8), horizon_seconds (3.0), sampling_rate_hz (2.0), use_delta_waypoints, delta_scale
+  - ScenarioConfig: town, weather, route, start/end positions, timing, actors, evaluation metrics
+  - generate_carla_srunner_format(): converts to srunner JSON format
+  - CLI: --scenario, --suite, --list, --output, --format, --num-waypoints, --horizon
+- **Smoke test**: ✅ PASSED (basic suite, 4 scenarios generated)
+- **Output**: out/scenario_suite_test/basic/*.json
+- **Commit**: `a660de2` - CARLA ScenarioRunner config for waypoint policy evaluation
+- **Branch**: `feature/daily-2026-04-20-a`
+- **PR**: https://github.com/Capri2014/AIResearch/pull/new/feature/daily-2026-04-20-a
+
+### Pipeline PR #6: RL refinement eval - metrics hardening (6:30pm PT)
+- **Created: `training/rl/gae_advantage.py`**
+  - GAEAdvantage class for bias-variance tradeoff in advantage estimation
+  - GAEConfig: gamma (0.99), gae_lambda (0.95), normalize (true)
+  - compute_advantages(): computes GAE advantages and value targets
+  - compute_advantages_single_trajectory(): list-format interface
+  - Functional compute_gae() helper for easy use
+  - CLI: --rewards, --values, --gamma, --gae-lambda, --no-normalize, --output
+- **Smoke test**: ✅ PASSED (8 timesteps, advantages computed and normalized)
+- **Output**: out/gae_test/metrics.json, train_metrics.json (schema-compliant)
+- **Commit**: `add3794` - RL Refinement AFTER SFT - GAE Advantage Estimation
+- **Branch**: `feature/daily-2026-04-19-e`
+- **PR**: https://github.com/Capri2014/AIResearch/pull/new/feature/daily-2026-04-19-e
+
+### Pipeline PR #4: Waypoint BC Trainer (1:30pm PT)
+- **Created: `training/bc/waypoint_bc_trainer.py`**
+  - WaypointBCTrainer: Main training class for waypoint behavior cloning
+  - ResidualWaypointMLP: MLP with progress conditioning for multi-horizon prediction
+  - TrainerConfig: batch_size, num_epochs, lr, hidden_dim, num_waypoints
+  - Integrates with WaypointBatchCollator from Pipeline PR #3
+  - Progress encoder: embeds episode progress to condition waypoint prediction
+  - Checkpointing: best.pt, epoch_*.pt, final.pt
+  - Training metrics saved to JSON
+  - CLI: --run-id, --episodes-dir, --batch-size, --num-epochs, etc.
+- **Smoke test**: ✅ PASSED (10 epochs, synthetic data, loss converges)
+- **Output**: checkpoints/waypoint_bc/best.pt, final.pt
+- **Commit**: `46a171d` - Waypoint BC Trainer - Supervised behavior cloning for waypoint prediction
+- **Branch**: `feature/daily-2026-04-19-d`
+- **PR**: https://github.com/Capri2014/AIResearch/pull/new/feature/daily-2026-04-19-d
+
+### Pipeline PR #3: Waypoint Batch Collator (10:30am PT)
+- **Created: `training/bc/waypoint_batch_collator.py`**
+  - WaypointBatchCollator: collates waypoint samples into training batches
+  - CollatorConfig: batch_size, shuffle, augment, noise_std, max_waypoints, horizon
+  - WaypointSample: episode_id, frame_id, waypoints (8,2), speed, progress
+  - collate_batch(): creates batched tensors with proper padding
+  - _augment_waypoints(): Gaussian noise augmentation for data diversity
+  - create_dataloader(): PyTorch DataLoader-style iterator
+  - get_statistics(): dataset statistics (mean, std, min, max)
+  - CLI: --episodes-dir, --batch-size, --shuffle, --augment, --stats-only
+- **Smoke test**: ✅ PASSED (1040 samples, 33 batches, shape (32,8,2))
+- **Output**: out/waypoint_collator_test/statistics.json, sample_batch.json
+- **Commit**: `1461f8c` - Waypoint Batch Collator - Collate waypoint trajectories for BC training
+- **Branch**: `feature/daily-2026-04-19-c`
+- **PR**: https://github.com/Capri2014/AIResearch/pull/new/feature/daily-2026-04-19-c
+
+### Pipeline PR #2: Waypoint Trajectory Sampler (7:30am PT)
+- **Created: `training/bc/waypoint_trajectory_sampler.py`**
+  - WaypointTrajectorySampler: generates diverse trajectories for BC training
+  - Supports lane_following, lane_change, turning strategies
+  - Supports cruise, accelerating, decelerating speed profiles
+  - Configurable num_waypoints (8), horizon (3s), sampling rate (2Hz)
+  - Position/heading noise augmentation for data diversity
+  - generate_eval_scenarios: generate closed-loop evaluation scenarios
+  - augment_episodes: augment existing episode data
+  - JSONL/JSON output with metadata statistics
+  - CLI: --num-samples, --num-waypoints, --horizon-seconds, --generate-eval-scenarios, --augment-existing
+- **Smoke test**: ✅ PASSED (50 trajectories generated, 6 eval scenarios created)
+- **Output**: out/waypoint_sampler_test/trajectories.jsonl, metadata.json, eval_scenarios.json
+- **Commit**: `ec41e07` - Waypoint Trajectory Sampler - Generate diverse waypoint trajectories for BC training
+- **Branch**: `feature/daily-2026-04-19-b`
+- **PR**: https://github.com/Capri2014/AIResearch/pull/new/feature/daily-2026-04-19-b
 
 ### Pipeline PR #5: RL Refinement AFTER SFT - PPO Waypoint Agent (4:30pm PT)
 - **Created: `training/rl/ppo_waypoint_agent.py`**
@@ -193,23 +271,13 @@ Driving-first pipeline: **Waymo episodes → PyTorch SSL pretrain → waypoint B
 
 ## Daily Cadence
 
-- ✅ **Pipeline PR #1** (2026-04-16): Pipeline Integration Test - committed & pushed
-- **Created: `training/rl/eval_toy_waypoint.py`**
-  - Deterministic evaluation runner for ToyWaypointEnv
-  - Runs N episodes, writes schema-compliant metrics.json
-  - Supports --policy sft|rl, --episodes, --seed-base, --max-steps
-  - Best-effort schema validation against data/schema/metrics.json
-  - Computes: ADE, FDE, Success Rate, Return, Steps
-- **Created: `training/rl/compare_policies.py`**
-  - Small loader that compares SFT-only vs RL-refined policy on same seeds
-  - Prints 3-line report: ADE, FDE, Success Rate
-  - Can load existing eval runs or run fresh evaluations
-- **Smoke test**: ✅ SUCCESS (10 episodes, ADE=18.6173m, FDE=53.0640m)
-- **Commit**: `14bd25a` - RL evaluation + metrics hardening
-- **Branch**: `feature/daily-2026-04-15-e`
-- **PR**: https://github.com/Capri2014/AIResearch/pull/new/feature/daily-2026-04-15-e
+- ✅ **Pipeline PR #6** (2026-04-19): RL refinement eval + metrics hardening - committed & pushed
+- ✅ **Pipeline PR #5** (2026-04-19): GAE Advantage Estimation - committed & pushed
+- ✅ **Pipeline PR #4** (2026-04-19): Waypoint BC Trainer - committed & pushed
+- ✅ **Pipeline PR #3** (2026-04-19): Waypoint Batch Collator - committed & pushed
+- ✅ **Pipeline PR #2** (2026-04-19): Waypoint Trajectory Sampler - committed & pushed
 
-### Pipeline PR #5: PPO Delta-Waypoint Refiner - RL after SFT (4:30pm PT)
+### Pipeline PR #1: Pipeline Integration Test (5:30am PT)
 - **Created: `training/rl/ppo_delta_waypoint_refiner.py`**
   - Trains residual delta-waypoint head on frozen SFT model
   - Schema: `final_waypoints = sft_waypoints + delta_scale * delta_head(observation)`
