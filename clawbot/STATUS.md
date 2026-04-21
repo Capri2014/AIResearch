@@ -1,11 +1,26 @@
 # Status (ClawBot)
 
-_Last updated: 2026-04-21 (Pipeline PR #3, 10:30am PT / 1:30pm ET)_
+_Last updated: 2026-04-21 (Pipeline PR #4, 1:30pm PT / 4:30pm ET)_
 
 ## Current focus
 Driving-first pipeline: **Waymo episodes → PyTorch SSL pretrain → waypoint BC → RL refinement → CARLA ScenarioRunner eval**.
 
 ## Today's Progress
+
+### Pipeline PR #4: Pipeline Executor - Unified Entry Point (1:30pm PT)
+- **Created: `training/pipeline_executor.py`**
+  - PipelineExecutor: Unified entry point connecting all pipeline components
+  - Integrates: PipelineCheckpointLoader, PipelineOrchestrator, WaypointEvalRunner, PipelineEvalReporter
+  - Commands: `run`, `checkpoints`, `status`, `report`
+  - Stage selection: `pretrain`, `bc`, `rl`, `eval`, `full` (default)
+  - Checkpoint auto-discovery via PipelineCheckpointLoader
+  - Mock evaluation fallback when CARLA unavailable
+  - Output dir: `out/pipeline` with stage subdirs (pretrain/bc/rl/report)
+  - Dry-run mode for config verification
+- **Smoke test**: ✅ PASSED (--help + checkpoints + status + dry-run all work)
+- **Commit**: `1570003` - Pipeline Executor
+- **Branch**: `feature/daily-2026-04-21-d`
+- **PR**: https://github.com/Capri2014/AIResearch/pull/new/feature/daily-2026-04-21-d
 
 ### Pipeline PR #3: Pipeline Evaluation Reporter (10:30am PT)
 - **Created: `sim/driving/carla_srunner/pipeline_eval_reporter.py`**
