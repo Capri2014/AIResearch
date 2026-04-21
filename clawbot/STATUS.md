@@ -1,11 +1,29 @@
 # Status (ClawBot)
 
-_Last updated: 2026-04-20 (Pipeline PR #4, 1:30pm PT)_
+_Last updated: 2026-04-21 (Pipeline PR #6, 6:30pm PT)_
 
 ## Current focus
 Driving-first pipeline: **Waymo episodes → PyTorch SSL pretrain → waypoint BC → RL refinement → CARLA ScenarioRunner eval**.
 
 ## Today's Progress
+
+### Pipeline PR #6: RL Refinement Eval - Deterministic Evaluation (6:30pm PT)
+- **Created: `training/rl/eval_deterministic.py`**
+  - Deterministic eval for toy waypoint RL env (N episodes with fixed seeds)
+  - Outputs `out/eval/<run_id>/metrics.json` per policy (SFT and RL)
+  - Produces 3-line ADE/FDE/success comparison report
+  - Compatible with `data/schema/metrics.json`
+  - CLI: `--episodes`, `--seed-base`, `--max-steps`, `--policy`, `--out-dir`
+- **Smoke test**: ✅ PASSED (5 episodes, both SFT and RL policies)
+- **Example output**:
+  ```
+  ADE     | SFT: 24.68 ± 5.95  | RL: 24.41 ± 6.04
+  FDE    | SFT: 47.32 ± 13.14 | RL: 47.01 ± 13.23
+  Success| SFT: 0.00%          | RL: 0.00%
+  ```
+- **Commit**: `744dc1f` - Add deterministic eval for toy waypoint RL: SFT vs RL comparison
+- **Branch**: `feature/daily-2026-04-20-e`
+- **Pushed**: To `origin/feature/daily-2026-04-20-e`
 
 ### Pipeline PR #4: Waypoint Evaluation Pipeline - End-to-End (1:30pm PT)
 - **Created: `sim/driving/carla_srunner/waypoint_eval_pipeline.py`**
