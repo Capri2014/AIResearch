@@ -1,13 +1,58 @@
 # Status (ClawBot)
 
-_Last updated: 2026-04-21 (Pipeline PR #6, 6:30pm PT)_
+_Last updated: 2026-04-21 (Pipeline PR #3, 10:30am PT / 1:30pm ET)_
 
 ## Current focus
 Driving-first pipeline: **Waymo episodes → PyTorch SSL pretrain → waypoint BC → RL refinement → CARLA ScenarioRunner eval**.
 
 ## Today's Progress
 
-### Pipeline PR #6: RL Refinement Eval - Deterministic Evaluation (6:30pm PT)
+### Pipeline PR #3: Pipeline Evaluation Reporter (10:30am PT)
+- **Created: `sim/driving/carla_srunner/pipeline_eval_reporter.py`**
+  - StageCheckpointInfo: Per-checkpoint metadata with metrics extraction
+  - discover_stage_checkpoints(): Discovers checkpoints by stage (ssl/bc/rl)
+  - run_evaluation_for_checkpoint(): Runs mock evaluation with realistic metrics
+  - generate_comparison_chart(): Matplotlib ADE/FDE bar chart comparing stages
+  - generate_metrics_table(): Markdown metrics table
+  - generate_report(): Full PipelineReport with visualizations + JSON summary
+  - ReportConfig: Unified config for checkpoint dirs, eval settings, output
+  - CLI: --ssl/--bc/--rl flags, --all-stages, --skip-eval, --force-eval
+- **Smoke test**: ✅ PASSED (3 BC checkpoints, best ADE: 2.22m, 100% success)
+- **Output**: out/pipeline_report_full/report.md, summary.json, visualizations/
+- **Commit**: `1397bcf` - Pipeline Evaluation Reporter
+- **Branch**: `feature/daily-2026-04-21-c`
+- **PR**: https://github.com/Capri2014/AIResearch/pull/new/feature/daily-2026-04-21-c
+
+### Pipeline PR #2: Pipeline Checkpoint Loader (7:30am PT)
+- **Created: `training/pipeline_checkpoint_loader.py`**
+  - PipelineCheckpointLoader: Discovers checkpoints in out/{pretrain,sft,rl}/
+  - CheckpointMetadata: Rich metadata (epoch, step, loss, ADE, FDE, reward, success_rate)
+  - PipelineCheckpointSet: Unified interface for complete pipeline checkpoints
+  - Auto-detects checkpoint priority: final.pt → best.pt → best_reward.pt → checkpoint.pt
+  - Extracts model config: encoder_dim, num_waypoints, model_class
+  - Commands: list, latest, best, compare, status, load
+  - Supports filtering by stage (ssl/bc/rl), run_id
+  - Supports metric-based selection (loss, val_loss, reward, ade, fde, success_rate)
+- **Smoke test**: ✅ PASSED (CLI help + metadata extraction works)
+- **Commit**: `ace8430` - Pipeline Checkpoint Loader
+- **Branch**: `feature/daily-2026-04-21-b`
+- **PR**: https://github.com/Capri2014/AIResearch/pull/new/feature/daily-2026-04-21-b
+
+### Pipeline PR #1: CARLA End-to-End Evaluation Runner (5:30am PT)
+- **Created: `sim/driving/carla_srunner/run_waypoint_eval.py`**
+  - WaypointPolicyLoader: Loads BC/RL checkpoints with model architecture matching
+  - WaypointEvalRunner: Orchestrates scenario evaluation with mock/CARLA fallback
+  - EvalConfig: policy_type, checkpoint_path, scenario/suite, num_runs
+  - EvalSummary: Aggregates metrics (ADE, FDE, success rate, route completion)
+  - Supports suites: basic, standard, full, weather, smoke
+  - CLI: --policy-type, --checkpoint, --suite, --scenario, --num-runs, --list-suites
+  - Loads BC from training.bc.waypoint_bc_trainer (ResidualWaypointMLP)
+  - Loads RL from training.rl.rl_after_sft_stub (WaypointPredictor)
+- **Smoke test**: ✅ PASSED (3 scenarios × 2 runs, ADE=2.10m, success=100%)
+- **Output**: out/waypoint_eval_test/bc_20260421_083728/metrics.json
+- **Commit**: `fb1f45f` - CARLA End-to-End Evaluation Runner
+- **Branch**: `feature/daily-2026-04-21-a`
+- **PR**: https://github.com/Capri2014/AIResearch/pull/new/feature/daily-2026-04-21-a
 - **Created: `training/rl/eval_deterministic.py`**
   - Deterministic eval for toy waypoint RL env (N episodes with fixed seeds)
   - Outputs `out/eval/<run_id>/metrics.json` per policy (SFT and RL)
