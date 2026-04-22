@@ -1,0 +1,17 @@
+{
+  "run_id": "rl_kinematics_delta_20260422_e",
+  "update_count": 20,
+  "config": {
+    "num_waypoints": 4,
+    "num_envs": 4,
+    "num_steps": 128,
+    "learning_rate": 0.0003,
+    "freeze_sft": true
+  },
+  "final_metrics": {
+    "mean_reward": 26.118916834363983,
+    "mean_delta_magnitude": 0.023103637451386307,
+    "mean_policy_loss": -0.01881594073602173,
+    "mean_value_loss": 83.27474427819251
+  }
+}
