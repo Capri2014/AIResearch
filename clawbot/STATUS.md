@@ -1,17 +1,27 @@
 # Status (ClawBot)
 
-_Last updated: 2026-03-28 (Pipeline PR #3)_
+_Last updated: 2026-04-22 (Pipeline PR #3, 10:30am PT / 1:30pm ET)_
 
 ## Current focus
 Driving-first pipeline: **Waymo episodes → SSL pretrain → waypoint BC → RL refinement → CARLA eval**.
 
 ## Today's Progress
 
-**Pipeline PR #3:** WaypointPredictionEncoder for SSL pretraining
-- Created: `models/encoders/waypoint_prediction_head.py`
-- WaypointPredictionHead: MLP with L1/L2 regression
-- WaypointPredictionEncoder: combines encoder + waypoint head
-- Forward pass returns (embeddings, waypoints)
+### Pipeline PR #3: Checkpoint Version Manager (10:30am PT)
+- **Created: `training/checkpoint_version_manager.py`**
+  - CheckpointVersionManager: Track version history across stages
+  - CheckpointVersion / CheckpointLineage: Metadata dataclasses
+  - register_checkpoint(): Register new versions with metrics
+  - get_best_version(): Find best by metric (ADE, FDE, reward)
+  - get_lineage(): Trace parent chain (SSL → BC → RL)
+  - compare_versions(): Comparison table for multiple versions
+  - auto_register_from_dir(): Batch register from directory
+  - export_report(): Full markdown report
+  - CLI: register, list, best, compare, export commands
+- **Smoke test**: ✅ PASSED (3 versions, lineage tracking works)
+- **Commit**: `d5f2053` - Checkpoint Version Manager
+- **Branch**: `feature/daily-2026-04-22-c`
+- **PR**: https://github.com/Capri2014/AIResearch/pull/new/feature/daily-2026-04-22-c
 
 ## Recent changes
 
