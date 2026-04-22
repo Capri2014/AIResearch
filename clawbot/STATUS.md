@@ -1,48 +1,50 @@
 # Status (ClawBot)
 
-_Last updated: 2026-02-18_
+_Last updated: 2026-03-28 (Pipeline PR #3)_
 
 ## Current focus
-Driving-first pipeline: **Waymo episodes → PyTorch SSL pretrain → waypoint BC → RL refinement → CARLA ScenarioRunner eval**.
+Driving-first pipeline: **Waymo episodes → SSL pretrain → waypoint BC → RL refinement → CARLA eval**.
 
 ## Today's Progress
 
-**Pipeline PR #3:** Implemented PPO delta-waypoint training for RL refinement
-- `training/rl/train_ppo_delta_waypoint.py`: Full PPO training implementation
-- `training/rl/test_ppo_delta_smoke.py`: Smoke tests
-- `training/rl/README.md`: Documentation
-- Architecture: `final_waypoints = sft_waypoints + delta_head(z)`
+**Pipeline PR #3:** WaypointPredictionEncoder for SSL pretraining
+- Created: `models/encoders/waypoint_prediction_head.py`
+- WaypointPredictionHead: MLP with L1/L2 regression
+- WaypointPredictionEncoder: combines encoder + waypoint head
+- Forward pass returns (embeddings, waypoints)
 
 ## Recent changes
 
-### RL Training Pipeline
-- PPO delta-waypoint training with GAE (2026-02-18)
-- Evaluation + metrics hardening for RL (2026-02-17)
-- CARLA closed-loop evaluation scripts (2026-02-17)
-- RL refinement stub (2026-02-16)
+### Pipeline PR #3 (2026-03-28): WaypointPredictionEncoder
+- `models/encoders/waypoint_prediction_head.py`
+- WaypointPredictionHead + WaypointPredictionEncoder
+- L1 and L2 loss functions
 
-### Evaluation Pipeline
-- ADE/FDE metrics for waypoint BC
-- Git info for reproducible evaluation
-- SFT vs RL comparison scripts
+### Pipeline PR #2 (2026-03-28): Waypoint SSL Dataset
+- `training/pretrain/waypoint_ssl_pretrain.py`
+- WaypointSSLDataset for stub episode format
+- iter_waypoint_samples() helper
+
+### Pipeline PR #1 (2026-03-28): RL Refinement Evaluation
+- `training/rl/compare_sft_vs_rl.py`
+- `training/rl/validate_metrics.py`
+- Schema validation + comparison metrics
 
 ## Next (top 3)
-1) Run PPO training with real SFT checkpoint
-2) Compare SFT-only vs RL-refined performance
-3) CARLA closed-loop evaluation with trained models
+1. Integrate WaypointPredictionEncoder with WaypointSSLDataset
+2. Add training loop for SSL pretraining with waypoints
+3. Connect to waypoint BC training
 
 ## Pipeline Status
 
 | Stage | Status |
 |-------|--------|
 | Waymo Episodes | ✅ Ready |
-| SSL Pretrain | ✅ Ready |
-| Waypoint BC (SFT) | ✅ Ready |
-| RL Refinement | ✅ Implemented |
-| CARLA Eval | ✅ Ready |
+| SSL Pretrain | 🔄 In Progress |
+| Waypoint BC | ⏳ Pending |
+| RL Refinement | ⏳ Pending |
+| CARLA Eval | ⏳ Pending |
 
-All stages implemented. Integration testing next.
-
-## Blockers / questions for owner
-- PR review needed for pending PRs (#3, #5, #8, #9)
-- CARLA server access for closed-loop evaluation
+## Links
+- Branch: `feature/daily-2026-03-28-c`
+- Daily notes: `clawbot/daily/2026-03-28.md`
