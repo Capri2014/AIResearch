@@ -64,6 +64,12 @@ from sim.driving.carla_srunner.test_harness import (
     TestVisualize,
 )
 
+from sim.driving.carla_srunner.scenario_batch_runner import (
+    CarlaScenarioBatchRunner,
+    BatchEvalConfig,
+    ScenarioResult,
+)
+
 __all__ = [
     # Scenarios
     "SCENARIO_CATALOG",
@@ -110,6 +116,9 @@ __all__ = [
     "TestEvaluate",
     "TestIntegration",
     "TestVisualize",
+    # Batch runner
+    "CarlaScenarioBatchRunner",
+    "BatchEvalConfig",
 ]
 
 __version__ = "0.2.0"
