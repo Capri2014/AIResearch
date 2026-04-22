@@ -1,0 +1,65 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "RL Waypoint Evaluation Metrics Schema",
+  "description": "Schema for RL/SFT policy evaluation metrics on toy waypoint env",
+  "type": "object",
+  "required": ["ade_mean", "fde_mean", "success_rate", "return_mean", "num_episodes"],
+  "properties": {
+    "ade_mean": {
+      "type": "number",
+      "description": "Average Displacement Error (lower is better)"
+    },
+    "ade_std": {
+      "type": "number",
+      "description": "Standard deviation of ADE"
+    },
+    "fde_mean": {
+      "type": "number",
+      "description": "Final Displacement Error (lower is better)"
+    },
+    "fde_std": {
+      "type": "number",
+      "description": "Standard deviation of FDE"
+    },
+    "success_rate": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1,
+      "description": "Fraction of episodes with success (higher is better)"
+    },
+    "return_mean": {
+      "type": "number",
+      "description": "Mean discounted return"
+    },
+    "steps_mean": {
+      "type": "number",
+      "description": "Mean episode length"
+    },
+    "num_episodes": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Number of evaluation episodes"
+    },
+    "run_id": {
+      "type": "string",
+      "description": "Unique identifier for this evaluation run"
+    },
+    "policy_type": {
+      "type": "string",
+      "enum": ["sft", "rl", "sft_rl_comparison", "base"],
+      "description": "Policy being evaluated"
+    },
+    "seed_base": {
+      "type": "integer",
+      "description": "Base seed for reproducibility"
+    },
+    "max_steps": {
+      "type": "integer",
+      "description": "Max steps per episode"
+    },
+    "timestamp": {
+      "type": "string",
+      "description": "ISO timestamp of evaluation run"
+    }
+  }
+}
