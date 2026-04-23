@@ -266,11 +266,24 @@ def ensure_waypoint_cache(
     total_samples = 0
 
     if cache_dir.exists():
-        for cf in sorted(cache_dir.glob("*.jsonl")):
+        # Support both .jsonl and .json waypoint cache formats
+        for cf in sorted(cache_dir.glob("*.jsonl")) + sorted(cache_dir.glob("*.json")):
             total_size += cf.stat().st_size / 1e6
             try:
                 with open(cf) as f:
-                    lines = sum(1 for _ in f)
+                    if cf.suffix == ".jsonl":
+                        lines = sum(1 for _ in f)
+                    else:
+                        # JSON format: use frame_count field or count waypoints array
+                        data = json.load(f)
+                        if isinstance(data, dict) and "frame_count" in data:
+                            lines = data["frame_count"]
+                        elif isinstance(data, dict) and "waypoints" in data:
+                            lines = len(data["waypoints"])
+                        elif isinstance(data, list):
+                            lines = len(data)
+                        else:
+                            lines = 1
                     total_samples += lines
                     existing.append(cf.stem)
             except OSError:
@@ -304,13 +317,25 @@ def build_bc_dataloader_info(config: PipelineDataConfig) -> Dict[str, Any]:
     """Build info about BC dataloader configuration."""
     cache_dir = Path(config.waypoint_cache_dir)
 
-    # Check what waypoint data is available
+    # Check what waypoint data is available (support both .jsonl and .json)
     available_eps = []
     if cache_dir.exists():
-        for f in sorted(cache_dir.glob("*.jsonl")):
+        for f in sorted(cache_dir.glob("*.jsonl")) + sorted(cache_dir.glob("*.json")):
             try:
                 with open(f) as fp:
-                    lines = sum(1 for _ in fp)
+                    if f.suffix == ".jsonl":
+                        lines = sum(1 for _ in fp)
+                    else:
+                        data = json.load(fp)
+                        # JSON format: use frame_count field or count waypoints array
+                        if isinstance(data, dict) and "frame_count" in data:
+                            lines = data["frame_count"]
+                        elif isinstance(data, dict) and "waypoints" in data:
+                            lines = len(data["waypoints"])
+                        elif isinstance(data, list):
+                            lines = len(data)
+                        else:
+                            lines = 1
                 available_eps.append({"episode_id": f.stem, "samples": lines})
             except OSError:
                 pass
