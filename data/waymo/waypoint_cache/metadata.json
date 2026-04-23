@@ -1,0 +1,14 @@
+{
+  "created_at": "2026-04-23T13:33:11.505159",
+  "last_updated": "2026-04-23T13:33:39.088542",
+  "total_episodes": 22,
+  "total_frames": 1040,
+  "total_waypoints": 1040,
+  "cache_version": "1.0",
+  "index_path": "data/waymo/episode_index.json",
+  "extraction_config": {
+    "max_waypoints": 8,
+    "horizon": 3.0,
+    "sampling_rate": 0.5
+  }
+}
