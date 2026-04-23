@@ -1,13 +1,16 @@
 # Status (ClawBot)
 
-_Last updated: 2026-04-12 (Pipeline PR #6 — daily cadence)_
+_Last updated: 2026-04-19 (Pipeline PR #6 — daily cadence)_
 
 ## Current focus
 Driving-first pipeline: **Waymo episodes → PyTorch SSL pretrain → waypoint BC → RL refinement → CARLA ScenarioRunner eval**.
 
 ## Daily Cadence
 
-- ✅ **Pipeline PR #6** (2026-04-18): RL refinement eval + metrics hardening ← TODAY
+- ✅ **Pipeline PR #6** (2026-04-22): Policy comparison loader + eval run ← TODAY
+- ✅ **Pipeline PR #6** (2026-04-21): Deterministic eval SFT vs RL comparison runner
+- ✅ **Pipeline PR #6** (2026-04-19): RL refinement eval + metrics hardening
+- ✅ **Pipeline PR #6** (2026-04-18): RL refinement eval + metrics hardening
 - ✅ **Pipeline PR #6** (2026-04-12): Deterministic Eval SFT vs RL Metrics
 - ✅ **Pipeline PR #5** (2026-04-09): RL after SFT waypoint delta training stub
 - ✅ **Pipeline PR #2** (2026-04-08): Full Pipeline Benchmark Runner
@@ -30,6 +33,25 @@ Driving-first pipeline: **Waymo episodes → PyTorch SSL pretrain → waypoint B
 - ⏳ **Pipeline PR #8** (2026-02-17): CARLA Closed-Loop Waypoint BC Evaluation - awaiting review
 
 ## Recent changes
+
+### Pipeline PR #6: Policy Comparison Loader + Eval Run (2026-04-22) ← TODAY
+- **Created: `training/rl/compare_policies_loader.py`**
+  - Loads existing evaluation runs and prints 3-line comparison report
+  - Usage: `python -m training.rl.compare_policies_loader --run-id <run_id>`
+  - Defaults to latest run if no run ID specified
+  - Prints: ADE, FDE, Success Rate with % improvements
+
+- **Ran evaluation**: 10 episodes (seeds 42-51), outputs to `training/rl/out/eval/eval_20260422_213359/`
+  - SFT: ADE=14.121m, FDE=41.918m, Success=0.0%
+  - RL:  ADE=13.701m, FDE=41.162m, Success=0.0%
+  - Improvement: ADE +3.0%, FDE +1.8%
+
+- **Branch:** `feature/daily-2026-04-22-b`
+- **Commit:** `182d58e` — 1 file, 131 insertions
+
+- **Verification:** `python3 -m training.rl.compare_policies_loader --run-id eval_20260422_213359`
+
+- **Note:** Both policies are toy proxies (heuristic-based, not real trained models). The environment is too simple. Next: wire real SFT checkpoint.
 
 ### Pipeline PR #2: Full Pipeline Benchmark Runner (2026-04-08) ← TODAY
 - **Created: `training/pipeline/full_pipeline_benchmark.py`**
