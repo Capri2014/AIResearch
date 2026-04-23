@@ -1,11 +1,148 @@
 # Status (ClawBot)
 
-_Last updated: 2026-04-21 (Pipeline PR #4, 1:30pm PT / 4:30pm ET)_
+_Last updated: 2026-04-23 (Pipeline PR #2, 7:30am PT / 10:30am ET)_
 
 ## Current focus
 Driving-first pipeline: **Waymo episodes → PyTorch SSL pretrain → waypoint BC → RL refinement → CARLA ScenarioRunner eval**.
 
+
+### Pipeline PR #2 (2026-04-23): Pipeline Data Manager - Orchestrate Episode→Index→SSL→Waypoint→BC Data Flow (7:30am PT)
+- **Created: `training/pipeline_data_manager.py`** (792 lines)
+  - PipelineDataManager: Main orchestrator class for full data pipeline
+  - PipelineDataConfig: Unified dataclass for all data-stage hyperparameters
+  - DataStage enum + EpisodeSummary / DataStageInfo data structures
+  - scan_episodes(): Scans episode directory, builds EpisodeSummary list
+  - print_episode_table(): Formatted episode table with frame/duration/size stats
+  - build_episode_index(): Builds compact frame index from episodes for fast dataloader init
+  - ensure_waypoint_cache(): Manages waypoint extraction cache state
+  - build_bc_dataloader_info(): Reports BC dataloader readiness from waypoint cache
+  - validate_data_pipeline(): Full pipeline validation with gap detection + recommendations
+  - PipelineDataManager class: lazy episode scan, stage_info dict, build_index(), validate(), print_status()
+  - CLI subcommands: build, scan, index-stats, validate, status, dataloader-info
+- **Built:** `data/waymo/episode_index.json` (22 episodes, 1040 frames indexed)
+- **Smoke tests**: ✅ PASSED (validate, build, status, dataloader-info all work)
+- **Commit**: `9cc76d9` - Pipeline Data Manager - Orchestrate Episode→Index→SSL→Waypoint→BC Data Flow
+- **Branch**: `feature/daily-2026-04-23-b`
+- **PR**: https://github.com/Capri2014/AIResearch/pull/new/feature/daily-2026-04-23-b
+
+### Pipeline PR #1 (2026-04-23): Pipeline Coordinator - Stage-to-Stage Integration (5:30am PT)
+- **Created: `training/pipeline_coordinator.py`**
+  - PipelineCoordinator: Main class for chaining SSL→BC→RL pipeline stages
+  - PipelineCheckpoint: Checkpoint metadata wrapper with run_id, metrics, config
+  - PipelineEncoder: SSL encoder wrapper (ConvNet-based, loadable pretrained weights)
+  - PipelineBCModel: Waypoint BC model with encoder + waypoint head
+  - PipelineRLModel: RL refinement model (BC + delta head for residual learning)
+  - Unified inference: predict() and predict_batch() methods
+  - Device-aware: automatic CUDA/CPU selection
+  - Checkpoint loading integration with existing checkpoint_manager.py
+  - CLI commands: status, eval, demo
+  - 1870+ lines
+- **Smoke test**: ✅ PASSED (BC prediction [4,8,2], RL prediction [4,8,2], status shows all stages)
+- **Output**: training/pipeline_coordinator.py
+- **Commit**: `fc3cadf` - Pipeline Coordinator - Unified Stage-to-Stage Integration
+- **Branch**: `feature/daily-2026-04-23-a`
+- **PR**: https://github.com/Capri2014/AIResearch/pull/new/feature/daily-2026-04-23-a
+
+### Pipeline PR #5 (2026-04-22): RL After SFT - Kinematics Delta Training (4:30pm PT)
+- **Created: `training/rl/train_ppo_kinematics_delta.py`**
+  - ToyWaypointKinematicsEnv: Car-like environment using bicycle model kinematics
+  - WaypointPPOModel: Dual-head model with SFT waypoint head + learnable delta head
+  - PPOMemory: GAE-based memory for PPO rollouts
+  - RLAfterSFTTrainer: End-to-end training loop
+  - Delta head initialized small (starts near zero, learns residual)
+  - SFT backbone optionally frozen during RL training
+  - Supports SFT checkpoint loading (placeholder for real loading)
+  - Outputs to `out/<run_id>/` with metrics.json and train_metrics.json
+  - CLI: --num-updates, --num-envs, --lr, --freeze-sft, --run-id, --out-dir
+- **Smoke test**: ✅ PASSED (20 updates, 4 envs, training completes, delta magnitude increases)
+- **Output**: out/rl_kinematics_delta_20260422_e/metrics.json, train_metrics.json, final_model.pt
+- **Commit**: `fd46ac5` - RL After SFT - Kinematics Delta Waypoint Training
+- **Branch**: `feature/daily-2026-04-22-e`
+- **PR**: https://github.com/Capri2014/AIResearch/pull/new/feature/daily-2026-04-22-e
+
+### Pipeline PR #4: CARLA ScenarioRunner Batch Evaluator (1:30pm PT)
+- **Created: `sim/driving/carla_srunner/scenario_batch_runner.py`**
+  - CarlaScenarioBatchRunner: Batch evaluator for multi-scenario CARLA evaluation
+  - BatchEvalConfig: policy_type, suite, parallel, cache, retry, mock settings
+  - ScenarioResult: Per-scenario metrics (ADE, FDE, route_completion, collisions, violations)
+  - 5 scenario suites: basic (4), standard (8), full (12), weather (3), nightmare (6)
+  - Result caching and retry logic for failed scenarios
+  - Mock evaluation when CARLA unavailable
+  - Aggregated metrics with mean/std per suite
+  - Markdown report generation
+  - CLI: --policy-type, --checkpoint, --suite, --num-runs, --parallel, --output-dir
+- **Smoke test**: ✅ PASSED (4 scenarios, 75% success, ADE=3.56m, FDE=4.68m, RC=80.5%)
+- **Commit**: `bda63e4` - CARLA ScenarioRunner Batch Evaluator
+- **Branch**: `feature/daily-2026-04-22-d`
+- **PR**: https://github.com/Capri2014/AIResearch/pull/new/feature/daily-2026-04-22-d
+- **Output**: out/batch_eval_smoke/
+
+### Pipeline PR #1: RL-to-CARLA Bridge (5:30am PT)
+- **Created: `sim/driving/carla_srunner/rl_to_carla_bridge.py`**
+  - RLToCarlaBridge: Main bridge connecting BC/RL policies with CARLA ScenarioRunner
+  - BCWaypointModel / RLRefinementModel: Built-in policy models for inference
+  - BridgeConfig: Unified configuration for policy, CARLA, and evaluation settings
+  - Supports scenario suites: basic (4), standard (8), full (12), weather (3), smoke (4)
+  - Mock evaluation fallback when CARLA unavailable
+  - Outputs metrics.json with ADE, FDE, success_rate, route_completion
+  - CLI: --checkpoint, --policy-type, --suite, --num-runs, --dry-run
+- **Smoke test**: ✅ PASSED (BC: ADE=2.05m, RL: ADE=1.92m, both 95% success)
+- **Commit**: `12d82f8` - RL-to-CARLA Bridge - Unified BC/RL Policy Evaluation Runner
+- **Branch**: `feature/daily-2026-04-22-a`
+- **PR**: https://github.com/Capri2014/AIResearch/pull/new/feature/daily-2026-04-22-a
+- **Output**: out/rl_to_carla/smoke_bc/, smoke_rl/
+
 ## Today's Progress
+
+### Pipeline PR #4: CARLA ScenarioRunner Batch Evaluator (1:30pm PT)
+- **Created: `sim/driving/carla_srunner/scenario_batch_runner.py`**
+  - CarlaScenarioBatchRunner: Batch evaluator for multi-scenario CARLA evaluation
+  - BatchEvalConfig: policy_type, suite, parallel, cache, retry, mock settings
+  - ScenarioResult: Per-scenario metrics (ADE, FDE, route_completion, collisions, violations)
+  - 5 scenario suites: basic (4), standard (8), full (12), weather (3), nightmare (6)
+  - Result caching and retry logic for failed scenarios
+  - Mock evaluation when CARLA unavailable
+  - Aggregated metrics with mean/std per suite
+  - Markdown report generation
+  - CLI: --policy-type, --checkpoint, --suite, --num-runs, --parallel, --output-dir
+- **Smoke test**: ✅ PASSED (4 scenarios, 75% success, ADE=3.56m, FDE=4.68m, RC=80.5%)
+- **Commit**: `bda63e4` - CARLA ScenarioRunner Batch Evaluator
+- **Branch**: `feature/daily-2026-04-22-d`
+- **PR**: https://github.com/Capri2014/AIResearch/pull/new/feature/daily-2026-04-22-d
+- **Output**: out/batch_eval_smoke/
+
+### Pipeline PR #2: Waypoint Trajectory Visualizer (7:30am PT)
+- **Created: `sim/driving/carla_srunner/waypoint_visualizer.py`**
+  - TrajectoryVisualizer: Visualize predicted waypoints against ground truth
+  - WaypointPrediction, Trajectory, WaypointMetrics: Data structures
+  - load_waymo_episode(): Load from JSON/TFRecord formats
+  - generate_predictions_for_trajectory(): Mock prediction with noise
+  - compute_metrics(): ADE, FDE, MSE with interpolation
+  - visualize_trajectory_pair(): ASCII comparison table
+  - visualize_episode(), visualize_all_checkpoints(): Batch visualization
+  - generate_comparison_html(): HTML comparison page
+  - CLI: --episode, --checkpoint, --episodes-dir, --checkpoints, --all, --output, --html
+- **Smoke test**: ✅ PASSED (ADE=0.455m, FDE=0.530m)
+- **Commit**: `bde7ae8` - Waypoint Trajectory Visualizer
+- **Branch**: `feature/daily-2026-04-22-b`
+- **PR**: https://github.com/Capri2014/AIResearch/pull/new/feature/daily-2026-04-22-b
+- **Output**: out/waypoint_viz/
+
+## Today's Progress
+
+### Pipeline PR #5: RL After SFT Training - Waypoint Delta Refinement (4:30pm PT)
+- **Created: `training/rl/run_rl_after_sft.py`**
+  - ToyWaypointKinematicsEnv: Simple waypoint-following navigation environment
+  - DeltaWaypointAgent: PPO agent with SFT waypoint head (frozen) + residual delta head
+  - PPO training loop with GAE advantages
+  - Supports loading SFT checkpoint to freeze and extend
+  - Outputs metrics.json + train_metrics.json + model.pt
+  - CLI: --sft-checkpoint, --out-dir, --num-updates, --num-envs
+- **Smoke test**: ✅ PASSED (10 updates, 2 envs, training completes)
+- **Commit**: `ca15afe` - RL After SFT Training - Waypoint Delta Refinement
+- **Branch**: `feature/daily-2026-04-21-e`
+- **PR**: https://github.com/Capri2014/AIResearch/pull/new/feature/daily-2026-04-21-e
+- **Output**: out/rl_after_sft_<run_id>/
 
 ### Pipeline PR #4: Pipeline Executor - Unified Entry Point (1:30pm PT)
 - **Created: `training/pipeline_executor.py`**
@@ -402,6 +539,10 @@ Driving-first pipeline: **Waymo episodes → PyTorch SSL pretrain → waypoint B
 - ✅ **Pipeline PR #1** (2026-04-20): CARLA ScenarioRunner Config Generator - committed & pushed
 - ✅ **Pipeline PR #6** (2026-04-19): RL refinement eval + metrics hardening - committed & pushed
 - ✅ **Pipeline PR #5** (2026-04-19): GAE Advantage Estimation - committed & pushed
+
+### Daily Cadence
+
+- ✅ **Pipeline PR #1** (2026-04-22): RL-to-CARLA Bridge - committed & pushed
 
 ### Pipeline PR #1: Pipeline Integration Test (5:30am PT)
 - **Created: `training/rl/ppo_delta_waypoint_refiner.py`**
