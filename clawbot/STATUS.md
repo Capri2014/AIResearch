@@ -1,10 +1,55 @@
 # Status (ClawBot)
 
-_Last updated: 2026-04-24 (Pipeline PR #1, 5:30am PT / 8:30am ET)_
+_Last updated: 2026-04-24 (Pipeline PR #3, 10:30am PT / 1:30pm ET)_
 
 ## Current focus
 Driving-first pipeline: **Waymo episodes → PyTorch SSL pretrain → waypoint BC → RL refinement → CARLA ScenarioRunner eval**.
 
+
+### Pipeline PR #3 (2026-04-24): Waypoint BC Pipeline - Integrated Dataset + Trainer (10:30am PT)
+
+- **Created: `training/bc/waypoint_bc_pipeline.py`** (~500 lines)
+  - BCTrainingConfig: Unified dataclass for all hyperparameters
+  - IntegratedBCTrainer: End-to-end BC training pipeline
+  - ResidualWaypointMLP: MLP with progress conditioning
+  - Loads from waypoint cache (or synthetic fallback)
+  - Checkpointing: best.pt, epoch_*.pt, final.pt
+  - Training metrics: train/val loss, LR scheduling
+  - Evaluation: ADE, FDE metrics
+  - CLI: --cache-dir, --batch-size, --num-epochs, --smoke-test
+- **Smoke test**: ✅ PASSED
+  - 1 epoch, batch=8, 960 samples
+  - ADE: 6.30m, FDE: 6.12m
+  - Checkpoint: checkpoints/waypoint_bc/final.pt
+- **Commit**: `4d64901` - Waypoint BC Pipeline - Integrated Dataset + Trainer
+- **Branch**: `feature/daily-2026-04-24-c`
+- **PR**: https://github.com/Capri2014/AIResearch/pull/new/feature/daily-2026-04-24-c
+
+Theme: End-to-end waypoint BC training pipeline.
+
+### Pipeline PR #2 (2026-04-24): BC Waypoint Cache Dataset (7:30am PT)
+
+- **Created: `training/bc/waypoint_cache_dataset.py`** (~400 lines)
+  - WaypointCacheIndex: Scans cache directory, builds episode index from JSON files
+  - WaypointCacheDataset: PyTorch Dataset for BC training
+    - Lazy loading from JSON cache (22 episodes)
+    - Train/val split by episode (80/20)
+    - Observation: (pos_x, pos_y, speed, heading) normalized
+    - Waypoints: (num_waypoints, 2) relative to current position
+    - Progress-aware sampling
+    - Data augmentation (heading flip)
+  - create_waypoint_cache_dataloader(): Factory function
+  - WaypointDatasetConfig: Configuration dataclass
+  - CLI: --stats, --split, --batch-size, --num-workers
+- **Smoke test**: ✅ PASSED
+  - 22 episodes indexed (1040 frames)
+  - 705 train samples, 12 batches
+  - Batch shapes: obs [64,4], waypoints [64,8,2], progress [64,1]
+- **Commit**: `73b1894` - BC Waypoint Cache Dataset - PyTorch Dataset from Waypoint Cache
+- **Branch**: `feature/daily-2026-04-24-b`
+- **PR**: https://github.com/Capri2014/AIResearch/pull/new/feature/daily-2026-04-24-b
+
+Theme: PyTorch Dataset pipeline for waypoint BC training.
 
 ### Pipeline PR #1 (2026-04-24): E2E Pipeline Runner (5:30am PT)
 
