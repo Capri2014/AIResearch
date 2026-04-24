@@ -1,10 +1,52 @@
 # Status (ClawBot)
 
-_Last updated: 2026-04-23 (Pipeline PR #2, 7:30am PT / 10:30am ET)_
+_Last updated: 2026-04-23 (Pipeline PR #5, 4:30pm PT / 7:30pm ET)_
 
 ## Current focus
 Driving-first pipeline: **Waymo episodes → PyTorch SSL pretrain → waypoint BC → RL refinement → CARLA ScenarioRunner eval**.
 
+
+### Pipeline PR #5 (2026-04-23): RL Refinement - Waypoint Delta Runner (Option B) (4:30pm PT)
+- **Created: `training/rl/run_rl_delta_waypoint.py`** (~500 lines)
+  - ToyWaypointKinematicsEnv: Car-like environment that consumes predicted waypoints
+    - Kinematics-based forward simulation: follows waypoints to compute trajectory reward
+    - Reset generates random expert trajectories
+    - Step evaluates waypoint quality via distance to target waypoints
+  - DeltaWaypointActor: Residual delta prediction network
+    - Takes observation → outputs (num_waypoints, 2) deltas
+    - Tanh-bounded output scaled by delta_scale
+    - get_action() with exploration noise
+  - PPODeltaRefiner: PPO agent that refines SFT waypoints via residual delta
+    - SFT predictor (frozen, loaded from checkpoint)
+    - Delta head (learnable residual)
+    - Value head for advantage estimation
+    - Schema: final_waypoints = sft_waypoints + delta_head(observation)
+  - GAE advantage computation
+  - PPO update with clipped surrogate objective
+  - Full training loop with eval intervals
+- **Smoke test**: ✅ PASSED (env: obs (4,), agent: 10385 params, delta: 5000 params)
+- **Output**: `training/rl/out/<run_id>/` with metrics.json, train_metrics.json
+- **Commit**: `9da96ee` - RL refinement waypoint delta runner (Option B)
+- **Branch**: `feature/daily-2026-04-23-e`
+- **PR**: https://github.com/Capri2014/AIResearch/pull/new/feature/daily-2026-04-23-e
+
+Theme: Option B action space = waypoint deltas (residual on top of SFT waypoints)
+- **Created: `training/pretrain/waypoint_extraction_pipeline.py`** (600+ lines)
+  - WaypointExtractionPipeline: Main class for extracting waypoints from episode index
+  - WaypointExtractionConfig: Unified configuration dataclass
+  - EpisodeWaypoints / ExtractionResult / CacheMetadata: Data structures
+  - MockWaypointExtractor: Demo/testing extractor with deterministic output
+  - load_episode_index(): Load episodes from PipelineDataManager JSON index
+  - extract_episode(): Extract waypoints for single episode
+  - extract_all(): Batch extract for all indexed episodes
+  - validate_cache(): Check cache readiness for BC training
+  - print_cache_status(): Formatted status output
+  - CLI: extract, validate, status subcommands
+- **Built:** `data/waymo/waypoint_cache/` (22 episodes, 1040 frames)
+- **Smoke test**: ✅ PASSED (extract: 22/22, validate: READY)
+- **Commit**: `48eb583` - Waypoint Extraction Pipeline - Episode Index to Waypoint Cache
+- **Branch**: `feature/daily-2026-04-23-c`
+- **PR**: https://github.com/Capri2014/AIResearch/pull/new/feature/daily-2026-04-23-c
 
 ### Pipeline PR #2 (2026-04-23): Pipeline Data Manager - Orchestrate Episode→Index→SSL→Waypoint→BC Data Flow (7:30am PT)
 - **Created: `training/pipeline_data_manager.py`** (792 lines)
