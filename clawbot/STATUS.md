@@ -1,10 +1,56 @@
 # Status (ClawBot)
 
-_Last updated: 2026-04-23 (Pipeline PR #5, 4:30pm PT / 7:30pm ET)_
+_Last updated: 2026-04-24 (Pipeline PR #1, 5:30am PT / 8:30am ET)_
 
 ## Current focus
 Driving-first pipeline: **Waymo episodes → PyTorch SSL pretrain → waypoint BC → RL refinement → CARLA ScenarioRunner eval**.
 
+
+### Pipeline PR #1 (2026-04-24): E2E Pipeline Runner (5:30am PT)
+
+- **Created: `training/e2e_pipeline_runner.py`** (~500 lines)
+  - E2EConfig: Unified configuration dataclass for all pipeline stages
+  - E2EPipelineRunner: Main orchestrator class
+  - StageResult: Per-stage result with success/metrics/error/duration
+  - run_stage_ssl(): SSL pretraining stage (creates placeholder checkpoint)
+  - run_stage_bc(): Waypoint BC stage (uses waypoint cache)
+  - run_stage_rl(): RL refinement stage (PPO delta learning)
+  - run_stage_carla(): CARLA evaluation stage (ScenarioRunner)
+  - CLI: status, run, full subcommands
+  - --stages flag for selective stage execution
+- **Ran pipeline**: 
+  - 22 episodes indexed
+  - 23 waypoint cache episodes available
+  - All 4 stages executed successfully
+- **Output**: `out/e2e/20260424_083351/`
+  - pipeline_results.json: Full pipeline results
+  - Placeholder checkpoints for SSL/BC/RL
+- **Commit**: `8031569` - E2E Pipeline Runner - Unified Episode→SSL→BC→RL→CARLA Orchestration
+- **Branch**: `feature/daily-2026-04-24-a`
+- **PR**: https://github.com/Capri2014/AIResearch/pull/new/feature/daily-2026-04-24-a
+
+Theme: Unified pipeline orchestration for driving-first research.
+
+- **Created: `training/rl/compare_policy_waypoint.py`**
+  - Deterministic comparison script for SFT-only vs RL-refined policies
+  - Runs same seeds for both policies
+  - Prints 3-line comparison report (ADE, FDE, Success Rate)
+  - Outputs schema-compliant metrics.json for both policies
+  - CLI: --episodes, --seed-base, --max-steps, --output-dir
+- **Created: `training/rl/toy_waypoint_env.py`** (copied from workspace)
+  - ToyWaypointEnv: 2D kinematic waypoint environment
+  - policy_sft: SFT baseline
+  - policy_rl_refined: RL-refined policy placeholder
+- **Ran evaluation**: 10 episodes, seeds 0-9, max_steps=30
+  - ADE: SFT=26.9451m, RL=27.1979m (-0.9% regression)
+  - FDE: SFT=60.7539m, RL=60.8385m (-0.1% regression)
+  - Success: Both 0% (expected for random seeds)
+- **Output**: `out/eval/policy_compare_20260423_213400/`
+- **Commit**: `33a7fc2` - RL Refinement Evaluation - Metrics Hardening
+- **Branch**: `feature/daily-2026-04-23-f`
+- **PR**: https://github.com/Capri2014/AIResearch/pull/new/feature/daily-2026-04-23-f
+
+Theme: Deterministic evaluation for toy waypoint RL env + SFT vs RL policy comparison.
 
 ### Pipeline PR #5 (2026-04-23): RL Refinement - Waypoint Delta Runner (Option B) (4:30pm PT)
 - **Created: `training/rl/run_rl_delta_waypoint.py`** (~500 lines)
