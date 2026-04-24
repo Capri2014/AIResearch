@@ -2,8 +2,24 @@
 
 _Last updated: 2026-04-24 (Pipeline PR #3, 10:30am PT / 1:30pm ET)_
 
-## Current focus
-Driving-first pipeline: **Waymo episodes → PyTorch SSL pretrain → waypoint BC → RL refinement → CARLA ScenarioRunner eval**.
+### Pipeline PR #4 (2026-04-24): Waypoint BC Evaluator (1:30pm PT)
+
+- **Created: `training/bc/waypoint_bc_evaluator.py`** (~300 lines)
+  - BCEvaluationConfig: Unified configuration dataclass
+  - ResidualWaypointMLP: Same architecture as training
+  - BCEvaluator: Loads BC checkpoint, runs evaluation
+    - Loads from waypoint cache data
+    - Computes ADE, FDE, success rate metrics
+    - Schema-compliant output (metrics.json)
+  - CLI: --checkpoint, --cache-dir, --split, --batch-size, --output-dir
+- **Smoke test**: ✅ PASSED
+  - 32 samples, ADE=7.02m (untrained model), FDE=0.29m
+  - Output: out/bc_eval_smoke/metrics.json
+- **Commit**: `e0ac735` - Waypoint BC Evaluator - Evaluate trained BC models on waypoint cache
+- **Branch**: `feature/daily-2026-04-24-d`
+- **PR**: https://github.com/Capri2014/AIResearch/pull/new/feature/daily-2026-04-24-d
+
+Theme: Evaluate trained BC models on waypoint cache data.
 
 
 ### Pipeline PR #3 (2026-04-24): Waypoint BC Pipeline - Integrated Dataset + Trainer (10:30am PT)
