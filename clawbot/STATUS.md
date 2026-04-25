@@ -1,6 +1,6 @@
 # Status (ClawBot)
 
-_Last updated: 2026-04-24 (Pipeline PR #3, 10:30am PT / 1:30pm ET)_
+_Last updated: 2026-04-24 (Pipeline PR #6, 6:30pm PT / 9:30pm ET)_
 
 ### Pipeline PR #4 (2026-04-24): Waypoint BC Evaluator (1:30pm PT)
 
@@ -91,6 +91,26 @@ Theme: PyTorch Dataset pipeline for waypoint BC training.
 - **PR**: https://github.com/Capri2014/AIResearch/pull/new/feature/daily-2026-04-24-a
 
 Theme: Unified pipeline orchestration for driving-first research.
+
+### Pipeline PR #6 (2026-04-24): RL Eval Harness - Deterministic SFT vs RL comparison + metrics hardening (6:30pm PT)
+- **Created: `training/rl/rl_eval_harness.py`** (~350 lines)
+  - Consolidated eval harness replacing multiple overlapping scripts (eval_unified.py, eval_deterministic.py, compare_sft_vs_rl.py)
+  - Runs SFT-only vs RL-refined policies on identical seeds (ToyWaypointKinematicsEnv, bicycle model)
+  - Produces schema-compliant metrics.json per policy (domain="rl")
+  - Validates against `data/schema/metrics.json` AND `data/schema/metrics_rl.json`
+  - Prints 3-line comparison report (ADE, FDE, Success Rate)
+  - Outputs validation.json with per-schema results
+  - CLI: --episodes, --seed-base, --max-steps, --output-root, --run-id, --verbose
+- **Also:** Copied metrics_rl.json to `data/schema/metrics_rl.json` (was only in AIResearch-repo/)
+- **Smoke test**: ✅ PASSED (10 episodes, seeds 42-51, max_steps=30)
+  - SFT ADE: 7.37m ± 2.13, FDE: 18.31m ± 4.00, Success: 0%
+  - RL  ADE: 8.05m ± 1.86, FDE: 19.04m ± 3.74, Success: 0%
+  - All 3 schemas: VALID
+- **Commit**: `6fa3f01` - RL Eval Harness - Deterministic SFT vs RL comparison + metrics hardening
+- **Branch**: `feature/daily-2026-04-24-e`
+- **PR**: https://github.com/Capri2014/AIResearch/compare/feature/daily-2026-04-24-e
+
+Theme: RL refinement AFTER SFT - evaluation + metrics hardening.
 
 - **Created: `training/rl/compare_policy_waypoint.py`**
   - Deterministic comparison script for SFT-only vs RL-refined policies
@@ -682,6 +702,11 @@ Theme: Option B action space = waypoint deltas (residual on top of SFT waypoints
 
 ## Daily Cadence
 
+- ✅ **Pipeline PR #6** (2026-04-24): RL Eval Harness - SFT vs RL + metrics hardening - committed & pushed
+- ✅ **Pipeline PR #4** (2026-04-24): Waypoint BC Evaluator - committed & pushed
+- ✅ **Pipeline PR #3** (2026-04-24): Waypoint BC Pipeline - committed & pushed
+- ✅ **Pipeline PR #2** (2026-04-24): BC Waypoint Cache Dataset - committed & pushed
+- ✅ **Pipeline PR #1** (2026-04-24): E2E Pipeline Runner - committed & pushed
 - ✅ **Pipeline PR #4** (2026-04-20): Waypoint Evaluation Pipeline - committed & pushed
 - ✅ **Pipeline PR #3** (2026-04-20): Waypoint Evaluation Visualizer - committed & pushed
 - ✅ **Pipeline PR #2** (2026-04-20): Waypoint Policy Evaluator - committed & pushed
