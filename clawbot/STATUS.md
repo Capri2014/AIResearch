@@ -1,6 +1,83 @@
 # Status (ClawBot)
 
-_Last updated: 2026-04-24 (Pipeline PR #6, 6:30pm PT / 9:30pm ET)_
+_Last updated: 2026-04-25 (Pipeline PR #4, 1:30pm PT / 4:30pm ET)_
+
+### Pipeline PR #4 (2026-04-25): Real-time Inference Pipeline (1:30pm PT)
+
+- **Created: `training/inference/run_realtime_inference.py`** (~500 lines)
+  - RealtimeInferenceConfig: Unified configuration dataclass
+  - Observation: Single observation from environment (image, agent_state, prev_waypoints)
+  - WaypointPrediction: Result with waypoints, speeds, confidence, timing breakdown
+  - ConvEncoderWrapper: SSL encoder wrapper for BC input compatibility
+  - RealtimeInferencePipeline: Main pipeline class
+    - _load_models(): Load SSL/BC/RL checkpoints
+    - _preprocess_observation(): Convert observation to model inputs
+    - run(): Single observation inference with timing
+    - run_batch(): Batch inference
+  - load_observation_from_json(): Load observation from JSON
+  - save_predictions(): Save predictions to JSON
+  - create_smoke_test_observation(): Create dummy observation for testing
+  - CLI: --ssl-checkpoint, --bc-checkpoint, --rl-checkpoint, --input, --output, --num-waypoints, --encoder-dim, --hidden-dim, --delta-scale, --no-rl, --device, --smoke-test
+- **Smoke test**: ✅ PASSED
+  - Inference time: 16.69ms
+  - Waypoints: (8, 2)
+  - Output: predictions.json
+- **Commit**: `41aa9c9` - Real-time Inference Pipeline - E2E driving model inference
+- **Branch**: `feature/daily-2026-04-25-d`
+- **PR**: https://github.com/Capri2014/AIResearch/pull/new/feature/daily-2026-04-25-d
+
+Theme: Connects full driving-first pipeline for real-time inference: Waymo episodes → SSL pretrain → BC waypoint → PPO RL → CARLA eval.
+
+### Pipeline PR #3 (2026-04-25): CARLA ScenarioRunner Policy Bridge (10:30am PT)
+
+- **Created: `training/rl/ppo_waypoint_delta_gae.py`** (~745 lines)
+  - PPOWaypointDeltaConfig: Unified configuration dataclass
+  - ToyWaypointKinematicsEnv: Bicycle model environment
+  - PPOWaypointActor: Actor network for waypoint deltas
+  - PPOWaypointCritic: Value network
+  - PPOWaypointAgent: PPO agent with GAE advantages
+  - compute_gae(): Generalized Advantage Estimation
+  - ppo_update(): Clipped PPO update rule
+  - train_ppo_waypoint_delta(): Main training loop
+  - evaluate_agent(): Success rate, reward metrics
+  - CLI: --num-epochs, --lr, --num-envs, --smoke-test
+- **Smoke test**: ✅ PASSED
+  - 1 epoch, 2 envs, 32 steps
+  - Eval success rate: 0.50
+  - Mean reward: 0.79
+  - Output: out/ppo_smoke/metrics.json
+- **Commit**: `1ab34b5` - PPO Waypoint Delta with GAE - RL Fine-tuning for Driving Models
+- **Branch**: `feature/daily-2026-04-25-b`
+- **PR**: https://github.com/Capri2014/AIResearch/pull/new/feature/daily-2026-04-25-b
+
+Theme: RL fine-tuning for driving models using PPO + GAE on toy waypoint environment.
+
+### Pipeline PR #1 (2026-04-25): SSL Pre-training Script (5:30am PT)
+
+- **Created: `training/pretrain/run_ssl_trainer.py`** (~580 lines)
+  - SSLTrainingConfig: Unified dataclass for all hyperparameters
+  - ConvEncoder: CNN backbone for image encoding (64x64 -> 256-d)
+  - TemporalTransformerEncoder: Transformer for sequence modeling
+  - MIMDecoder: Decoder for masked image modeling
+  - SSLModel: Unified model supporting multiple objectives:
+    - `contrastive`: Temporal contrastive learning
+    - `mim`: Masked image modeling  
+    - `temporal`: Future frame prediction
+  - EpisodeFrameDataset: PyTorch Dataset from episode JSON files
+  - Custom transforms (ToTensor, Normalize) without torchvision dependency
+  - Training loop with AdamW + OneCycleLR scheduler
+  - Checkpointing: epoch_*.pt, final.pt
+  - CLI: --objective, --epochs, --batch-size, --lr, --encoder-dim, --out-dir, --smoke-test
+- **Smoke test**: ✅ PASSED
+  - 1 epoch, batch=2, 498 sequences
+  - Model: 3,335,040 parameters
+  - Final loss: 0.0451
+  - Checkpoint: out/ssl_train/checkpoints/final.pt
+- **Commit**: `15593f1` - SSL Pre-training Script - Self-supervised learning for driving models
+- **Branch**: `feature/daily-2026-04-25-a`
+- **PR**: https://github.com/Capri2014/AIResearch/pull/new/feature/daily-2026-04-25-a
+
+Theme: SSL pre-training for driving models using self-supervised learning on Waymo episodes.
 
 ### Pipeline PR #4 (2026-04-24): Waypoint BC Evaluator (1:30pm PT)
 
