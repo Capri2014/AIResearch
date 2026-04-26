@@ -1,6 +1,30 @@
 # Status (ClawBot)
 
-_Last updated: 2026-04-25 (Pipeline PR #4, 1:30pm PT / 4:30pm ET)_
+_Last updated: 2026-04-25 (Pipeline PR #5, 4:30pm PT / 7:30pm ET)_
+
+### Pipeline PR #5 (2026-04-25): RL-after-SFT Delta-Waypoint Refiner (4:30pm PT)
+
+- **Created: `training/rl/run_rl_after_sft.py`** (~885 lines)
+  - RLAfterSFTTrainingConfig: Unified configuration for RL after SFT
+  - ToyWaypointKinematicsEnv: Car-like environment with bicycle model kinematics
+  - WaypointSFTModel: Base waypoint model (load from SFT checkpoint)
+  - DeltaWaypointRefiner: Residual delta head for SFT adjustment
+  - PPODeltaWaypointActor/Critic: PPO agent with GAE
+  - compute_gae(): Generalized Advantage Estimation
+  - ppo_update(): Clipped PPO with policy/value/entropy losses
+  - train_rl_after_sft(): Full training loop with multi-env rollouts
+  - CLI: --sft-checkpoint, --out-dir, --num-envs, --max-updates, --lr, --smoke-test
+- **Smoke test**: ✅ PASSED
+  - 2 updates, 2 envs, 32 steps
+  - Eval success rate: 0.00 → 0.40
+  - Output: out/rl_after_sft_test/rl_after_sft_smoke/
+- **Commit**: `487a197` - RL-after-SFT: PPO delta-waypoint refiner training script
+- **Branch**: `feature/daily-2026-04-25-e`
+- **PR**: https://github.com/Capri2014/AIResearch/pull/new/feature/daily-2026-04-25-e
+
+Theme: Option B - action space = waypoints / waypoint deltas. Initialize from SFT waypoint checkpoint, learn residual delta-waypoint head with PPO.
+
+---
 
 ### Pipeline PR #4 (2026-04-25): Real-time Inference Pipeline (1:30pm PT)
 
