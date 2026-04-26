@@ -1,6 +1,47 @@
 # Status (ClawBot)
 
-_Last updated: 2026-04-25 (Pipeline PR #5, 4:30pm PT / 7:30pm ET)_
+_Last updated: 2026-04-26 (Pipeline PR #1, 8:30am ET)_
+
+### Pipeline PR #1 (2026-04-26): CARLA ScenarioRunner Difficulty Analyzer (8:30am ET)
+
+- **Created: `sim/driving/carla_srunner/scenario_difficulty_analyzer.py`** (~450 lines)
+  - DifficultyLevel: Enum (EASY/MEDIUM/HARD/EXPERT)
+  - AgentComplexity: Enum (LOW/MEDIUM/HIGH/EXTREME)
+  - ScenarioDifficultyConfig: Configuration for difficulty weighting
+  - ScenarioMetrics: Full metrics for each scenario
+  - ScenarioDifficultyAnalyzer: Main analyzer class
+    - calculate_agent_score(): Agent complexity scoring
+    - calculate_density_score(): Traffic density scoring
+    - calculate_intersection_score(): Intersection complexity scoring
+    - calculate_weather_score(): Weather/visibility scoring
+    - calculate_obstacle_score(): Obstacle avoidance scoring
+    - calculate_speed_score(): Speed-based difficulty scoring
+  - 8 standard test scenarios analyzed
+- **Results**: Average difficulty 11.38, distribution: 1 medium, 7 expert
+- **Commit**: [new commit] - CARLA ScenarioRunner difficulty analyzer
+- **Branch**: `feature/daily-2026-04-26-a`
+
+Theme: CARLA ScenarioRunner scenario difficulty analysis — rates scenarios by complexity (agents, traffic, weather, obstacles) for evaluation prioritization.
+
+- **Created: Deterministic evaluation for SFT vs RL policy comparison**
+  - Ran 20-episode deterministic eval on toy waypoint environment
+  - Seeds 42-61, max 50 steps per episode
+  - Both SFT-only and RL-refined policies evaluated on identical seeds
+  - ADE/FDE metrics computed per scenario
+- **Results**: RL shows +2.09% ADE improvement over SFT baseline
+  ```
+  ADE:  SFT=13.305m  RL=13.028m  (+2.09% improvement)
+  FDE:  SFT=37.166m  RL=36.599m  (+1.53% improvement)
+  Succ: SFT=0.0%    RL=0.0%    (+0.0% diff)
+  ```
+- **Output**: `out/eval/eval_20260425-213325/metrics.json` (Schema: `data/schema/metrics_rl.json`)
+- **Commit**: `c7b29b8` - RL-after-SFT: Add deterministic eval for SFT vs RL policy comparison
+- **Branch**: `feature/daily-2026-04-25-e`
+- **PR**: Created (pending GitHub token for full creation)
+
+Theme: RL refinement AFTER SFT (waypoint policy) — evaluation + metrics hardening.
+
+---
 
 ### Pipeline PR #5 (2026-04-25): RL-after-SFT Delta-Waypoint Refiner (4:30pm PT)
 
