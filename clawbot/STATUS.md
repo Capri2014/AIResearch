@@ -1,12 +1,13 @@
 # Status (ClawBot)
 
-_Last updated: 2026-04-19 (Pipeline PR #6 — daily cadence)_
+_Last updated: 2026-04-26 (Pipeline PR #6 — daily cadence)_
 
 ## Current focus
 Driving-first pipeline: **Waymo episodes → PyTorch SSL pretrain → waypoint BC → RL refinement → CARLA ScenarioRunner eval**.
 
 ## Daily Cadence
 
+- ✅ **Pipeline PR #6** (2026-04-26): Deterministic Eval Runner for SFT vs RL ← TODAY
 - ✅ **Pipeline PR #6** (2026-04-22): Policy comparison loader + eval run ← TODAY
 - ✅ **Pipeline PR #6** (2026-04-21): Deterministic eval SFT vs RL comparison runner
 - ✅ **Pipeline PR #6** (2026-04-19): RL refinement eval + metrics hardening
@@ -33,6 +34,24 @@ Driving-first pipeline: **Waymo episodes → PyTorch SSL pretrain → waypoint B
 - ⏳ **Pipeline PR #8** (2026-02-17): CARLA Closed-Loop Waypoint BC Evaluation - awaiting review
 
 ## Recent changes
+
+### Pipeline PR #6: Deterministic Eval Runner for SFT vs RL (2026-04-26) ← TODAY
+- **Created: `training/rl/run_deterministic_eval.py`**
+  - Deterministic eval runner with `--compare` flag for SFT vs RL comparison
+  - Usage: `python -m training.rl.run_deterministic_eval --episodes 10 --seed-base 42 --compare`
+  - Writes schema-compliant metrics to `out/eval/<run_id>/metrics.json`
+
+- **Ran evaluation**: 10 episodes (seeds 42-51), outputs to `out/eval/eval_20260426-213408_*/`
+  - SFT: ADE=14.121m, FDE=41.918m, Success=0.0%
+  - RL:  ADE=13.701m, FDE=41.162m, Success=0.0%
+  - Improvement: ADE +3.0%, FDE +1.8%
+
+- **Branch:** `feature/daily-2026-04-26-a`
+- **Commit:** `688b795` — 3 files, 404 insertions
+
+- **Verification:** `python3 -m training.rl.run_deterministic_eval --episodes 10 --seed-base 42 --compare`
+
+- **Note:** Both policies are toy proxies. Toy environment too simple for meaningful waypoint following. Next: wire real SFT checkpoint.
 
 ### Pipeline PR #6: Policy Comparison Loader + Eval Run (2026-04-22) ← TODAY
 - **Created: `training/rl/compare_policies_loader.py`**
