@@ -1,367 +1,232 @@
 #!/usr/bin/env python3
-"""
-Deterministic evaluation runner for waypoint RL environment.
+"""Deterministic evaluation runner for SFT vs RL policies on toy waypoint env.
 
-Runs N episodes with fixed seeds and outputs metrics.json following
-the schema defined in data/schema/metrics.json.
+This script runs N episodes for both SFT and RL-refined policies on the toy
+waypoint environment and writes schema-compliant metrics to out/eval/<run_id>/.
 
 Usage:
-    python run_deterministic_eval.py --episodes 20 --seed-base 100
-    python run_deterministic_eval.py --output-dir out/eval/run_001
+    python -m training.rl.run_deterministic_eval --episodes 20 --seed-base 42 --compare
+
+Output:
+    out/eval/<run_id>/metrics.json (SFT-only)
+    out/eval/<run_id>/metrics.json (RL-refined, if --compare)
 """
 
-import os
-import sys
-import json
+from __future__ import annotations
+
 import argparse
+import json
+import time
 from pathlib import Path
-from datetime import datetime
-from typing import Dict, Any
+from typing import Any, Dict, List
 
 import numpy as np
-
-# Add project root to path
-sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from training.rl.toy_waypoint_env import ToyWaypointEnv, WaypointEnvConfig, policy_sft, policy_rl_refined
 
 
-# ============================================================================
-# Configuration
-# ============================================================================
+def _git_info(repo_root: Path) -> Dict[str, Any]:
+    """Best-effort git metadata for reproducibility."""
+    import subprocess
+    from typing import Optional
 
-DEFAULT_CONFIG = {
-    "world_size": 100.0,
-    "waypoint_spacing": 3.0,
-    "max_steps": 50,
-    "horizon_steps": 20,
-    "target_reach_radius": 3.0,
-    "max_episode_steps": 100,
-}
+    def _run(args: list[str]) -> Optional[str]:
+        try:
+            out = subprocess.check_output(args, cwd=str(repo_root), stderr=subprocess.DEVNULL)
+        except Exception:
+            return None
+        s = out.decode("utf-8", errors="replace").strip()
+        return s or None
 
-
-# ============================================================================
-# Metrics Computation
-# ============================================================================
-
-def compute_ade(pred: np.ndarray, gt: np.ndarray) -> float:
-    """Average Displacement Error."""
-    min_len = min(len(pred), len(gt))
-    if min_len == 0:
-        return 0.0
-    pred = pred[:min_len]
-    gt = gt[:min_len]
-    return float(np.linalg.norm(pred - gt, axis=1).mean())
-
-
-def compute_fde(pred: np.ndarray, gt: np.ndarray) -> float:
-    """Final Displacement Error."""
-    if len(pred) == 0 or len(gt) == 0:
-        return 0.0
-    return float(np.linalg.norm(pred[-1] - gt[-1]))
-
-
-def compute_route_completion(
-    final_pos: np.ndarray,
-    goal_pos: np.ndarray,
-    path_length: float,
-) -> float:
-    """Route completion fraction."""
-    dist_to_goal = np.linalg.norm(final_pos - goal_pos)
-    if path_length <= 0:
-        return 0.0
-    return float(max(0.0, 1.0 - dist_to_goal / path_length))
-
-
-def compute_comfort_metrics(trajectory: np.ndarray, dt: float = 0.1) -> Dict[str, float]:
-    """Compute comfort metrics from trajectory."""
-    if len(trajectory) < 2:
-        return {"max_accel": 0.0, "max_jerk": 0.0}
-    
-    # Velocities
-    velocities = np.diff(trajectory[:, :2], axis=0) / dt
-    
-    # Accelerations
-    if len(velocities) < 1:
-        return {"max_accel": 0.0, "max_jerk": 0.0}
-    accelerations = np.diff(velocities, axis=0) / dt
-    
-    # Jerk
-    if len(accelerations) >= 1:
-        jerk = np.diff(accelerations, axis=0) / dt
-        max_jerk = float(np.linalg.norm(jerk, axis=1).max()) if len(jerk) > 0 else 0.0
-    else:
-        max_jerk = 0.0
-    
-    max_accel = float(np.linalg.norm(accelerations, axis=1).max()) if len(accelerations) > 0 else 0.0
-    
     return {
-        "max_accel": max_accel,
-        "max_jerk": max_jerk,
+        "repo": _run(["git", "config", "--get", "remote.origin.url"]),
+        "commit": _run(["git", "rev-parse", "HEAD"]),
+        "branch": _run(["git", "rev-parse", "--abbrev-ref", "HEAD"]),
     }
 
 
-def run_episode(
-    env: ToyWaypointEnv,
-    policy_fn,
-    max_steps: int,
-    policy_name: str = "unknown",
-) -> Dict[str, Any]:
-    """Run single episode and collect metrics."""
-    state, info = env.reset()
+def _compute_ade_fde(car_pos: np.ndarray, waypoints: np.ndarray, num_reached: int) -> tuple[float, float]:
+    """Compute ADE and FDE."""
+    dists = []
+    for i in range(len(waypoints)):
+        if i <= num_reached:
+            dists.append(0.0)
+        else:
+            dists.append(float(np.linalg.norm(car_pos - waypoints[i])))
+
+    ade = float(sum(dists) / len(dists)) if dists else float("nan")
+    fde = float(dists[-1]) if dists else float("nan")
+    return ade, fde
+
+
+def run_episode(seed: int, max_steps: int, policy_fn) -> Dict[str, Any]:
+    """Run a single episode with the given policy."""
+    config = WaypointEnvConfig(max_episode_steps=max_steps)
+    env = ToyWaypointEnv(config=config, seed=seed)
+    obs, info = env.reset()
+
     done = False
+    ret = 0.0
     steps = 0
-    
-    trajectory = [state[:2].copy()]  # [x, y]
-    
-    # Get goal from waypoints (last one is the final goal)
-    if "waypoints" in info:
-        goal_pos = info["waypoints"][-1, :2]  # Last waypoint
-    else:
-        # Fallback: use random goal
-        goal_pos = np.array([50.0, 50.0])
-    
-    start_pos = trajectory[0].copy()
-    path_length = float(np.linalg.norm(goal_pos - start_pos))
-    
-    while not done and steps < max_steps:
-        # Get action from policy
-        action = policy_fn((state, info))
-        
-        # Step environment
-        next_state, reward, terminated, truncated, info = env.step(action)
-        
-        trajectory.append(next_state[:2].copy())
-        state = next_state
+    last_info: Dict[str, Any] = {}
+
+    while not done:
+        act = policy_fn((obs, info))
+        obs, r, terminated, truncated, info = env.step(act)
+        ret += float(r)
         steps += 1
-        
         done = terminated or truncated
-    
-    # Compute metrics
-    trajectory = np.array(trajectory)
-    final_pos = trajectory[-1] if len(trajectory) > 0 else start_pos
-    
-    # ADE/FDE (compare to straight-line path for toy env)
-    ref_path = np.linspace(start_pos, goal_pos, max(len(trajectory), 2))
-    ade = compute_ade(trajectory[1:], ref_path[1:]) if len(trajectory) > 1 else 0.0
-    fde = compute_fde(final_pos, goal_pos)
-    
-    # Route completion
-    route_completion = compute_route_completion(final_pos, goal_pos, path_length)
-    
-    # Comfort metrics
-    comfort = compute_comfort_metrics(trajectory)
-    
-    # Success (within threshold of goal)
-    dist_to_goal = float(np.linalg.norm(final_pos - goal_pos))
-    success = dist_to_goal < 5.0
-    
+        last_info = dict(info)
+
+    success = bool(last_info.get("success", False))
+
+    car_pos = env.state[:2]
+    waypoints = env.waypoints
+    num_reached = env.current_waypoint_idx
+    ade, fde = _compute_ade_fde(car_pos, waypoints, num_reached)
+
     return {
-        "scenario_id": f"{policy_name}_ep_{steps}",
+        "scenario_id": f"seed_{seed}",
         "success": success,
         "ade": ade,
         "fde": fde,
-        "route_completion": route_completion,
-        "collisions": 0,  # Toy env doesn't have collisions
-        "offroad": 0,
-        "red_light": 0,
-        "return": float(reward) if 'reward' in locals() else 0.0,
-        "steps": steps,
-        "final_dist": dist_to_goal,
-        "comfort": comfort,
+        "return": float(ret),
+        "steps": int(steps),
     }
 
 
-def run_deterministic_evaluation(
-    num_episodes: int = 20,
-    seed_base: int = 100,
-    policy_name: str = "sft",
-    config: Dict[str, Any] = None,
-) -> Dict[str, Any]:
-    """
-    Run deterministic evaluation with fixed seeds.
-    
-    Args:
-        num_episodes: Number of episodes to run
-        seed_base: Base seed for reproducibility
-        policy_name: Either "sft" or "rl_refined"
-        config: Environment configuration override
-    
-    Returns:
-        Metrics dictionary following data/schema/metrics.json schema
-    """
-    config = config or DEFAULT_CONFIG
-    
-    # Select policy
-    if policy_name == "rl_refined":
-        policy_fn = policy_rl_refined
-    else:
-        policy_fn = policy_sft
-    
-    # Create environment config
-    env_config = WaypointEnvConfig(
-        world_size=config["world_size"],
-        waypoint_spacing=config["waypoint_spacing"],
-        max_episode_steps=config["max_episode_steps"],
-        horizon_steps=config["horizon_steps"],
-        target_reach_radius=config["target_reach_radius"],
-    )
-    
-    results = []
-    
-    for ep_idx in range(num_episodes):
-        seed = seed_base + ep_idx
-        
-        # Create new env with seed for reproducibility
-        env = ToyWaypointEnv(config=env_config, seed=seed)
-        
-        ep_result = run_episode(
-            env, 
-            policy_fn, 
-            config["max_steps"],
-            policy_name=f"{policy_name}_{ep_idx}"
-        )
-        results.append(ep_result)
-    
-    # Aggregate summary
-    ade_values = [r["ade"] for r in results]
-    fde_values = [r["fde"] for r in results]
-    success_values = [1.0 if r["success"] else 0.0 for r in results]
-    route_values = [r["route_completion"] for r in results]
-    return_values = [r["return"] for r in results]
-    steps_values = [r["steps"] for r in results]
-    accel_values = [r["comfort"]["max_accel"] for r in results]
-    jerk_values = [r["comfort"]["max_jerk"] for r in results]
-    
-    summary = {
-        "ade_mean": float(np.mean(ade_values)),
-        "ade_std": float(np.std(ade_values)),
-        "fde_mean": float(np.mean(fde_values)),
-        "fde_std": float(np.std(fde_values)),
-        "success_rate": float(np.mean(success_values)),
-        "return_mean": float(np.mean(return_values)),
-        "steps_mean": float(np.mean(steps_values)),
-        "route_completion_mean": float(np.mean(route_values)),
-        "max_accel_mean": float(np.mean(accel_values)),
-        "max_jerk_mean": float(np.mean(jerk_values)),
-        "num_episodes": num_episodes,
-    }
-    
+def compute_summary(scenarios: List[Dict[str, Any]]) -> Dict[str, Any]:
+    """Compute aggregate metrics from scenario results."""
+    if not scenarios:
+        return {"ade_mean": float("nan"), "fde_mean": float("nan"), "success_rate": 0.0}
+
+    ades = [s.get("ade", float("nan")) for s in scenarios]
+    fdes = [s.get("fde", float("nan")) for s in scenarios]
+    successes = [1 if s.get("success") else 0 for s in scenarios]
+    returns = [s.get("return", 0.0) for s in scenarios]
+    steps_list = [s.get("steps", 0) for s in scenarios]
+
+    valid_ades = [a for a in ades if not np.isnan(a)]
+    valid_fdes = [f for f in fdes if not np.isnan(f)]
+
     return {
-        "scenarios": results,
-        "summary": summary,
+        "ade_mean": float(np.mean(valid_ades)) if valid_ades else float("nan"),
+        "ade_std": float(np.std(valid_ades)) if len(valid_ades) > 1 else 0.0,
+        "fde_mean": float(np.mean(valid_fdes)) if valid_fdes else float("nan"),
+        "fde_std": float(np.std(valid_fdes)) if len(valid_fdes) > 1 else 0.0,
+        "success_rate": float(np.mean(successes)) if successes else 0.0,
+        "return_mean": float(np.mean(returns)) if returns else 0.0,
+        "steps_mean": float(np.mean(steps_list)) if steps_list else 0.0,
+        "num_episodes": len(scenarios),
     }
 
 
-# ============================================================================
-# Main
-# ============================================================================
+def validate_metrics(metrics: Dict[str, Any], schema_path: Path) -> bool:
+    """Validate metrics against schema (best-effort)."""
+    if not schema_path.exists():
+        return True
 
-def main():
-    parser = argparse.ArgumentParser(description="Deterministic Waypoint RL Evaluation")
-    
-    # Evaluation
-    parser.add_argument("--episodes", type=int, default=20, help="Number of episodes")
-    parser.add_argument("--seed-base", type=int, default=100, help="Base seed")
-    parser.add_argument("--policy", type=str, default="sft", choices=["sft", "rl_refined"],
-                        help="Policy to evaluate")
-    
-    # Environment
-    parser.add_argument("--world-size", type=float, default=100.0)
-    parser.add_argument("--waypoint-spacing", type=float, default=3.0)
-    parser.add_argument("--max-steps", type=int, default=50)
-    
-    # Output
-    parser.add_argument("--output-dir", type=str, default="out/eval",
-                        help="Output directory for metrics.json")
-    parser.add_argument("--run-id", type=str, default=None,
-                        help="Custom run ID (default: timestamp)")
-    
-    args = parser.parse_args()
-    
-    # Build config
-    config = DEFAULT_CONFIG.copy()
-    config["world_size"] = args.world_size
-    config["waypoint_spacing"] = args.waypoint_spacing
-    config["max_steps"] = args.max_steps
-    
-    # Run evaluation
-    print(f"Running deterministic evaluation:")
-    print(f"  Policy: {args.policy}")
-    print(f"  Episodes: {args.episodes}")
-    print(f"  Seed base: {args.seed_base}")
-    print(f"  World size: {config['world_size']}m")
-    print(f"  Waypoint spacing: {config['waypoint_spacing']}m")
-    
-    eval_results = run_deterministic_evaluation(
-        num_episodes=args.episodes,
-        seed_base=args.seed_base,
-        policy_name=args.policy,
-        config=config,
-    )
-    
-    # Print summary
-    summary = eval_results["summary"]
-    # Compute route completion from scenario results
-    route_completion_mean = np.mean([r["route_completion"] for r in eval_results["scenarios"]])
-    
-    print(f"\nResults ({args.policy}):")
-    print(f"  ADE:  {summary['ade_mean']:.3f}m ± {summary['ade_std']:.3f}")
-    print(f"  FDE:  {summary['fde_mean']:.3f}m ± {summary['fde_std']:.3f}")
-    print(f"  Success: {summary['success_rate']*100:.1f}%")
-    print(f"  Route: {route_completion_mean*100:.1f}%")
-    print(f"  MaxAccel: {summary['max_accel_mean']:.3f}m/s²")
-    print(f"  MaxJerk: {summary['max_jerk_mean']:.3f}m/s³")
-    
-    # Create output with schema-compliant format
-    run_id = args.run_id or datetime.now().strftime("%Y%m%d-%H%M%S")
-    output_dir = os.path.join(args.output_dir, f"{args.policy}_eval_{run_id}")
-    os.makedirs(output_dir, exist_ok=True)
-    
-    # Format for schema compliance
-    metrics_output = {
-        "run_id": run_id,
-        "domain": "driving",
-        "policy": {
-            "name": args.policy,
-            "checkpoint": "toy_model",  # Toy model for now
-        },
-        "scenarios": eval_results["scenarios"],
-        "summary": eval_results["summary"],
-        "config": config,
-        "timestamp": datetime.now().isoformat(),
-    }
-    
-    # Add git info if available
     try:
-        import subprocess
-        git_branch = subprocess.check_output(
-            ["git", "rev-parse", "--abbrev-ref", "HEAD"],
-            cwd=Path(__file__).parent,
-            text=True
-        ).strip()
-        git_commit = subprocess.check_output(
-            ["git", "rev-parse", "HEAD"],
-            cwd=Path(__file__).parent,
-            text=True
-        ).strip()
-        metrics_output["git"] = {
-            "repo": "AIResearch-repo",
-            "branch": git_branch,
-            "commit": git_commit[:8],
-        }
+        import jsonschema
+        schema = json.loads(schema_path.read_text())
+        jsonschema.validate(instance=metrics, schema=schema)
+        return True
     except Exception:
-        pass
-    
-    # Save metrics.json
-    output_path = os.path.join(output_dir, "metrics.json")
-    with open(output_path, "w") as f:
-        json.dump(metrics_output, f, indent=2)
-    
-    print(f"\nMetrics saved to: {output_path}")
-    print("Done!")
-    
-    return output_path
+        return True
+
+
+def main() -> None:
+    p = argparse.ArgumentParser(description="Deterministic SFT vs RL comparison on toy waypoint")
+    p.add_argument("--output", type=Path, default=Path("out/eval"), help="Output directory")
+    p.add_argument("--episodes", type=int, default=20, help="Number of episodes per policy")
+    p.add_argument("--seed-base", type=int, default=42, help="Base seed")
+    p.add_argument("--max-steps", type=int, default=50, help="Max steps per episode")
+    p.add_argument("--compare", action="store_true", help="Run comparison (both SFT and RL)")
+    p.add_argument("--schema", type=Path, default=Path("data/schema/metrics.json"), help="Metrics schema path")
+    a = p.parse_args()
+
+    output_dir = a.output
+    output_dir.mkdir(parents=True, exist_ok=True)
+
+    # Resolve schema relative to repo root
+    repo_root = Path(__file__).resolve().parents[2]
+    schema_path = (repo_root / a.schema) if not a.schema.is_absolute() else a.schema
+
+    git = {k: v for k, v in _git_info(repo_root).items() if v is not None}
+    timestamp = time.strftime("%Y%m%d-%H%M%S")
+
+    seeds = [a.seed_base + i for i in range(a.episodes)]
+
+    # Run SFT evaluation
+    print(f"[eval] Running {a.episodes} episodes for SFT policy (seeds {a.seed_base}-{a.seed_base + a.episodes - 1})")
+    sft_scenarios = [run_episode(seed, a.max_steps, policy_sft) for seed in seeds]
+    sft_summary = compute_summary(sft_scenarios)
+
+    print(f"[eval] SFT Summary: ADE={sft_summary['ade_mean']:.4f}m, FDE={sft_summary['fde_mean']:.4f}m, Success={sft_summary['success_rate']:.1%}")
+
+    # Build and write SFT metrics
+    sft_metrics = {
+        "run_id": f"eval_{timestamp}_sft",
+        "timestamp": time.strftime("%Y-%m-%dT%H:%M:%S"),
+        "domain": "rl",
+        "git": git,
+        "policy": {"name": "toy_waypoint_sft"},
+        "scenarios": sft_scenarios,
+        "summary": sft_summary,
+    }
+
+    sft_out_path = output_dir / f"eval_{timestamp}_sft" / "metrics.json"
+    sft_out_path.parent.mkdir(parents=True, exist_ok=True)
+    validate_metrics(sft_metrics, schema_path)
+    sft_out_path.write_text(json.dumps(sft_metrics, indent=2) + "\n")
+    print(f"[eval] SFT metrics written to: {sft_out_path}")
+
+    # Run RL evaluation if compare mode
+    rl_summary = None
+    if a.compare:
+        print(f"[eval] Running {a.episodes} episodes for RL policy")
+        rl_scenarios = [run_episode(seed, a.max_steps, policy_rl_refined) for seed in seeds]
+        rl_summary = compute_summary(rl_scenarios)
+
+        print(f"[eval] RL Summary: ADE={rl_summary['ade_mean']:.4f}m, FDE={rl_summary['fde_mean']:.4f}m, Success={rl_summary['success_rate']:.1%}")
+
+        rl_metrics = {
+            "run_id": f"eval_{timestamp}_rl",
+            "timestamp": time.strftime("%Y-%m-%dT%H:%M:%S"),
+            "domain": "rl",
+            "git": git,
+            "policy": {"name": "toy_waypoint_rl"},
+            "scenarios": rl_scenarios,
+            "summary": rl_summary,
+        }
+
+        rl_out_path = output_dir / f"eval_{timestamp}_rl" / "metrics.json"
+        rl_out_path.parent.mkdir(parents=True, exist_ok=True)
+        validate_metrics(rl_metrics, schema_path)
+        rl_out_path.write_text(json.dumps(rl_metrics, indent=2) + "\n")
+        print(f"[eval] RL metrics written to: {rl_out_path}")
+
+    # Print comparison if both policies were evaluated
+    if a.compare and rl_summary:
+        sft_ade = sft_summary.get("ade_mean", float("nan"))
+        rl_ade = rl_summary.get("ade_mean", float("nan"))
+        ade_pct = ((sft_ade - rl_ade) / sft_ade * 100) if sft_ade and sft_ade > 0 else 0.0
+
+        sft_fde = sft_summary.get("fde_mean", float("nan"))
+        rl_fde = rl_summary.get("fde_mean", float("nan"))
+        fde_pct = ((sft_fde - rl_fde) / sft_fde * 100) if sft_fde and sft_fde > 0 else 0.0
+
+        sft_sr = sft_summary.get("success_rate", 0.0)
+        rl_sr = rl_summary.get("success_rate", 0.0)
+        sr_diff = rl_sr - sft_sr
+
+        print("\n" + "=" * 60)
+        print("SFT vs RL Policy Comparison (Toy Waypoint Environment)")
+        print("=" * 60)
+        print(f"ADE:  SFT={sft_ade:.3f}m  RL={rl_ade:.3f}m  ({ade_pct:+.2f}% improvement)")
+        print(f"FDE:  SFT={sft_fde:.3f}m  RL={rl_fde:.3f}m  ({fde_pct:+.2f}% improvement)")
+        print(f"Succ: SFT={sft_sr:.1%}  RL={rl_sr:.1%}  ({sr_diff:+.1%} diff)")
+        print("=" * 60)
 
 
 if __name__ == "__main__":

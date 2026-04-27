@@ -1,0 +1,105 @@
+{
+  "run_id": "eval_20260426-213408_sft",
+  "timestamp": "2026-04-26T21:34:08",
+  "domain": "rl",
+  "git": {
+    "repo": "git@github.com:Capri2014/AIResearch.git",
+    "commit": "c7b29b8ba8381e07bc9a82294b32fe037c31ba95",
+    "branch": "feature/daily-2026-04-25-e"
+  },
+  "policy": {
+    "name": "toy_waypoint_sft"
+  },
+  "scenarios": [
+    {
+      "scenario_id": "seed_42",
+      "success": false,
+      "ade": 3.4460611820220945,
+      "fde": 20.871585845947266,
+      "return": 5.6603979375213385,
+      "steps": 50
+    },
+    {
+      "scenario_id": "seed_43",
+      "success": false,
+      "ade": 16.61257059574127,
+      "fde": 44.085968017578125,
+      "return": 4.509436512365937,
+      "steps": 50
+    },
+    {
+      "scenario_id": "seed_44",
+      "success": false,
+      "ade": 8.668735885620118,
+      "fde": 20.004175186157227,
+      "return": 7.286750972270966,
+      "steps": 50
+    },
+    {
+      "scenario_id": "seed_45",
+      "success": false,
+      "ade": 6.486404037475586,
+      "fde": 12.68233871459961,
+      "return": 4.614570649340749,
+      "steps": 50
+    },
+    {
+      "scenario_id": "seed_46",
+      "success": false,
+      "ade": 13.561802959442138,
+      "fde": 51.907371520996094,
+      "return": 8.102426186203957,
+      "steps": 50
+    },
+    {
+      "scenario_id": "seed_47",
+      "success": false,
+      "ade": 19.988097953796387,
+      "fde": 42.979705810546875,
+      "return": 4.220384141430259,
+      "steps": 50
+    },
+    {
+      "scenario_id": "seed_48",
+      "success": false,
+      "ade": 24.39521288871765,
+      "fde": 68.6651611328125,
+      "return": 4.220384191721678,
+      "steps": 50
+    },
+    {
+      "scenario_id": "seed_49",
+      "success": false,
+      "ade": 23.5297749042511,
+      "fde": 60.376441955566406,
+      "return": 4.22038284689188,
+      "steps": 50
+    },
+    {
+      "scenario_id": "seed_50",
+      "success": false,
+      "ade": 9.351561212539673,
+      "fde": 40.017234802246094,
+      "return": 6.799865115433931,
+      "steps": 50
+    },
+    {
+      "scenario_id": "seed_51",
+      "success": false,
+      "ade": 15.170489597320557,
+      "fde": 57.59041213989258,
+      "return": 6.981541709974408,
+      "steps": 50
+    }
+  ],
+  "summary": {
+    "ade_mean": 14.12107112169266,
+    "ade_std": 6.788560174351278,
+    "fde_mean": 41.91803951263428,
+    "fde_std": 17.85740217429154,
+    "success_rate": 0.0,
+    "return_mean": 5.66161402631551,
+    "steps_mean": 50.0,
+    "num_episodes": 10
+  }
+}
