@@ -1,8 +1,170 @@
 # Status (ClawBot)
 
-_Last updated: 2026-04-26 (Pipeline PR #1, 8:30am ET)_
+_Last updated: 2026-04-27 (Pipeline PR #5, 4:30pm PT)_
 
-### Pipeline PR #1 (2026-04-26): CARLA ScenarioRunner Difficulty Analyzer (8:30am ET)
+- **Created: `training/rl/rl_after_sft_e.py`** (~480 lines)
+  - `RLAfterSFTConfig`: Configuration dataclass
+  - `ToyWaypointKinematicsEnv`: Toy car-like environment consuming waypoints (bicycle model, pure pursuit)
+  - `WaypointDeltaPolicy`: PPO policy with SFT waypoint head + residual delta head
+  - `PPOAgent`: RL agent with GAE, value + entropy loss
+  - `train()`: Multi-env rollout training, outputs to out/<run_id>/
+  - Smoke test: ✅ PASSED (10 updates, best_reward=-6.892)
+- **Commit**: `0576320`
+- **Branch**: `feature/daily-2026-04-27-e`
+- **PR**: https://github.com/Capri2014/AIResearch/pull/new/feature/daily-2026-04-27-e
+
+Theme: RL refinement AFTER SFT (Option B) — action space = waypoints / waypoint deltas.
+
+### Pipeline PR #4 (2026-04-27): Pipeline Metrics Dashboard (1:30pm PT / 4:30pm ET)
+
+
+
+- **Created: `sim/driving/carla_srunner/pipeline_metrics_dashboard.py`** (~220 lines)
+  - `PipelineMetricsDashboard`: Main class for metrics visualization
+    - `load_stage_metrics()`: Loads metrics from SSL/BC/RL/Eval stage outputs
+    - `generate_html_dashboard()`: Interactive HTML dashboard
+    - `save_dashboard()`: Saves HTML + JSON summary
+    - `_render_metrics()`: Renders metrics dictionary to HTML
+  - Generates interactive HTML dashboard with cards per stage
+  - Displays ADE, FDE, success rate, route completion metrics
+  - Styles with gradient header, cards for each pipeline stage
+  - Colors: SSL (#667eea), BC (#f093fb), RL (#4facfe), Eval (#43e97b)
+  - CLI: --output-dir, --base-dir, --smoke-test
+- **Smoke test**: ✅ PASSED
+  - Synthetic metrics rendered correctly
+  - Dashboard: out/pipeline_metrics_dashboard/index.html
+  - Summary: out/pipeline_metrics_dashboard/summary.json
+- **Commit**: `f93bd16`
+- **Branch**: `feature/daily-2026-04-27-d`
+- **PR**: https://github.com/Capri2014/AIResearch/pull/new/feature/daily-2026-04-27-d
+
+Theme: Interactive HTML dashboard for visualizing driving-first pipeline metrics across all stages.
+
+- **Created: `sim/driving/carla_srunner/scenario_performance_analyzer.py`** (~700 lines)
+  - `ScenarioPerformanceAnalyzer`: Main class for analyzing scenario evaluation results
+    - `add_result()`: Add single scenario metrics
+    - `add_results_from_file()`: Load from metrics.json
+    - `add_results_from_dir()`: Batch load from directory
+    - `analyze()`: Generate full performance report
+    - `print_report()`: Formatted console output
+    - `save_report()`: JSON export
+  - `PerformanceMetrics`: Per-scenario ADE, FDE, success_rate, route_completion, collisions, infractions
+  - `DifficultyBreakdown`: Performance by difficulty level (easy/medium/hard/expert)
+  - `CategoryBreakdown`: Performance by category (straight/turn/intersection/lane_change/roundabout/weather)
+  - `PerformanceInsight`: Critical/warning insights with severity levels
+  - Integrates with ScenarioDifficultyAnalyzer for real difficulty scores
+  - Generates actionable recommendations for targeted training data
+  - CLI: `analyze`, `add`, `stats`, `smoke` subcommands
+- **Smoke test**: ✅ PASSED
+  - 9 test scenarios with varying performance
+  - Overall: ADE=4.933m, Success=66.4%, Collisions=18
+  - Performance by difficulty: easy (73.6%), medium (77.5%), hard (37.5%)
+  - Performance by category: straight (91.5%), intersection (55%), roundabout (47.5%)
+  - Insights: Critical intersection performance, high collision rate
+- **Commit**: `bb1f4d8`
+- **Branch**: `feature/daily-2026-04-27-b`
+- **PR**: https://github.com/Capri2014/AIResearch/pull/new/feature/daily-2026-04-27-b
+
+Theme: Correlate scenario difficulty with evaluation performance to identify bottlenecks and provide actionable training recommendations.
+
+---
+
+### Pipeline PR #1 (2026-04-27): Pipeline Comprehensive Evaluator - Cross-Stage Evaluation + Reporting (5:30am PT / 8:30am ET)
+
+- **Created: `sim/driving/carla_srunner/pipeline_comprehensive_eval.py`** (~880 lines)
+  - `CheckpointDiscoverer`: Auto-discovers checkpoints across SSL/BC/RL stages with priority (final.pt > best.pt > checkpoint.pt), metrics extraction from torch checkpoints and sidecar JSON, run_id inference
+  - `ComprehensiveEvaluator`: Evaluates checkpoints on standard scenario suites (basic/standard/full/smoke), produces ADE/FDE/success/collision/infraction metrics with per-scenario breakdown
+  - `CrossStageComparator`: Computes SSL→BC, BC→RL, SSL→RL ADE improvement percentages across pipeline stages
+  - `ReportGenerator`: Formatted text + JSON reports with per-stage checkpoint tables, cross-stage comparison, per-scenario breakdown
+  - Schema-compliant metrics.json output, --skip-existing caching, --force-eval, --list-checkpoints
+  - CLI: --stage, --suite, --compare, --run-id, --output-dir
+- **Smoke test**: ✅ PASSED
+  - 3 BC checkpoints discovered (final.pt, best.pt, epoch_9.pt)
+  - Eval: ADE=3.826m, FDE=18.387m, Success=72.8%, 4 basic-suite scenarios
+  - Report: 33 lines of formatted cross-stage comparison
+- **Commit**: `f7e6619`
+- **Branch**: `feature/daily-2026-04-27-a`
+- **PR**: https://github.com/Capri2014/AIResearch/pull/new/feature/daily-2026-04-27-a
+
+Theme: Cross-stage pipeline evaluation + reporting — unified entry point for evaluating all pipeline stages (SSL→BC→RL) with checkpoint discovery, evaluation, metrics aggregation, and comprehensive comparison reports.
+
+
+
+- **Created: `sim/driving/carla_srunner/scenario_coverage_analyzer.py`** (~700 lines)
+  - ScenarioCoverageAnalyzer: Main class for analyzing scenario suite coverage
+  - CoverageMetrics: Tracks coverage across all dimensions (maneuvers, environment, traffic, road types, difficulty)
+  - CoverageGap: Identifies missing/underrepresented categories with suggestions
+  - 16 standard scenarios with full coverage attributes
+  - 6 standard suites: basic (4), standard (8), full (12), weather (4), nightmare (6), smoke (4)
+  - CLI: analyze, compare, generate, stats subcommands
+  - JSON import/export for scenario definitions
+  - Gap detection with actionable suggestions
+- **Smoke test**: ✅ PASSED
+  - 16 scenarios, 80% maneuver coverage, 62.5% environment coverage
+  - Basic suite: 4 scenarios, gaps in turns/roundabouts/weather
+  - Full suite: comprehensive coverage
+- **Commit**: `91bbbb0`
+- **Branch**: `feature/daily-2026-04-26-d`
+- **PR**: https://github.com/Capri2014/AIResearch/pull/new/feature/daily-2026-04-26-d
+
+Theme: Scenario coverage analyzer — measures and reports CARLA scenario suite coverage across maneuvers, environment, traffic, road types, and difficulty.
+
+---
+
+### Pipeline PR #3 (2026-04-26): Scenario Result Aggregator (1:30pm ET / 10:30am PT)
+
+- **Created: `sim/driving/carla_srunner/scenario_result_aggregator.py`** (~760 lines)
+  - ScenarioMetrics: Individual scenario metrics (ADE, FDE, success, collisions, route completion)
+  - AggregatedMetrics: Overall statistics (mean, median, std, min, max for all metrics)
+  - DifficultyBreakdown: Metrics broken down by difficulty level (easy/medium/hard/expert)
+  - EvaluationReport: Complete report with timestamp, aggregated metrics, difficulty breakdown
+  - ComparisonResult: Compare baseline vs current runs with delta metrics
+  - ScenarioResultAggregator: Main aggregator class
+    - add_result(): Add single scenario result
+    - add_results_from_dir(): Load results from directory
+    - add_results_from_file(): Load results from JSON file
+    - aggregate(): Aggregate into EvaluationReport
+    - compare(): Compare two evaluation reports
+  - Integrates with ScenarioDifficultyAnalyzer for difficulty-aware breakdown
+  - CLI: aggregate, analyze, compare subcommands
+- **Smoke test**: ✅ PASSED
+  - 4 test scenarios with difficulty levels
+  - Success rate: 75%, Mean ADE: 2.65m, Mean FDE: 5.65m
+  - Difficulty breakdown: easy=1, medium=1, hard=1, expert=1
+- **Commit**: `9dd5d17`
+- **Branch**: `feature/daily-2026-04-26-c`
+- **PR**: https://github.com/Capri2014/AIResearch/pull/new/feature/daily-2026-04-26-c
+
+Theme: Scenario result aggregator — aggregates scenario evaluation results with difficulty-aware metrics and comparison tools.
+
+---
+
+### Pipeline PR #2 (2026-04-26): Scenario Selection Optimizer (10:30am ET / 7:30am PT)
+
+- **Created: `sim/driving/carla_srunner/scenario_selection_optimizer.py`** (~730 lines)
+  - SelectionConfig: Configuration for scenario filtering and optimization
+  - ScenarioSelection: Selected subset with metrics and distributions
+  - SelectionResult: Result with reasoning and recommendations
+  - ScenarioSelectionOptimizer: Main class with 4 selection strategies:
+    - `uniform`: Equal distribution across difficulty levels
+    - `weighted`: Score by informativeness per evaluation time
+    - `greedy`: Maximize coverage of difficulty levels
+    - `adaptive`: Based on policy performance (placeholder)
+  - 5 optimization goals: coverage, efficiency, comparison, hardness, balanced
+  - Integrates with ScenarioDifficultyAnalyzer for real difficulty scores
+  - CLI: --target-difficulty, --num-scenarios, --optimize-for, --strategy
+  - Recommended suites: quick_eval, balanced_eval, comprehensive_eval, stress_test, comparison
+- **Smoke test**: ✅ PASSED
+  - 8 scenarios loaded with difficulty computed
+  - Selected 4 scenarios via weighted strategy
+  - Example: NightRainIntersection, StraightRoadYield, IntersectionLeftTurn, RoundaboutMerge
+- **Commit**: `a0eaa22`
+- **Branch**: `feature/daily-2026-04-26-b`
+- **PR**: https://github.com/Capri2014/AIResearch/pull/new/feature/daily-2026-04-26-b
+
+Theme: Scenario selection optimizer — selects optimal scenario subsets for CARLA evaluation based on difficulty, coverage, and efficiency.
+
+---
 
 - **Created: `sim/driving/carla_srunner/scenario_difficulty_analyzer.py`** (~450 lines)
   - DifficultyLevel: Enum (EASY/MEDIUM/HARD/EXPERT)
@@ -67,7 +229,7 @@ Theme: Option B - action space = waypoints / waypoint deltas. Initialize from SF
 
 ---
 
-### Pipeline PR #4 (2026-04-25): Real-time Inference Pipeline (1:30pm PT)
+
 
 - **Created: `training/inference/run_realtime_inference.py`** (~500 lines)
   - RealtimeInferenceConfig: Unified configuration dataclass
@@ -144,7 +306,7 @@ Theme: RL fine-tuning for driving models using PPO + GAE on toy waypoint environ
 
 Theme: SSL pre-training for driving models using self-supervised learning on Waymo episodes.
 
-### Pipeline PR #4 (2026-04-24): Waypoint BC Evaluator (1:30pm PT)
+
 
 - **Created: `training/bc/waypoint_bc_evaluator.py`** (~300 lines)
   - BCEvaluationConfig: Unified configuration dataclass
@@ -371,7 +533,7 @@ Theme: Option B action space = waypoint deltas (residual on top of SFT waypoints
 - **Branch**: `feature/daily-2026-04-22-e`
 - **PR**: https://github.com/Capri2014/AIResearch/pull/new/feature/daily-2026-04-22-e
 
-### Pipeline PR #4: CARLA ScenarioRunner Batch Evaluator (1:30pm PT)
+
 - **Created: `sim/driving/carla_srunner/scenario_batch_runner.py`**
   - CarlaScenarioBatchRunner: Batch evaluator for multi-scenario CARLA evaluation
   - BatchEvalConfig: policy_type, suite, parallel, cache, retry, mock settings
@@ -405,7 +567,7 @@ Theme: Option B action space = waypoint deltas (residual on top of SFT waypoints
 
 ## Today's Progress
 
-### Pipeline PR #4: CARLA ScenarioRunner Batch Evaluator (1:30pm PT)
+
 - **Created: `sim/driving/carla_srunner/scenario_batch_runner.py`**
   - CarlaScenarioBatchRunner: Batch evaluator for multi-scenario CARLA evaluation
   - BatchEvalConfig: policy_type, suite, parallel, cache, retry, mock settings
@@ -455,7 +617,7 @@ Theme: Option B action space = waypoint deltas (residual on top of SFT waypoints
 - **PR**: https://github.com/Capri2014/AIResearch/pull/new/feature/daily-2026-04-21-e
 - **Output**: out/rl_after_sft_<run_id>/
 
-### Pipeline PR #4: Pipeline Executor - Unified Entry Point (1:30pm PT)
+
 - **Created: `training/pipeline_executor.py`**
   - PipelineExecutor: Unified entry point connecting all pipeline components
   - Integrates: PipelineCheckpointLoader, PipelineOrchestrator, WaypointEvalRunner, PipelineEvalReporter
@@ -533,7 +695,7 @@ Theme: Option B action space = waypoint deltas (residual on top of SFT waypoints
 - **Branch**: `feature/daily-2026-04-20-e`
 - **Pushed**: To `origin/feature/daily-2026-04-20-e`
 
-### Pipeline PR #4: Waypoint Evaluation Pipeline - End-to-End (1:30pm PT)
+
 - **Created: `sim/driving/carla_srunner/waypoint_eval_pipeline.py`**
   - WaypointEvalPipeline: End-to-end pipeline orchestrating checkpoint → evaluator → visualizer
   - PipelineRunResult: Structured result dataclass with ADE, FDE, route_completion, collision_rate
@@ -609,7 +771,7 @@ Theme: Option B action space = waypoint deltas (residual on top of SFT waypoints
 - **Branch**: `feature/daily-2026-04-19-e`
 - **PR**: https://github.com/Capri2014/AIResearch/pull/new/feature/daily-2026-04-19-e
 
-### Pipeline PR #4: Waypoint BC Trainer (1:30pm PT)
+
 - **Created: `training/bc/waypoint_bc_trainer.py`**
   - WaypointBCTrainer: Main training class for waypoint behavior cloning
   - ResidualWaypointMLP: MLP with progress conditioning for multi-horizon prediction
@@ -673,7 +835,7 @@ Theme: Option B action space = waypoint deltas (residual on top of SFT waypoints
 - **Branch**: `feature/daily-2026-04-18-e`
 - **PR**: https://github.com/Capri2014/AIResearch/pull/new/feature/daily-2026-04-18-e
 
-### Pipeline PR #4: Pipeline Run Analyzer (1:30pm PT)
+
 - **Created: `training/pipeline_run_analyzer.py`**
   - PipelineRunAnalyzer: Main analyzer class with RunInfo, StageMetrics
   - find_runs(): Discover pipeline runs in output directory
@@ -725,7 +887,7 @@ Theme: Option B action space = waypoint deltas (residual on top of SFT waypoints
 - **Branch**: `feature/daily-2026-04-17-e`
 - **PR**: https://github.com/Capri2014/AIResearch/pull/new/feature/daily-2026-04-17-e
 
-### Pipeline PR #4: CARLA Inference Bridge (4:30pm PT)
+
 - **Created: `sim/driving/carla_srunner/inference_bridge.py`**
   - InferenceConfig: Configuration for CARLA inference (policy type, host/port, scenario/suite)
   - InferenceResult: Structured result with ADE, FDE, collisions, violations
@@ -783,7 +945,7 @@ Theme: Option B action space = waypoint deltas (residual on top of SFT waypoints
 - **Branch**: `feature/daily-2026-04-16-e`
 - **PR**: https://github.com/Capri2014/AIResearch/pull/new/feature/daily-2026-04-16-e
 
-### Pipeline PR #4: Waypoint Extraction from Waymo Episodes (1:30pm PT)
+
 - **Created: `training/pretrain/extract_waypoints.py`**
   - Extracts waypoints from Waymo episode trajectories for BC training
   - Uses existing `data/waymo/waypoint_extraction.py` utilities
@@ -872,7 +1034,7 @@ Theme: Option B action space = waypoint deltas (residual on top of SFT waypoints
 - **Branch**: `feature/daily-2026-04-15-e`
 - **PR**: https://github.com/Capri2014/AIResearch/pull/new/feature/daily-2026-04-15-e
 
-### Pipeline PR #4: Dataset Validation Utility (1:30pm PT)
+
 - **Created: `training/pretrain/validate_dataset.py`**
   - Validates Waymo episode datasets before SSL/Waypoint BC training
   - Checks: missing frames, corrupt data, out-of-range values, temporal gaps
@@ -982,7 +1144,7 @@ Theme: Option B action space = waypoint deltas (residual on top of SFT waypoints
 - **Branch**: `feature/daily-2026-04-14-e`
 - **PR**: https://github.com/Capri2014/AIResearch/pull/new/feature/daily-2026-04-14-e
 
-### Pipeline PR #4: RL to CARLA Bridge (1:30pm PT)
+
 - **Created: `training/rl/carla_eval_bridge.py`**
   - `BridgeConfig`: Configuration for RL→CARLA bridge evaluation
   - `WaypointBCModel`: Standalone waypoint BC model (no external deps)
@@ -1060,7 +1222,7 @@ Theme: Option B action space = waypoint deltas (residual on top of SFT waypoints
 - **Smoke test**: ✅ SUCCESS (dry-run verified)
 - **Branch**: `feature/daily-2026-04-13-b`
 
-### Pipeline PR #4: Checkpoint Manager (1:30pm PT)
+
 - **Created: `training/checkpoint_manager.py`**
   - Manages, lists, and selects checkpoints across pipeline stages
   - `CheckpointInfo`: Dataclass for checkpoint metadata (path, stage, run_id, epoch, metrics)
@@ -1098,7 +1260,7 @@ Theme: Option B action space = waypoint deltas (residual on top of SFT waypoints
 - **Smoke test**: ✅ SUCCESS (20 iteration training test completed)
 - **Branch**: `feature/daily-2026-04-12-e`
 
-### Pipeline PR #4: Waypoint Visualization Script (1:30pm PT)
+
 - **Created: `training/sft/visualize_waypoints.py`**
   - Visualization script for waypoint predictions from trained models
   - `WaypointSample`, `VisualizationConfig`, `VisualizationMetrics` dataclasses
