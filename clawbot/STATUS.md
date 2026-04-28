@@ -1,12 +1,13 @@
 # Status (ClawBot)
 
-_Last updated: 2026-04-26 (Pipeline PR #6 — daily cadence)_
+_Last updated: 2026-04-27 (Pipeline PR #6 — daily cadence)_
 
 ## Current focus
 Driving-first pipeline: **Waymo episodes → PyTorch SSL pretrain → waypoint BC → RL refinement → CARLA ScenarioRunner eval**.
 
 ## Daily Cadence
 
+- ✅ **Pipeline PR #6** (2026-04-27): Schema verification + comparison loader run ← TODAY
 - ✅ **Pipeline PR #6** (2026-04-26): Deterministic Eval Runner for SFT vs RL ← TODAY
 - ✅ **Pipeline PR #6** (2026-04-22): Policy comparison loader + eval run ← TODAY
 - ✅ **Pipeline PR #6** (2026-04-21): Deterministic eval SFT vs RL comparison runner
@@ -34,6 +35,24 @@ Driving-first pipeline: **Waymo episodes → PyTorch SSL pretrain → waypoint B
 - ⏳ **Pipeline PR #8** (2026-02-17): CARLA Closed-Loop Waypoint BC Evaluation - awaiting review
 
 ## Recent changes
+
+### Pipeline PR #6: Schema verification + comparison loader run (2026-04-27) ← TODAY
+- **Verified schema compliance** for existing evaluation outputs from 2026-04-26 run
+  - `out/eval/eval_20260426-213408_sft/metrics.json` — conforms to `data/schema/metrics.json`
+  - `out/eval/eval_20260426-213408_rl/metrics.json` — conforms to `data/schema/metrics.json`
+
+- **Ran comparison loader** to confirm metrics format works:
+  - Output: 3-line comparison report (ADE, FDE, Success Rate with % improvements)
+  - Results: ADE +3.0%, FDE +1.8% improvement from SFT to RL
+
+- **Created PR body**: `PR_BODY_PIPELINE53.md`
+
+- **Branch:** `feature/daily-2026-04-26-a`
+- **Commit:** `b50eb41` — 1 file, 47 insertions
+
+- **Verification:** `python3 -m training.rl.compare_policies_loader`
+
+- **Note:** Both policies are toy proxies. Toy environment too simple for meaningful waypoint following. Next: wire real SFT checkpoint.
 
 ### Pipeline PR #6: Deterministic Eval Runner for SFT vs RL (2026-04-26) ← TODAY
 - **Created: `training/rl/run_deterministic_eval.py`**
