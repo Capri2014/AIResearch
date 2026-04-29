@@ -1,6 +1,23 @@
 # Status (ClawBot)
 
-_Last updated: 2026-04-29 (Pipeline PR #2, 7:30am PT)_
+_Last updated: 2026-04-29 (Pipeline PR #5, 4:30pm PT)_
+
+- **Created: `training/rl/ppo_delta_sft_init.py`** (~880 lines)
+  - `PPODeltaSFTConfig`: Configuration for PPO delta-waypoint with SFT init
+  - `SFTWaypointModel`: Base SFT waypoint model (frozen during RL)
+  - `DeltaWaypointHead`: Residual delta head for adjustments
+  - `SFTDeltaPolicy`: Combined SFT + delta policy
+  - `PPOAgent`: PPO with GAE for learning deltas
+  - Schema: `final_waypoints = sft_waypoints + delta_scale * delta_head(obs)`
+  - Supports SFT checkpoint loading and freezing
+  - CLI: --num-waypoints, --delta-scale, --freeze-sft, --sft-checkpoint, --smoke-test
+  - Smoke test: ✅ PASSED (10 updates, best_reward=-1.32)
+  - Output: out/20260429_193335/
+- **Commit**: `73773b6`
+- **Branch**: `feature/daily-2026-04-29-e`
+- **PR**: https://github.com/Capri2014/AIResearch/pull/new/feature/daily-2026-04-29-e
+
+Theme: RL refinement AFTER SFT (Option B) — action space = waypoints / waypoint deltas (with SFT init support).
 
 - **Created: `training/rl/waypoint_policy_ensemble.py`** (~505 lines)
   - `WaypointEnsemble`: Combines multiple RL-refined policies for robust prediction
@@ -14,6 +31,23 @@ _Last updated: 2026-04-29 (Pipeline PR #2, 7:30am PT)_
 - **PR**: https://github.com/Capri2014/AIResearch/pull/new/feature/daily-2026-04-29-a
 
 Theme: Combine multiple RL-refined policies for robust waypoint prediction — variance reduction.
+
+- **Created: `training/pipeline_hyperparameter_search.py`** (~500 lines)
+  - HyperparameterSampler: Samples from log_uniform, uniform, or choice spaces
+  - BC_SEARCH_SPACE: lr, hidden_dim, batch_size, num_epochs, weight_decay
+  - RL_SEARCH_SPACE: lr, gamma, gae_lambda, delta_scale, clip_epsilon, entropy_coef
+  - SSL_SEARCH_SPACE: lr, encoder_dim, mask_ratio, batch_size, temperature
+  - Synthetic trial evaluation (real training can be swapped in)
+  - CLI: --stage, --metric, --num-trials, --method, --early-stop
+  - Output: best_hyperparams.json, search_results.json
+- **Smoke test**: ✅ PASSED
+  - 8 BC trials: best ADE=-23.87 (synthetic lower=better)
+  - Best: lr=2e-5, hidden=512, batch=8, epochs=20
+- **Commit**: `ac29f83`
+- **Branch**: `feature/daily-2026-04-29-c`
+- **PR**: https://github.com/Capri2014/AIResearch/pull/new/feature/daily-2026-04-29-c
+
+Theme: Hyperparameter search for BC/RL/SSL stages — grid/random search with early stopping.
 
 - **Created: `training/rl/run_rl_sft_init.py`** (~630 lines)
   - `RLAfterSFTSFTInitconfig`: Configuration for RL after SFT
