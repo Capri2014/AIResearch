@@ -1,6 +1,69 @@
 # Status (ClawBot)
 
-_Last updated: 2026-04-27 (Pipeline PR #5, 4:30pm PT)_
+_Last updated: 2026-04-29 (Pipeline PR #2, 7:30am PT)_
+
+- **Created: `training/rl/waypoint_policy_ensemble.py`** (~505 lines)
+  - `WaypointEnsemble`: Combines multiple RL-refined policies for robust prediction
+  - `EnsembleConfig`: policy_paths, method (weighted/voting/averaging), weights
+  - `EnsembleMetrics`: ADE, FDE, variance, improvement metrics
+  - Support loading multiple checkpoint files
+  - CLI: --policies, --method, --weights, --smoke-test
+  - Smoke test: Ensemble ADE=1.042m on synthetic data
+- **Commit**: `18d974c`
+- **Branch**: `feature/daily-2026-04-29-a`
+- **PR**: https://github.com/Capri2014/AIResearch/pull/new/feature/daily-2026-04-29-a
+
+Theme: Combine multiple RL-refined policies for robust waypoint prediction — variance reduction.
+
+- **Created: `training/rl/run_rl_sft_init.py`** (~630 lines)
+  - `RLAfterSFTSFTInitconfig`: Configuration for RL after SFT
+  - `ToyWaypointKinematicsEnv`: Car-like environment consuming waypoints
+  - `SFTDeltaPolicy`: SFT waypoint model (frozen) + residual delta head
+  - `PPOAgent`: PPO with GAE for learning deltas
+  - Schema: final_waypoints = sft_waypoints + delta_scale * delta_head(obs)
+  - Outputs: out/<run_id>/metrics.json, train_metrics.json, model.pt
+  - CLI: --smoke-test, --num-envs, --max-updates, --delta-scale
+- **Smoke test**: ✅ PASSED
+  - Best reward: -7.826
+  - Output: out/20260428_193525/
+- **Commit**: `011f492`
+- **Branch**: `feature/daily-2026-04-28-e`
+- **PR**: https://github.com/Capri2014/AIResearch/pull/new/feature/daily-2026-04-28-e
+
+Theme: RL refinement AFTER SFT (Option B) — action space = waypoints / waypoint deltas.
+  - PlannedRoute: Route with waypoints, town, weather, difficulty, maneuvers
+  - RouteSegment: Segmented routes for eval (max 200m each)
+  - ScenarioRoutePlanner: Main planner for CARLA route planning
+    - plan_from_waypoints(): Create route from waypoint sequence
+    - segment_route(): Split long routes into eval-friendly segments
+    - generate_route_package(): CARLA-compatible route JSON
+    - create_scenario_routes(): Synthetic route generation
+    - compute_route_metrics(): Route analysis (spacing, headings)
+  - Maneuver detection: turn_left, turn_right, curve
+  - Difficulty estimation: easy/medium/hard/expert
+  - 5 towns, 8 weather presets
+  - CLI: --waypoints, --max-length, --town, --weather, --segment, --metrics
+- **Smoke test**: ✅ PASSED
+  - 10 synthetic routes (42.7m-156.2m)
+  - Difficulty: easy (1), medium (4), hard (3), expert (2)
+  - Output: out/scenario_route_planner/
+- **Commit**: `715ca02`
+- **Branch**: `feature/daily-2026-04-28-b`
+- **PR**: https://github.com/Capri2014/AIResearch/pull/new/feature/daily-2026-04-28-b
+
+Theme: CARLA route planning from waypoint predictions — segment long routes, detect maneuvers, estimate difficulty.
+
+- **Created: `sim/driving/carla_srunner/route_to_scenario_converter.py`** (~410 lines)
+  - RouteToScenarioConverter: Converts Waymo routes to CARLA scenarios
+  - Supports 6 templates: straight, turn_left/right, lane_change, intersection, roundabout
+  - CLI: convert, generate, list subcommands
+  - Output: XML + JSON formats for ScenarioRunner
+- **Smoke test**: ✅ PASSED (2 scenarios generated)
+- **Commit**: `067c45c`
+- **Branch**: `feature/daily-2026-04-28-a`
+- **PR**: https://github.com/Capri2014/AIResearch/pull/new/feature/daily-2026-04-28-a
+
+Theme: Route-to-scenario conversion for CARLA evaluation bridge.
 
 - **Created: `training/rl/rl_after_sft_e.py`** (~480 lines)
   - `RLAfterSFTConfig`: Configuration dataclass
@@ -14,6 +77,30 @@ _Last updated: 2026-04-27 (Pipeline PR #5, 4:30pm PT)_
 - **PR**: https://github.com/Capri2014/AIResearch/pull/new/feature/daily-2026-04-27-e
 
 Theme: RL refinement AFTER SFT (Option B) — action space = waypoints / waypoint deltas.
+
+- **Created: `sim/driving/carla_srunner/scenario_execution_monitor.py`** (~510 lines)
+  - `ScenarioExecutionMonitor`: Real-time execution monitoring class
+    - `start()`: Initialize monitoring session
+    - `update()`: Update with current actor states
+    - `stop()`: End monitoring and get summary
+    - `add_collision()` / `add_traffic_light_event()`: Event logging
+    - `save_summary()` / `save_metrics_history()`: JSON output
+  - `ActorState`: Actor state (position, velocity, acceleration)
+  - `CollisionEvent`: Collision with impulse tracking
+  - `TrafficLightEvent`: Traffic light state changes
+  - `RouteProgress`: Route completion tracking
+  - `ExecutionMetrics`: Per-frame metrics
+  - `ScenarioExecutionSummary`: Full execution summary
+  - CLI: `monitor`, `generate`, `stats`, `smoke` subcommands
+- **Smoke test**: ✅ PASSED
+  - Basic monitor: duration tracked
+  - Mock execution: success/failure tracking
+  - Collision tracking: impulse logged
+- **Commit**: `5eddde0`
+- **Branch**: `feature/daily-2026-04-28-d`
+- **PR**: https://github.com/Capri2014/AIResearch/pull/new/feature/daily-2026-04-28-d
+
+Theme: Real-time scenario execution monitoring for CARLA scenarios — tracks actor states, collisions, route completion.
 
 ### Pipeline PR #4 (2026-04-27): Pipeline Metrics Dashboard (1:30pm PT / 4:30pm ET)
 
