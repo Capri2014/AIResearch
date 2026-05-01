@@ -1,8 +1,23 @@
 # Status (ClawBot)
 
-_Last updated: 2026-05-01 (Pipeline PR #1, 5:30am PT)_
+_Last updated: 2026-05-01 (Pipeline PR #2, 7:30am PT)_
 
 ## 2026-05-01
+
+- **Created: `sim/driving/carla_srunner/scenario_diagnostic_correlator.py`** (~450 lines)
+  - `ScenarioDiagnosticCorrelator`: Main class for correlating failures with conditions
+  - `FailureRecord`: Single failure record (scenario, failure_type, ade, fde, conditions)
+  - `ConditionStats`: Per-condition statistics
+  - `FailurePattern`: Identified pattern with correlation score
+  - `DiagnosticReport`: Full report with training recommendations
+  - Correlates weather/time/difficulty/town with failure types
+  - Generates actionable training recommendations
+  - CLI: --analyze, --results-dir, --results-file
+  - Smoke test: ✅ PASSED (10 scenarios, 70% failure rate analyzed)
+  - Branch: `feature/daily-2026-05-01-b`
+  - Commit: `dcc9fc7`
+
+---
 
 - **Created: `training/eval/carla_scenario_config.py`** (~380 lines)
   - `WeatherPreset`: Enum for predefined weather configs (CLEAR_NOON, RAIN_NOON, FOG_NOON, etc.)
