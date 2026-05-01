@@ -1,6 +1,73 @@
 # Status (ClawBot)
 
-_Last updated: 2026-04-29 (Pipeline PR #5, 4:30pm PT)_
+_Last updated: 2026-05-01 (Pipeline PR #1, 5:30am PT)_
+
+## 2026-05-01
+
+- **Created: `training/eval/carla_scenario_config.py`** (~380 lines)
+  - `WeatherPreset`: Enum for predefined weather configs (CLEAR_NOON, RAIN_NOON, FOG_NOON, etc.)
+  - `WeatherConfig`: Weather parameters with `.from_preset()` and `.to_carla()`
+  - `SensorConfig`: Ego vehicle sensor config (RGB, LiDAR, radar, GNSS, IMU)
+  - `RouteWaypoint`: Single waypoint with `.to_array()` conversion
+  - Predefined routes: `TOWN01_SHORT_ROUTE`, `TOWN01_MEDIUM_ROUTE`, `TOWN01_LONG_ROUTE`
+  - `ROUTE_REGISTRY`: Dict of available routes by name
+  - `ScenarioConfig`: Complete scenario with evaluation criteria
+  - Smoke test: ✅ All 3 routes load correctly
+  - Branch: `feature/daily-2026-05-01-a`
+  - Commit: `c4e7a91`
+
+Theme: Stage 3 preparation — CARLA ScenarioRunner configuration with routes, weather presets, sensor configs.
+
+---
+
+- **Created: `training/pipeline/full_pipeline.py`** (~540 lines)
+  - `PipelineConfig`: Full pipeline configuration dataclass
+  - `StageResult`: Result from each pipeline stage
+  - `PipelineRunner`: Orchestrates the 4-stage pipeline
+  - Stage 0: Waymo → BC dataset (using waypoint_extraction)
+  - Stage 1: SSL pretraining (using train_ssl_temporal)
+  - Stage 2: BC fine-tuning / RL refinement (using train_ppo_delta)
+  - Stage 3: CARLA ScenarioRunner evaluation
+  - CLI: --stage, --all, --smoke-test, --run-id, configs
+  - Output: out/pipeline_results_<run_id>.json
+  - Smoke test: ✅ Classes load correctly
+- **Commit**: `b5a7c21`
+- **Branch**: `feature/daily-2026-04-30-d`
+- **PR**: https://github.com/Capri2014/AIResearch/pull/new/feature/daily-2026-04-30-d
+
+Theme: Full pipeline orchestrator for driving-first pipeline — coordinates all 4 stages (Waymo→SSL→BC→CARLA) with configuration management and result tracking.
+
+- **Created: `training/bc/waymo_episode_to_bc.py`** (~580 lines)
+  - `WaymoToBCConfig`: Configuration for Waymo → BC conversion
+  - `WaymoEpisode`: Episode data structure (poses, speeds, images)
+  - `load_episode_from_json()`: Load episode from JSON
+  - `extract_waypoints_from_episode()`: Extract ego-frame XY waypoints
+  - `WaymoToBCDataset`: torch.utils.data.Dataset interface
+  - Augmentation: horizontal flip, Gaussian noise
+  - CLI: --episode-dir, --output-dir, --max-episodes, --num-waypoints, smoke-test
+  - Smoke test: ✅ PASSED (100 samples, waypoints extracted correctly)
+  - Output: BC-ready dataset
+- **Commit**: `9c6d503`
+- **Branch**: `feature/daily-2026-04-30-b`
+- **PR**: https://github.com/Capri2014/AIResearch/pull/new/feature/daily-2026-04-30-b
+
+Theme: Bridge Stage 0 (Waymo episodes) to Stage 1 (BC pretraining) — converts raw Waymo TFRecords → BC-ready (image, waypoints) pairs.
+
+- **Created: `training/pretrain/ssl_to_bc_finetune.py`** (~450 lines)
+  - `SSLtoBCConfig`: Configuration for fine-tuning from SSL to BC
+  - `SSLEncoder`: Frozen backbone from SSL pretraining
+  - `WaypointHead`: Autoregressive LSTM for waypoint prediction
+  - `SSLtoBCModel`: Combined model with frozen encoder + fine-tuning head
+  - `SyntheticWaypointBCDataset`: For smoke testing
+  - `SSLtoBCTrainer`: Training loop with ADE/FDE metrics
+  - CLI: --ssl-checkpoint, --bc-dataset, --freeze-encoder, --smoke-test
+  - Smoke test: ✅ PASSED (10 epochs, final ADE=9.57m, FDE=7.62m)
+  - Output: out/ssl_to_bc_test/
+- **Commit**: `3a65002`
+- **Branch**: `feature/daily-2026-04-30-a`
+- **PR**: https://github.com/Capri2014/AIResearch/pull/new/feature/daily-2026-04-30-a
+
+Theme: Bridge SSL pretrain to BC fine-tuning — loads SSL encoder weights, freezes backbone, fine-tunes waypoint prediction head on BC dataset (direct pipeline from stage 1 → stage 2).
 
 - **Created: `training/rl/ppo_delta_sft_init.py`** (~880 lines)
   - `PPODeltaSFTConfig`: Configuration for PPO delta-waypoint with SFT init
