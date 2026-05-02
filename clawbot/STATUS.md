@@ -1,6 +1,66 @@
 # Status (ClawBot)
 
-_Last updated: 2026-05-01 (Pipeline PR #2, 7:30am PT)_
+_Last updated: 2026-05-02 (Pipeline PR #3, 10:30am PT)_
+
+## 2026-05-02
+
+- **Created: `training/inference/waypoint_uncertainty.py`** (~445 lines)
+  - `UncertaintyConfig`: method (ensemble/dropout/heteroscedastic/distribution_free)
+  - `WaypointUncertainty`: mean, variance, covariance, confidence ellipses
+  - `WaypointUncertaintyEstimator`: Main class with multiple methods
+    - `ensemble_uncertainty`: Variance across multiple models
+    - `dropout_uncertainty`: MC dropout approximation
+    - `heteroscedastic_uncertainty`: Learned variance
+    - `distribution_free_uncertainty`: Conservative bounds
+  - `UncertaintyMetrics`: mean/max uncertainty, risk score, CI width
+  - `compare_uncertainties()`: Compare two estimates
+  - Supports epistemic (model) and aleatoric (data) uncertainty
+  - Risk scoring for safety-critical decision-making
+  - CLI: --method, --confidence-level, --smoke-test
+  - Smoke test: ✅ PASSED
+    - Ensemble: mean=0.0289, risk=0.0029
+    - Distribution-free: mean=0.3184, risk=0.0318
+  - Commit: `a251f65`
+  - Branch: `feature/daily-2026-05-02-c`
+
+Theme: Uncertainty estimation for waypoint predictions — confidence intervals and risk scoring critical for safety-critical autonomous driving.
+
+---
+
+- **Created: `training/inference/waypoint_inference_api.py`** (~590 lines)
+  - `InferenceConfig`: Configuration for waypoint inference
+  - `WaypointPrediction`: Single prediction result (waypoints, speeds, progress, confidence)
+  - `BatchPrediction`: Batch inference results with timing
+  - `ResidualWaypointMLP`: MLP for waypoint prediction with progress conditioning
+  - `RLRefinedWaypointModel`: BC + delta head for RL-refined prediction
+  - `WaypointInferenceAPI`: Main API with single/batch inference
+    - predict_single(): Single observation inference
+    - predict_batch(): Batch inference
+    - to_carla_waypoints(): Convert to CARLA waypoint format
+  - Coordinate transforms between OpenCV and CARLA frames
+  - CLI: infer, list subcommands
+  - Smoke test: ✅ PASSED (1 obs, 26.57ms, (8,2) waypoints)
+  - Commit: `5970347`
+  - Branch: `feature/daily-2026-05-02-b`
+
+---
+
+- **Created: `training/data_quality/` package (~490 lines)**
+  - `EpisodeQualityAnalyzer`: Analyzes Waymo episode data for quality issues
+    - Checks: missing frames, corrupt data, temporal gaps, velocity outliers
+    - Generates quality scores (0-100) and issue reports by severity
+    - Supports batch directory analysis
+  - `MetricsComparator`: Compares metrics across pipeline runs
+    - Compares BC/RL/SSL/eval runs by loss/ADE/FDE/reward/success_rate
+    - Computes statistics (mean, std) and improvement percentages
+    - Generates checkpoint recommendations
+  - Smoke test: ✅ PASSED (both tools verified)
+  - Commit: `e992626`
+  - Branch: `feature/daily-2026-05-02-a`
+
+Theme: Pipeline data quality and metrics comparison — supports early detection of problematic episodes before training, tracks progress across runs.
+
+---
 
 ## 2026-05-01
 
