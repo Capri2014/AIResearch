@@ -1,8 +1,27 @@
 # Status (ClawBot)
 
-_Last updated: 2026-05-02 (Pipeline PR #3, 10:30am PT)_
+_Last updated: 2026-05-02 (Pipeline PR #5, 4:30pm PT)_
 
 ## 2026-05-02
+
+- **Created: `sim/driving/carla_srunner/scenario_rerun_handler.py`** (~620 lines)
+  - `ScenarioRerunHandler`: Main class for failure analysis and rerun scheduling
+  - `ScenarioFailure`: Failure record (scenario_name, failure_type, metrics)
+  - `FailurePattern`: Pattern with count, avg_ADE/FDE, recommended strategy
+  - `RerunConfig`: Configuration for rerun with adjusted parameters
+  - `RerunPlan`: Complete rerun plan with batched reruns
+  - Analyzes 8 failure types: collision, timeout, route_deviation, red_light, stop_sign, wrong_lane, pedestrian_hit, vehicle_hit
+  - 7 rerun strategies: retry_same, reduce_speed, increase_distance, simplify_route, change_weather, reduce_traffic, increase_timeout
+  - `generate_rerun_plan()`: Creates adjusted configs per failure type
+  - `save_plan()`: Exports rerun_plan.json + rerun.sh script
+  - Smoke test: ✅ PASSED
+    - 5 synthetic failures analyzed, 4 patterns identified
+    - Collision: 2, Timeout: 1, Red Light: 1, Route Deviation: 1
+    - 3 reruns generated with adjusted parameters
+  - Commit: `da3cc3e`
+  - Branch: `feature/daily-2026-05-02-d`
+
+Theme: Intelligent failure analysis and rerun scheduling for CARLA evaluation — adjusts parameters based on failure type to improve rerun success rate.
 
 - **Created: `training/inference/waypoint_uncertainty.py`** (~445 lines)
   - `UncertaintyConfig`: method (ensemble/dropout/heteroscedastic/distribution_free)
@@ -24,6 +43,29 @@ _Last updated: 2026-05-02 (Pipeline PR #3, 10:30am PT)_
   - Branch: `feature/daily-2026-05-02-c`
 
 Theme: Uncertainty estimation for waypoint predictions — confidence intervals and risk scoring critical for safety-critical autonomous driving.
+
+---
+
+### Pipeline PR #5 (2026-05-02): RL Delta-Waypoint Runner (Option B) (4:30pm PT)
+
+- **Created: `training/rl/rl_delta_waypoint_runner.py`** (~620 lines)
+  - `RLDeltaWaypointConfig`: Configuration for RL delta-waypoint runner
+  - `ToyWaypointKinematicsEnv`: Car-like environment consuming waypoints
+  - `SFTWaypointModel`: Base SFT waypoint model (frozen during RL)
+  - `DeltaWaypointHead`: Residual delta head (tanh-bounded)
+  - `PPOAgent`: PPO agent with GAE, value loss, entropy bonus
+  - `PPOMemory`: Replay memory for PPO rollouts
+  - `compute_gae()`: GAE advantage estimation
+  - Schema: `final_waypoints = sft_waypoints + delta_scale * delta_head(obs)`
+  - CLI: --num-waypoints, --delta-scale, --max-updates, --num-envs, --freeze-sft
+  - Smoke test: ✅ PASSED
+    - 10 updates, 2 envs
+    - Best reward: -154.53
+    - Output: out/20260502_193550/
+  - Commit: `b77551d`
+  - Branch: `feature/daily-2026-05-02-e`
+
+Theme: RL refinement AFTER SFT (Option B) — action space = waypoint deltas (residual on top of SFT waypoints).
 
 ---
 
