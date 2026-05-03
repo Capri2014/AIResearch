@@ -1,6 +1,62 @@
 # Status (ClawBot)
 
-_Last updated: 2026-05-02 (Pipeline PR #5, 4:30pm PT)_
+_Last updated: 2026-05-03 (Pipeline PR #3, 1:30pm PT)_
+
+## 2026-05-03
+
+- **Created: `sim/driving/carla_srunner/waypoint_carla_visualizer.py`** (~410 lines)
+  - `WaypointCarlaVisualizer`: Main class for visualizing waypoints in CARLA
+    - `connect()`/`disconnect()`: CARLA server connection
+    - `world_to_ego()`/`ego_to_world()`: Coordinate transforms
+    - `draw_waypoints()`: Draw waypoints with arrows in CARLA world
+    - `visualize_trajectory()`: Visualize SFT/RL/ground_truth trajectories
+    - `compute_metrics()`: ADE/FDE metrics for single sample
+    - `run_realtime()`: Real-time visualization loop
+    - `_run_mock_visualization()`: Mock mode for testing
+    - `_create_synthetic_sample()`: Synthetic test data
+    - `_save_results()`: JSON output with config/metrics/samples
+  - `WaypointVisualizerConfig`: Configuration dataclass
+  - `WaypointSample`: Single prediction sample
+  - `VisualizationMetrics`: Visualization quality metrics
+  - `create_policy_wrapper()`: Policy wrapper for visualization
+  - CLI: --host, --port, --fps, --num-waypoints, --sft-checkpoint, --rl-checkpoint, --smoke-test
+  - Smoke test: ✅ PASSED (10 samples, ADE=0.029m, FDE=0.194m, SFT ADE=0.062m, RL ADE=0.029m)
+  - Commit: `811aee1`
+  - Branch: `feature/daily-2026-05-03-c`
+
+Theme: Real-time waypoint visualization for CARLA simulation — visualizes predicted waypoints overlaid on CARLA world for debugging and analysis (SFT vs RL comparison).
+
+- **Created: `training/bc/waypoint_metrics.py`** (~420 lines)
+  - `WaypointMetricsConfig`: Configuration for metrics computation
+  - `WaypointSampleMetrics`: Per-sample metrics (ADE, FDE, max_DE, speed RMSE/MAE, progress RMSE/MAE)
+  - `AggregatedWaypointMetrics`: Aggregated statistics over multiple samples
+  - `WaypointMetricsComputer`: Main class for computing and aggregating metrics
+  - `WaypointVisualizerConfig`: Configuration dataclass
+  - `WaypointSample`: Single prediction sample
+    - `compute_single_sample()`: ADE, FDE, speed RMSE/MAE, progress RMSE/MAE
+    - `add_batch()`: Batch add predictions
+    - `aggregate()`: Aggregate all samples into statistics
+    - `save_metrics()`: JSON output
+    - `print_summary()`: Formatted console output
+  - CLI: --predictions, --ground-truth, --output, --smoke-test
+  - Smoke test: ✅ PASSED (10 samples, ADE=0.596m, FDE=0.804m)
+  - Commit: `42bd626`
+  - Branch: `feature/daily-2026-05-03-a`
+
+Theme: Comprehensive metrics for waypoint prediction quality evaluation — ADE, FDE, speed, progress, and success rates.
+
+- **Created: `training/bc/bc_checkpoint_manager.py`** (~340 lines)
+  - `BCCheckpointConfig`: Configuration for checkpoint management
+  - `BCCheckpoint`: Checkpoint record (epoch, step, metrics, metadata)
+  - `BCCheckpointManager`: Main class
+  - CLI: save, list, load, best subcommands
+  - Smoke test: ✅ PASSED (3 checkpoints, best by val_ade)
+  - Commit: `a4316e3`
+  - Branch: `feature/daily-2026-05-03-b`
+
+Theme: BC checkpoint management for waypoint prediction models — save/load/prune based on validation metrics.
+
+---
 
 ## 2026-05-02
 
