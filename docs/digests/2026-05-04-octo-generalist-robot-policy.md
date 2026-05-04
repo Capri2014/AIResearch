@@ -3,7 +3,7 @@
 **Source:** [arXiv:2405.12213](https://arxiv.org/abs/2405.12213) | [Project](https://octo-models.github.io/) | [Code](https://github.com/octo-models/octo) | [Models](https://huggingface.co/rail-berkeley)
 
 ## TL;DR (3 bullets)
-- **Octo** is an open-source **transformer-based diffusion policy** pretrained on **800k trajectories** from Open X-Embodiment — the largest robotics dataset publicly available.
+- **Octo** is an open-source **transformer-based diffusion policy** pretrained on **800k trajectories** from Open X-Embodiment — the largest open robotics dataset publicly available.
 - Provides pretrained **base (93M) and small (27M) models** on HuggingFace with full training/finetuning code; reproducibility is strong (~8-14h pretraining on TPUv4-128).
 - **Maps to Tesla/Ashok claims**: strong on unified data contracts, cross-embodiment transfer, modular architecture, diffusion-based action; gaps remain on humanoid/full-body, factory-scale, long-horizon autonomy.
 
