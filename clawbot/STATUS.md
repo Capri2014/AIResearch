@@ -1,8 +1,53 @@
 # Status (ClawBot)
 
-_Last updated: 2026-05-03 (Pipeline PR #3, 1:30pm PT)_
+_Last updated: 2026-05-04 (Pipeline PR #1, 5:30am PT)_
+
+## 2026-05-04
+
+- **Created: `training/pipeline/checkpoint_discovery.py`** (~480 lines)
+  - `CheckpointInfo`: Information about a single checkpoint (path, stage, run_id, epoch, metrics)
+  - `CheckpointSelection`: Selected checkpoints for pipeline evaluation
+  - `PipelineCheckpointSelector`: Select best checkpoints across stages
+    - `discover_stage_checkpoints()`: Auto-discover checkpoints for stage
+    - `select_best()`: Select best by priority order or metric
+    - `find_latest()`: Find by timestamp
+    - `find_best_by_metric()`: Find best by specific metric
+  - `PipelineCheckpointDiscovery`: Comprehensive discovery for full pipeline
+    - `discover_all()`: Discover all stages (SSL/BC/RL/Eval)
+    - `discover_by_run()`: Discover by run ID
+    - `print_summary()`: Formatted console output
+    - `save_summary()`: JSON export
+  - Priority order: final.pt → best.pt → best_reward.pt → best_ade.pt
+  - Metric priority: BC (val_ade, val_loss), RL (reward, success_rate), SSL (loss)
+  - CLI: --base-dir, --run-id, --stage, --metric, --list, --best, --output, --smoke-test
+  - Smoke test: ✅ PASSED (3 stages discovered)
+  - Commit: `f8c4782`
+  - Branch: `feature/daily-2026-05-04-a`
+
+Theme: Pipeline checkpoint discovery and selection system — auto-discovers checkpoints across all pipeline stages, selects best by metrics, provides unified checkpoint access.
+
+---
 
 ## 2026-05-03
+
+- **Created: `training/pipeline/full_pipeline_runner.py`** (~500 lines)
+  - `FullPipelineConfig`: Unified configuration for all pipeline stages
+  - `FullPipelineRunner`: Main runner integrating SSL→BC→RL→CARLA stages
+    - `run()`: Execute full or selective pipeline stages
+    - `_run_ssl()`: SSL pretraining stage
+    - `_run_bc()`: Waypoint BC stage  
+    - `_run_rl()`: RL refinement stage
+    - `_run_eval()`: CARLA evaluation stage
+    - `_save_results()`: JSON output with stage results
+  - `StageResult`: Per-stage result (stage, success, checkpoint_path, metrics, duration, error)
+  - Supported stages: ssl, bc, rl, eval, all
+  - Checkpoint management across stages
+  - CLI: run, status, eval subcommands
+  - Smoke test mode for quick validation
+  - Commit: `6f20d81`
+  - Branch: `feature/daily-2026-05-03-d`
+
+Theme: Full pipeline runner — orchestrates Waymo episodes → SSL pretrain → waypoint BC → RL refinement → CARLA evaluation.
 
 - **Created: `sim/driving/carla_srunner/waypoint_carla_visualizer.py`** (~410 lines)
   - `WaypointCarlaVisualizer`: Main class for visualizing waypoints in CARLA
