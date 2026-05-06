@@ -1,7 +1,7 @@
 # DreamerV3 + GAIA-1: World Model Learning for Action-Conditioned Video Simulation
 
 **Topic:** World models / learned simulators — matching Ashok's "video + action → next video" claim  
-**Created:** May 4, 2026 | **PR:** Survey PR #4 (public anchor)
+**Created:** May 5, 2026 | **PR:** Survey PR #4 (public anchor)
 
 ---
 
