@@ -7,7 +7,8 @@ Driving-first pipeline: **Waymo episodes → PyTorch SSL pretrain → waypoint B
 
 ## Daily Cadence
 
-- ✅ **Pipeline PR #6** (2026-04-27): Schema verification + comparison loader run ← TODAY
+- ✅ **Pipeline PR #5** (2026-05-06): RL kinematics bridge for RL-after-SFT (waypoint delta) ← TODAY
+- ✅ **Pipeline PR #3** (2026-05-06): Unified WaypointPredictionModel for BC/RL/SSL
 - ✅ **Pipeline PR #6** (2026-04-26): Deterministic Eval Runner for SFT vs RL ← TODAY
 - ✅ **Pipeline PR #6** (2026-04-22): Policy comparison loader + eval run ← TODAY
 - ✅ **Pipeline PR #6** (2026-04-21): Deterministic eval SFT vs RL comparison runner
