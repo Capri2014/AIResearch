@@ -1,13 +1,15 @@
 # Status (ClawBot)
 
-_Last updated: 2026-05-07 (Pipeline PR #1 — daily cadence)_
+_Last updated: 2026-05-07 (Pipeline PR #3 — daily cadence)_
 
 ## Current focus
 Driving-first pipeline: **Waymo episodes → PyTorch SSL pretrain → waypoint BC → RL refinement → CARLA ScenarioRunner eval**.
 
 ## Daily Cadence
 
-- ✅ **Pipeline PR #1** (2026-05-07): Waymo Episode Integration ← TODAY
+- ✅ **Pipeline PR #3** (2026-05-07): Waymo-to-Waypoint BC Integration ← TODAY
+- ✅ **Pipeline PR #2** (2026-05-07): Waymo-to-SSL Integration
+- ✅ **Pipeline PR #1** (2026-05-07): Waymo Episode Integration
 - ✅ **Pipeline PR #6** (2026-05-06): Deterministic eval SFT vs RL
 
 ## Current focus
@@ -46,6 +48,32 @@ Driving-first pipeline: **Waymo episodes → PyTorch SSL pretrain → waypoint B
 - ⏳ **Pipeline PR #8** (2026-02-17): CARLA Closed-Loop Waypoint BC Evaluation - awaiting review
 
 ## Recent changes
+
+### Pipeline PR #3: Waymo-to-Waypoint BC Integration (2026-05-07) ← TODAY
+- **Created: `training/episodes/waymo_to_bc.py`**
+  - WaymoToBCConverter: converts WaymoEpisode to WaypointBCEpisode for BC training
+  - WaypointBCTrainingDataset: PyTorch Dataset with cached samples
+  - create_bc_dataloader(): creates DataLoader from Waymo episodes
+  - SimpleWaypointBC: MLP for next-waypoint prediction
+  - CLI: --count, --smoke, --run-bc
+
+- **Purpose:** Pipeline stage 3: Waymo → SSL → waypoint BC → RL → CARLA
+  ```
+  Waymo episodes → SSL pretrain → waypoint BC → RL refinement → CARLA eval
+  ```
+
+- **Branch:** `feature/daily-2026-05-07-c`
+- **Commit:** `05d94bc` — 1 file, 421 insertions
+
+- **Test:**
+  ```bash
+  python3 -m training.episodes.waymo_to_bc --smoke --episodes 3
+  python3 -m training.episodes.waymo_to_bc --run-bc --epochs 1 --batch-size 16
+  ```
+
+- **Output:** `out/waypoint_bc/bc_model.pt`
+
+- **Note:** Returns empty list when Waymo data not present (expected). Next: wire real Waymo TFRecord data.
 
 ### Pipeline PR #1: Waymo Episode Integration (2026-05-07) ← TODAY
 - **Created: `training/episodes/waymo_episode_loader.py`**
