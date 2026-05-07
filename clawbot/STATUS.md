@@ -1,13 +1,23 @@
 # Status (ClawBot)
 
-_Last updated: 2026-04-27 (Pipeline PR #6 — daily cadence)_
+_Last updated: 2026-05-07 (Pipeline PR #1 — daily cadence)_
 
 ## Current focus
 Driving-first pipeline: **Waymo episodes → PyTorch SSL pretrain → waypoint BC → RL refinement → CARLA ScenarioRunner eval**.
 
 ## Daily Cadence
 
-- ✅ **Pipeline PR #5** (2026-05-06): RL kinematics bridge for RL-after-SFT (waypoint delta) ← TODAY
+- ✅ **Pipeline PR #1** (2026-05-07): Waymo Episode Integration ← TODAY
+- ✅ **Pipeline PR #6** (2026-05-06): Deterministic eval SFT vs RL
+
+## Current focus
+Driving-first pipeline: **Waymo episodes → PyTorch SSL pretrain → waypoint BC → RL refinement → CARLA ScenarioRunner eval**.
+
+## Daily Cadence
+
+- ✅ **Pipeline PR #1** (2026-05-07): Waymo Episode Integration
+- ✅ **Pipeline PR #6** (2026-05-06): Deterministic eval SFT vs RL
+- ✅ **Pipeline PR #5** (2026-05-06): RL kinematics bridge for RL-after-SFT (waypoint delta)
 - ✅ **Pipeline PR #3** (2026-05-06): Unified WaypointPredictionModel for BC/RL/SSL
 - ✅ **Pipeline PR #6** (2026-04-26): Deterministic Eval Runner for SFT vs RL ← TODAY
 - ✅ **Pipeline PR #6** (2026-04-22): Policy comparison loader + eval run ← TODAY
@@ -36,6 +46,35 @@ Driving-first pipeline: **Waymo episodes → PyTorch SSL pretrain → waypoint B
 - ⏳ **Pipeline PR #8** (2026-02-17): CARLA Closed-Loop Waypoint BC Evaluation - awaiting review
 
 ## Recent changes
+
+### Pipeline PR #1: Waymo Episode Integration (2026-05-07) ← TODAY
+- **Created: `training/episodes/waymo_episode_loader.py`**
+  - Integration module between Waymo Open Dataset TFRecords and pipeline
+  - Discovers episodes from data directories
+  - Provides episode metadata and indexing
+  - CLI: --list, --count, --smoke, --export
+  - Returns empty list when Waymo data not present (expected)
+  
+- **Purpose:** First stage of driving-first pipeline
+  ```
+  Waymo episodes → PyTorch SSL pretrain → waypoint BC → RL refinement → CARLA eval
+  ```
+  
+- **Functions created:**
+  - `discover_episodes()` - find available Waymo TFRecords
+  - `load_episode()` - load specific episode  
+  - `iter_episodes()` - iterate through dataset
+  - `to_pipeline_format()` - convert to unified pipeline format
+
+- **Branch:** `feature/daily-2026-05-07-a`
+
+- **Test:**
+  ```bash
+  python3 -m training.episodes.waymo_episode_loader --count
+  python3 -m training.episodes.waymo_episode_loader --smoke --episodes 5
+  ```
+
+- **Next:** Add real Waymo TFRecord data, integrate with SSL pretrainer
 
 ### Pipeline PR #6: Schema verification + comparison loader run (2026-04-27) ← TODAY
 - **Verified schema compliance** for existing evaluation outputs from 2026-04-26 run
