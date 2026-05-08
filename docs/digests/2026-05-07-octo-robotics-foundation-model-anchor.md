@@ -2,15 +2,15 @@
 
 **Source:** [arXiv:2405.12213](https://arxiv.org/abs/2405.12213) | [Project](https://octo-models.github.io/) | [Code](https://github.com/octo-models/octo) | [Models](https://huggingface.co/rail-berkeley)
 
-**Last updated:** 2026-05-07
+**Last updated:** 2026-05-08
 
 ---
 
 ## TL;DR (3 bullets)
 
-- **Octo** is the most **reproducible open-source** robotics foundation model — transformer + diffusion policy pretrained on **800k trajectories** from Open X-Embodiment.
-- Provides **pretrained base (93M) + small (27M) models** on HuggingFace with full training code; single-GPU finetuning works in hours.
-- **Maps to Tesla/Ashok claims**: strong on unified data contracts, cross-embodiment transfer, diffusion actions; gaps on humanoid/full-body, factory-scale, long-horizon autonomy.
+- **Octo** (v0.2, May 2026) — transformer + diffusion policy, pretrained on 800k trajectories from Open X-Embodiment; most reproducible open-source robotics foundation model.
+- **Pretrained models**: 93M base + 27M small on HuggingFace; full training code; single-GPU finetuning in hours. v0.2 improves cross-attention + language rephrasing.
+- **Maps to Tesla/Ashok claims**: strong on unified data contracts, cross-embodiment transfer, diffusion actions; gaps vs Optimus Gen 3 (1,000+ deployed Jan 2026, 22-DOF hands), factory-scale, long-horizon autonomy.
 
 ---
 
@@ -77,6 +77,7 @@ Octo is the strongest **open-source** attempt to deliver this. Chosen over RT-X 
 | **Language encoder** | Transformer encoder (text → tokens) |
 | **Action tokenization** | Continuous diffusion over action chunks |
 | **Finetuning modes** | `head_only`, `head_mlp_only`, `full` |
+| **v0.2 update (May 2026)** | Cross-attention: repeat language tokens at every timestep; dropout off in diffusion head; fixed attention mask bug; image augmentations use fresh seeds |
 
 ### Comparison to alternatives
 
@@ -114,7 +115,7 @@ Octo is the strongest **open-source** attempt to deliver this. Chosen over RT-X 
 - Long-horizon autonomy (hours+ of continuous operation)
 - Factory-scale deployment (grease, clutter, safety)
 - Fleet learning (continuous updates from deployed robots)
-- Full-body / humanoid control (manipulation only, arm + gripper)
+- Full-body / humanoid control (manipulation only, arm + gripper) — Tesla Optimus has 22-DOF hands + bipedal locomotion
 - Real-world success rates under clutter/occlusion
 
 ---
