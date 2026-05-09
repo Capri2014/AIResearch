@@ -1,6 +1,6 @@
 # 3D Gaussian Splatting — Real-Time Neural Rendering Digest
 
-**Survey PR #1 | May 8th, 2026 | 9:00am PT**
+**Survey PR #1 | May 9th, 2026 | 9:00am PT**
 
 ---
 
