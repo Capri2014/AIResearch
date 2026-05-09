@@ -206,3 +206,7 @@ GAIA-1 addresses **view consistency** through:
 - **Topic:** World model / learned simulator
 - **Model:** GAIA-1 (driving-focused)
 - **Status:** Ready for commit
+
+---
+
+_Update pending commit_
