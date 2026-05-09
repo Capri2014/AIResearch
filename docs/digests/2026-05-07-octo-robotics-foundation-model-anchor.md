@@ -2,7 +2,7 @@
 
 **Source:** [arXiv:2405.12213](https://arxiv.org/abs/2405.12213) | [Project](https://octo-models.github.io/) | [Code](https://github.com/octo-models/octo) | [Models](https://huggingface.co/rail-berkeley)
 
-**Last updated:** 2026-05-08
+**Last updated:** 2026-05-09
 
 ---
 
@@ -109,6 +109,14 @@ Octo is the strongest **open-source** attempt to deliver this. Chosen over RT-X 
 | Finetuning | Hours on single NVIDIA 4090 | Per robot |
 | Inference | ~13 it/sec (base) / ~17 it/sec (small) | On NVIDIA 4090 |
 | Data loader | Standalone PyTorch provided | Full batch loading |
+
+### v0.2 Release (May 2025)
+
+Recent updates from Octo release notes (May 24, 2025):
+
+- **Cross-attention improvement**: Repeats language tokens at every timestep in the context window for stronger visual-language alignment
+- **Language augmentation**: GPT-3.5 rephrases added to language instructions for data diversity
+- **Bug fixes**: Dropout disabled in diffusion head (incompatible with layer norm); attention mask off-by-one error fixed; image augmentations now use fresh random seeds
 
 ### What's NOT evaluated
 
