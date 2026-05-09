@@ -1,0 +1,185 @@
+{
+  "run_id": "eval_20260508-213236_rl",
+  "timestamp": "2026-05-08T21:32:36",
+  "domain": "rl",
+  "git": {
+    "repo": "git@github.com:Capri2014/AIResearch.git",
+    "commit": "7bd840f0bb45c24835b434777f55c687958e676d",
+    "branch": "feature/daily-2026-05-06-a"
+  },
+  "policy": {
+    "name": "toy_waypoint_rl"
+  },
+  "scenarios": [
+    {
+      "scenario_id": "seed_42",
+      "success": false,
+      "ade": 3.173984694480896,
+      "fde": 19.80689239501953,
+      "return": 5.099263735115528,
+      "steps": 50
+    },
+    {
+      "scenario_id": "seed_43",
+      "success": false,
+      "ade": 15.807796287536622,
+      "fde": 43.16164779663086,
+      "return": 4.455195177346468,
+      "steps": 50
+    },
+    {
+      "scenario_id": "seed_44",
+      "success": false,
+      "ade": 7.601137351989746,
+      "fde": 18.463687896728516,
+      "return": 7.262425389140844,
+      "steps": 50
+    },
+    {
+      "scenario_id": "seed_45",
+      "success": false,
+      "ade": 5.952769088745117,
+      "fde": 11.712093353271484,
+      "return": 4.519921272993088,
+      "steps": 50
+    },
+    {
+      "scenario_id": "seed_46",
+      "success": false,
+      "ade": 13.068258571624757,
+      "fde": 50.92028045654297,
+      "return": 7.859649263322353,
+      "steps": 50
+    },
+    {
+      "scenario_id": "seed_47",
+      "success": false,
+      "ade": 19.928454399108887,
+      "fde": 42.64247131347656,
+      "return": 4.047916121780872,
+      "steps": 50
+    },
+    {
+      "scenario_id": "seed_48",
+      "success": false,
+      "ade": 24.33354535102844,
+      "fde": 68.33726501464844,
+      "return": 4.0479155741631985,
+      "steps": 50
+    },
+    {
+      "scenario_id": "seed_49",
+      "success": false,
+      "ade": 23.481052541732787,
+      "fde": 60.20094299316406,
+      "return": 4.047913704067469,
+      "steps": 50
+    },
+    {
+      "scenario_id": "seed_50",
+      "success": false,
+      "ade": 9.003160333633422,
+      "fde": 39.14623260498047,
+      "return": 6.396106913685799,
+      "steps": 50
+    },
+    {
+      "scenario_id": "seed_51",
+      "success": false,
+      "ade": 14.656671524047852,
+      "fde": 57.226985931396484,
+      "return": 6.834641430526972,
+      "steps": 50
+    },
+    {
+      "scenario_id": "seed_52",
+      "success": false,
+      "ade": 14.221028280258178,
+      "fde": 27.932924270629883,
+      "return": 4.047917425632477,
+      "steps": 50
+    },
+    {
+      "scenario_id": "seed_53",
+      "success": false,
+      "ade": 4.163779449462891,
+      "fde": 7.761264801025391,
+      "return": 5.087549094110727,
+      "steps": 50
+    },
+    {
+      "scenario_id": "seed_54",
+      "success": false,
+      "ade": 16.340377426147462,
+      "fde": 30.782489776611328,
+      "return": 4.047915417701006,
+      "steps": 50
+    },
+    {
+      "scenario_id": "seed_55",
+      "success": false,
+      "ade": 12.954822158813476,
+      "fde": 48.93163299560547,
+      "return": 6.989667385816574,
+      "steps": 50
+    },
+    {
+      "scenario_id": "seed_56",
+      "success": false,
+      "ade": 15.999125337600708,
+      "fde": 47.8465690612793,
+      "return": 4.047914784401655,
+      "steps": 50
+    },
+    {
+      "scenario_id": "seed_57",
+      "success": false,
+      "ade": 23.745656490325928,
+      "fde": 62.2498779296875,
+      "return": 4.047917064279318,
+      "steps": 50
+    },
+    {
+      "scenario_id": "seed_58",
+      "success": false,
+      "ade": 1.0679691314697266,
+      "fde": 13.245784759521484,
+      "return": 22.596562277525663,
+      "steps": 50
+    },
+    {
+      "scenario_id": "seed_59",
+      "success": false,
+      "ade": 7.321626663208008,
+      "fde": 21.486478805541992,
+      "return": 7.106023773550987,
+      "steps": 50
+    },
+    {
+      "scenario_id": "seed_60",
+      "success": false,
+      "ade": 8.419417762756348,
+      "fde": 14.578962326049805,
+      "return": 4.047915201634169,
+      "steps": 50
+    },
+    {
+      "scenario_id": "seed_61",
+      "success": false,
+      "ade": 19.31755452156067,
+      "fde": 45.54302215576172,
+      "return": 4.047916632145643,
+      "steps": 50
+    }
+  ],
+  "summary": {
+    "ade_mean": 13.027909368276596,
+    "ade_std": 6.85187311986259,
+    "fde_mean": 36.59887533187866,
+    "fde_std": 18.339902199553368,
+    "success_rate": 0.0,
+    "return_mean": 6.03191238194704,
+    "steps_mean": 50.0,
+    "num_episodes": 20
+  }
+}
