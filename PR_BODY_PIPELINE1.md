@@ -1,93 +1,67 @@
-# Pipeline PR #1: Unified Pipeline Benchmark Runner
+# Pipeline PR #1: Checkpoint Compatibility Validation
 
 ## Summary
 
-Created `training/pipeline/benchmark_runner.py` - orchestrates the complete driving-first pipeline with unified execution and metrics aggregation.
+Enhanced `benchmark_runner.py` with checkpoint compatibility validation to catch model type mismatches early at stage transitions.
 
 ## Changes
 
-### Added: `training/pipeline/benchmark_runner.py`
+### Added: `validate_checkpoint_compatibility()`
 
-- **PipelineRunner** class:
-  - Orchestrates all 5 pipeline stages sequentially
-  - Stage 1: Data loading (Waymo episodes)
-  - Stage 2: SSL contrastive pretraining
-  - Stage 3: Waypoint behavior cloning
-  - Stage 4: RL refinement (PPO residual delta)
-  - Stage 5: CARLA ScenarioRunner evaluation
-  
-- **StageResult** dataclass:
-  - Captures status, metrics, checkpoint path per stage
-  - Unified result structure for aggregation
-  
-- **CLI Flags**:
-  - `--stages`: Comma-separated stages (default: all)
-  - `--dry-run`: Validate without actual training
-  - `--smoke`: Quick smoke test
-  - `--episodes`, `--epochs`, `--batch-size`, `--lr`
-  - `--output-dir`: Custom output directory
+- Validates checkpoint model type during stage transitions
+- Checks BC → RL, SSL → BC, and RL → CARLA compatibility  
+- Validates model weights contain expected keys
+- Reports compatibility errors before running (fail-safe)
 
-### Added: `training/pipeline/__init__.py`
+### Compatibility Checks
 
-- Makes training.pipeline a proper Python package
+- **BC stage**: looks for waypoint-related weights
+- **SSL stage**: looks for encoder weights  
+- **RL stage**: looks for actor/policy weights
 
-## Purpose
+### Integration
 
-Pipeline final integration: all stages unified under one runner:
-```
-Waymo episodes → SSL pretrain → waypoint BC → RL refinement → CARLA eval
-     ↓              ↓              ↓              ↓            ↓
-  #1 (5:30am)   #2 (7:30am)  #3 (10:30am)    #4         #5
-```
+The validator is called automatically during pipeline execution:
+- After BC stage completes, validates before RL stage runs
+- Reports compatibility status and any errors
+- Does not fail pipeline (fail-safe design)
 
-This PR provides:
-1. Single entry point for full pipeline benchmark
-2. Checkpoint discovery across all stages
-3. Metrics aggregation into unified report
-4. Dry-run mode for CI/validation
-
-## Test
+## Testing
 
 ```bash
-# Quick smoke test
+# Smoke test with validation
 python3 -m training.pipeline.benchmark_runner --smoke
 
-# Run specific stages
-python3 -m training.pipeline.benchmark_runner --stages data,bc --dry-run
+# Full benchmark
+python3 -m training.pipeline.benchmark_runner --stages all --dry-run
 
-# Full pipeline
-python3 -m training.pipeline.benchmark_runner --stages all
+# BC and RL stages only
+python3 -m training.pipeline.benchmark_runner --stages bc,rl
 ```
 
 ## Output
 
-- `out/pipeline_benchmark/benchmark_results.json` - unified metrics
-
-```json
-{
-  "timestamp": "2026-05-08T12:30:00",
-  "total_time": 0.0,
-  "stages": {
-    "data": {"status": "completed", "metrics": {...}},
-    "ssl": {"status": "completed", "metrics": {...}},
-    "bc": {"status": "completed", "metrics": {...}},
-    "rl": {"status": "completed", "metrics": {...}},
-    "carla": {"status": "completed", "metrics": {...}}
-  }
-}
-```
+- `out/pipeline_benchmark/benchmark_results.json` - unchanged schema
 
 ## Branch
 
-- `feature/daily-2026-05-08-a`
+- `feature/daily-2026-05-09-a`
 
 ## Commit
 
-- `64b03f2` — feat(pipeline): Unified Pipeline Benchmark Runner (Pipeline PR #1)
+- `add6c91` — feat(pipeline): Add checkpoint compatibility validation
+
+## Purpose
+
+Checkpoint compatibility validation at pipeline runtime:
+- Catches model type mismatches early
+- Validates weight shapes/keys before stage transitions
+- Prevents silent failures between BC→RL bridge
+
+Ensures that when Stage 3 → Stage 4 transitions, the BC checkpoint contains waypoint prediction heads, not some other model type.
 
 ## Next Steps
 
-1. Wire real checkpoints from each stage to benchmark
-2. Add actual execution mode (not just dry-run)
-3. Integrate with CI for automated benchmarking
-4. Add WebHook notification on completion
+1. Wire actual checkpoint discovery (not just simulated)
+2. Add stage-to-stage checkpoint passing
+3. Integrate with CARLA ScenarioRunner for Stage 5

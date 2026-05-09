@@ -65,6 +65,67 @@ class StageResult:
     error: Optional[str] = None
 
 
+def validate_checkpoint_compatibility(checkpoint_path: str, expected_type: str) -> dict:
+    """
+    Validate that a checkpoint can be loaded for the expected pipeline stage.
+    
+    Returns dict with:
+        - compatible: bool
+        - error: Optional[str]
+        - metadata: dict
+    """
+    path = Path(checkpoint_path)
+    if not path.exists():
+        return {
+            "compatible": False,
+            "error": f"Checkpoint not found: {checkpoint_path}",
+            "metadata": {}
+        }
+    
+    if not TORCH_AVAILABLE:
+        return {
+            "compatible": True,
+            "error": None,
+            "metadata": {"torch_unavailable": True}
+        }
+    
+    try:
+        state = torch.load(path, map_location="cpu", weights_only=False)
+        
+        # Validate checkpoint type
+        model_type = state.get("model_type", "unknown")
+        
+        type_compatible = True
+        if expected_type == "bc" and model_type not in ["waypoint_bc", "bc", "behavior_cloning"]:
+            # Check if it has waypoint-related weights
+            has_waypoint_head = any("waypoint" in k.lower() for k in state.get("state_dict", {}).keys())
+            type_compatible = has_waypoint_head
+        
+        elif expected_type == "ssl" and model_type not in ["ssl_encoder", "ssl", "contrastive"]:
+            has_encoder = any("encoder" in k.lower() for k in state.get("state_dict", {}).keys())
+            type_compatible = has_encoder
+        
+        elif expected_type == "rl" and model_type not in ["rl_policy", "ppo", "actor"]:
+            has_policy = any("actor" in k.lower() or "policy" in k.lower() for k in state.get("state_dict", {}).keys())
+            type_compatible = has_policy
+        
+        return {
+            "compatible": type_compatible,
+            "error": None if type_compatible else f"Incompatible model type: {model_type}",
+            "metadata": {
+                "model_type": model_type,
+                "epoch": state.get("epoch", 0),
+                "config": state.get("config", {})
+            }
+        }
+    except Exception as e:
+        return {
+            "compatible": False,
+            "error": str(e),
+            "metadata": {}
+        }
+
+
 class PipelineRunner:
     """Orchestrates the complete pipeline."""
     
@@ -338,26 +399,20 @@ class PipelineRunner:
                 metrics={"towns": towns, "episodes_per_town": episodes_per_town}
             )
         
-        print("Running CARLA ScenarioRunner evaluation (dry-run)...")
+        print("Running CARLA ScenarioRunner evaluation (simulated)...")
         time.sleep(0.3)
         
-        # Simulate evaluation results
         metrics = {
-            "route_completion": 0.85,
-            "collisions": 0.2,
-            "offroad_infractions": 1.5,
-            "red_light_violations": 0.0,
-            "comfort_max_accel": 3.2,
-            "comfort_max_jerk": 2.1,
-            "ade": 1.45,
-            "fde": 2.87,
-            "success_rate": 0.80
+            "towns": towns,
+            "episodes_total": len(towns) * episodes_per_town,
+            "success_rate": 0.85,
+            "ade": 1.234,
+            "fde": 2.567
         }
         
-        print(f"  Route completion: {metrics['route_completion']:.1%}")
-        print(f"  Collisions: {metrics['collisions']:.1f}")
-        print(f"  ADE: {metrics['ade']:.2f}m")
         print(f"  Success rate: {metrics['success_rate']:.1%}")
+        print(f"  ADE: {metrics['ade']:.3f}m")
+        print(f"  FDE: {metrics['fde']:.3f}m")
         
         return StageResult(
             stage="carla",
@@ -366,13 +421,16 @@ class PipelineRunner:
             metrics=metrics
         )
     
-    def run_all(self, stages: list[str] = None, dry_run: bool = False) -> dict:
-        """Run all pipeline stages."""
+    def run(self, stages: list[str] = None, dry_run: bool = False) -> dict[str, StageResult]:
+        """Run all pipeline stages in sequence."""
         if stages is None:
             stages = self.STAGES
         
+        if "all" in stages:
+            stages = self.STAGES
+        
         print(f"\n{'='*60}")
-        print(f"UNIFIED PIPELINE BENCHMARK RUNNER")
+        print("UNIFIED PIPELINE BENCHMARK RUNNER")
         print(f"{'='*60}")
         print(f"Output directory: {self.output_dir}")
         print(f"Stages: {stages}")
@@ -383,133 +441,104 @@ class PipelineRunner:
         for stage in stages:
             result = self.run_stage(stage, dry_run)
             self.results[stage] = result
+            
+            # Validate checkpoint compatibility if we have a previous stage's checkpoint
+            if stage == "rl" and "bc" in self.results:
+                bc_checkpoint = self.results["bc"].checkpoint_path
+                if bc_checkpoint:
+                    print(f"\n[CHECKPOINT COMPATIBILITY] Validating BC → RL bridge...")
+                    compat = validate_checkpoint_compatibility(bc_checkpoint, "bc")
+                    print(f"  Compatible: {compat['compatible']}")
+                    if compat['error']:
+                        print(f"  Warning: {compat['error']}")
         
-        elapsed = time.time() - start_time
+        total_time = time.time() - start_time
         
-        # Aggregate results
-        summary = self._create_summary(elapsed)
+        # Save results
+        self._save_results(total_time)
         
-        return summary
+        print(f"\n{'='*60}")
+        print("BENCHMARK SUMMARY")
+        print(f"{'='*60}")
+        for stage, result in self.results.items():
+            print(f"  {stage}: {result.status}")
+        print(f"  Total time: {total_time:.1f}s")
+        
+        return self.results
     
-    def _create_summary(self, elapsed: float) -> dict:
-        """Create benchmark summary."""
-        summary = {
+    def _save_results(self, total_time: float):
+        """Save benchmark results to JSON."""
+        self.output_dir.mkdir(parents=True, exist_ok=True)
+        
+        output = {
             "timestamp": datetime.now().isoformat(),
-            "total_time": elapsed,
+            "total_time": total_time,
             "stages": {}
         }
         
         for stage, result in self.results.items():
-            summary["stages"][stage] = {
+            output["stages"][stage] = {
                 "status": result.status,
-                "metrics": result.metrics
+                "timestamp": result.timestamp,
+                "metrics": result.metrics,
+                "checkpoint_path": result.checkpoint_path,
+                "error": result.error
             }
-            if result.checkpoint_path:
-                summary["stages"][stage]["checkpoint_path"] = result.checkpoint_path
         
-        # Add pipeline-level metrics
-        if "carla" in self.results and self.results["carla"].status == "completed":
-            summary["final_metrics"] = self.results["carla"].metrics
+        output_path = self.output_dir / "benchmark_results.json"
+        with open(output_path, "w") as f:
+            json.dump(output, f, indent=2)
         
-        return summary
+        print(f"\nResults saved to: {output_path}")
 
 
 def main():
+    """Main entry point."""
     parser = argparse.ArgumentParser(description="Unified Pipeline Benchmark Runner")
-    parser.add_argument(
-        "--stages", 
-        default="all",
-        help="Comma-separated stages to run (default: all)"
-    )
-    parser.add_argument(
-        "--output-dir", 
-        type=Path,
-        default=Path("out/pipeline_benchmark"),
-        help="Output directory"
-    )
-    parser.add_argument(
-        "--dry-run",
-        action="store_true",
-        help="Dry-run mode (no actual training)"
-    )
-    parser.add_argument(
-        "--smoke",
-        action="store_true",
-        help="Quick smoke test"
-    )
-    parser.add_argument(
-        "--episodes", type=int, default=10,
-        help="Number of episodes for RL/data stages"
-    )
-    parser.add_argument(
-        "--epochs", type=int, default=20,
-        help="Number of epochs for BC stage"
-    )
-    parser.add_argument(
-        "--batch-size", type=int, default=8,
-        help="Batch size"
-    )
-    parser.add_argument(
-        "--lr", type=float, default=0.001,
-        help="Learning rate"
-    )
+    parser.add_argument("--stages", type=str, default="all",
+                      help="Comma-separated stages (default: all)")
+    parser.add_argument("--output-dir", type=str, default="out/pipeline_benchmark",
+                      help="Output directory")
+    parser.add_argument("--dry-run", action="store_true",
+                      help="Dry-run mode")
+    parser.add_argument("--smoke", action="store_true",
+                      help="Quick smoke test")
+    parser.add_argument("--episodes", type=int, default=10,
+                      help="Number of episodes")
+    parser.add_argument("--epochs", type=int, default=20,
+                      help="Training epochs")
+    parser.add_argument("--batch-size", type=int, default=8,
+                      help="Batch size")
+    parser.add_argument("--lr", type=float, default=0.001,
+                      help="Learning rate")
     
     args = parser.parse_args()
     
-    # Determine stages
-    if args.stages == "all":
-        stages = PipelineRunner.STAGES
-    else:
-        stages = [s.strip() for s in args.stages.split(",")]
+    output_dir = Path(args.output_dir)
     
-    # Smoke test overrides
-    if args.smoke:
-        args.dry_run = True
-        stages = ["data", "ssl", "bc", "rl", "carla"]
+    # Parse stages
+    stages = [s.strip() for s in args.stages.split(",")]
     
-    # Create output directory
-    args.output_dir.mkdir(parents=True, exist_ok=True)
-    
-    # Build config
+    # Config
     config = {
         "data": {"num_episodes": args.episodes},
         "ssl": {"batch_size": args.batch_size, "num_steps": 100, "lr": args.lr},
         "bc": {"epochs": args.epochs, "batch_size": args.batch_size},
         "rl": {"num_episodes": args.episodes, "delta_scale": 1.0},
-        "carla": {"towns": ["Town01", "Town02"], "episodes_per_town": 10}
+        "carla": {"towns": ["Town01", "Town02"], "episodes_per_town": args.episodes}
     }
     
-    # Run pipeline
-    runner = PipelineRunner(args.output_dir, config)
-    summary = runner.run_all(stages, args.dry_run)
+    # Smoke test sets fast defaults
+    if args.smoke:
+        config["ssl"]["num_steps"] = 10
+        config["bc"]["epochs"] = 2
+        config["rl"]["num_episodes"] = 5
+        config["carla"]["episodes_per_town"] = 2
+        stages = ["data", "ssl", "bc", "rl", "carla"]
+        args.dry_run = True
     
-    # Save results
-    output_file = args.output_dir / "benchmark_results.json"
-    with open(output_file, "w") as f:
-        json.dump(summary, f, indent=2)
-    
-    print(f"\n{'='*60}")
-    print(f"BENCHMARK SUMMARY")
-    print(f"{'='*60}")
-    for stage, result in runner.results.items():
-        status = result.status
-        metrics = result.metrics
-        print(f"  {stage}: {status}")
-        if status == "completed" and metrics:
-            if stage == "ssl":
-                print(f"    - loss: {metrics.get('loss', 'N/A')}")
-            elif stage == "bc":
-                print(f"    - train_loss: {metrics.get('train_loss', 'N/A')}")
-                print(f"    - eval_ade: {metrics.get('eval_ade', 'N/A')}")
-            elif stage == "rl":
-                print(f"    - avg_reward: {metrics.get('avg_reward', 'N/A')}")
-            elif stage == "carla":
-                print(f"    - route_completion: {metrics.get('route_completion', 'N/A')}")
-                print(f"    - ade: {metrics.get('ade', 'N/A')}")
-                print(f"    - success_rate: {metrics.get('success_rate', 'N/A')}")
-    
-    print(f"\nTotal time: {summary['total_time']:.1f}s")
-    print(f"Results saved to: {output_file}")
+    runner = PipelineRunner(output_dir, config)
+    runner.run(stages=stages, dry_run=args.dry_run)
 
 
 if __name__ == "__main__":
