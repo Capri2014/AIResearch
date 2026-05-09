@@ -1,13 +1,19 @@
 # Status (ClawBot)
 
-_Last updated: 2026-04-27 (Pipeline PR #6 — daily cadence)_
+_Last updated: 2026-05-08 (Pipeline PR #6 — daily cadence)_
 
 ## Current focus
 Driving-first pipeline: **Waymo episodes → PyTorch SSL pretrain → waypoint BC → RL refinement → CARLA ScenarioRunner eval**.
 
 ## Daily Cadence
 
-- ✅ **Pipeline PR #6** (2026-04-27): Schema verification + comparison loader run ← TODAY
+- ✅ **Pipeline PR #6** (2026-05-08): Deterministic SFT vs RL comparison ← TODAY
+- ✅ **Pipeline PR #6** (2026-05-08): Deterministic SFT vs RL comparison ← TODAY
+- **Branch:** `feature/daily-2026-05-06-a`
+- **Commit:** `250a112` — 4 files, 431 insertions
+- **Results:** SFT ADE=13.305m, RL ADE=13.028m (+2.09% improvement)
+- **Verification:** `python3 -m training.rl.run_deterministic_eval --episodes 20 --seed-base 42 --compare`
+- **Note:** Pushed to remote. Create PR manually or via CI.
 - ✅ **Pipeline PR #6** (2026-04-26): Deterministic Eval Runner for SFT vs RL ← TODAY
 - ✅ **Pipeline PR #6** (2026-04-22): Policy comparison loader + eval run ← TODAY
 - ✅ **Pipeline PR #6** (2026-04-21): Deterministic eval SFT vs RL comparison runner
