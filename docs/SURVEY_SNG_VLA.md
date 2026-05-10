@@ -1030,6 +1030,20 @@ From the paper's qualitative analysis:
 - SNG-VLA predicted: Stop
 - Cause: No supplementary action for construction
 
+### D.3 Code Availability
+
+⚠️ **Important limitation:** The paper claims "Code available" but **actual model code is NOT publicly released**.
+
+- **What's available:** `Fudan-MAGIC-Lab/SNG-VLA-web` repo contains only a **static website** (HTML, Gemfile)
+- **What's NOT available:**
+  - No PyTorch/model implementation
+  - No training scripts
+  - No pre-trained weights/checkpoints
+  - No inference/demo code
+  - No SNG-QA dataset
+
+This limits reproducibility and integration. Survey code examples in this document are **reconstructed from paper descriptions**, not from actual implementation.
+
 ---
 
 ## Appendix E: Related Survey Cross-References
