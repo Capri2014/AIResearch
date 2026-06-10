@@ -541,30 +541,719 @@ def main():
 
 ## 7. Study Plan
 
+This study plan is designed for someone with Python knowledge but no physics simulation background. Each phase builds on the previous. Estimated time: 1-2 hours per day.
+
+---
+
 ### Phase 1: Setup & Basics (Week 1)
-- Install: `pip install genesis-world`
-- Run: `python examples/rigid/franka_cube.py`
-- Read: core API (scene, entities, stepping)
+
+**Goal:** Get Genesis running and understand the core concepts
+
+#### Day 1: Installation & First Run (30 min)
+```bash
+# Install Genesis
+pip install genesis-world
+
+# Or latest from git
+pip install git+https://github.com/Genesis-Embodied-AI/genesis-world.git
+```
+
+Run your first simulation:
+```python
+import genesis as gs
+
+gs.init()
+scene = gs.Scene(show_viewer=True)
+scene.add_entity(gs.morphs.Plane())
+scene.add_entity(gs.morphs.Box(pos=(0, 0, 1)))
+scene.build()
+
+for _ in range(100):
+    scene.step()
+```
+
+**What you see:** A box falls from the air and hits the floor.
+
+**Key concepts:**
+- `gs.init()` — Initialize the physics engine
+- `gs.Scene()` — The simulation world container
+- `morphs.*` — Shape definitions (Box, Plane, Sphere, etc.)
+- `scene.build()` — Compile the physics world
+- `scene.step()` — Advance physics by one timestep
+
+---
+
+#### Day 2: Understanding Scene & Entities (45 min)
+
+The Scene is the container for everything:
+
+```python
+scene = gs.Scene(
+    # Physics settings
+    sim_options=gs.options.SimOptions(
+        dt=0.01,              # timestep in seconds
+        gravity=(0, 0, -9.8) # gravity direction
+    ),
+    
+    # 3D viewer settings
+    viewer_options=gs.options.ViewerOptions(
+        camera_pos=(3, -1, 1.5),
+        camera_lookat=(0, 0, 0.5),
+        camera_fov=30
+    ),
+    
+    show_viewer=True  # Open visualization window
+)
+```
+
+
+Entities are objects in the scene:
+
+```python
+# Floor
+scene.add_entity(gs.morphs.Plane())
+
+# Box (width, depth, height)
+scene.add_entity(gs.morphs.Box(size=(0.1, 0.1, 0.1), pos=(0, 0, 1)))
+
+# Sphere
+scene.add_entity(gs.morphs.Sphere(radius=0.05, pos=(0.5, 0, 0.5)))
+
+# From file (MuJoCo format)
+robot = scene.add_entity(gs.morphs.MJCF(file="xml/franka_emika_panda/panda.xml"))
+
+
+# From file (URDF format)
+robot = scene.add_entity(gs.morphs.URDF(file="urdf/go2/urdf/go2.urdf"))
+```
+
+**Exercise:** Create a scene with floor + 3 boxes at different heights. Change gravity to point sideways.
+
+---
+
+#### Day 3: Loading & Controlling a Robot (60 min)
+
+Robots are collections of links (rigid parts) + joints (connections):
+
+```python
+# Load robot
+robot = scene.add_entity(
+    gs.morphs.MJCF(file="xml/franka_emika_panda/panda.xml")
+)
+scene.build()
+
+# Find joint indices (internal IDs for each joint)
+joint_names = ["joint1", "joint2", "joint3", "joint4", "joint5", "joint6", "joint7",
+              "finger_joint1", "finger_joint2"]
+joint_indices = [robot.get_joint(name).dofs_idx_local[0] for name in joint_names]
+
+# Now joint_indices = [0, 1, 2, 3, 4, 5, 6, 7, 8]
+```
+
+Three ways to control joints:
+
+```python
+import numpy as np
+
+# 1. POSITION CONTROL (most common) — move to target angle
+target = np.array([0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.04, 0.04])
+robot.control_dofs_position(target, joint_indices)
+
+# 2. VELOCITY CONTROL — set rotation speed
+velocity = np.array([0.1, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0])
+robot.control_dofs_velocity(velocity, joint_indices)
+
+# 3. FORCE CONTROL — apply torque
+force = np.array([10.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0])
+robot.control_dofs_force(force, joint_indices)
+```
+
+PD (Proportional-Derivative) gains control stiffness:
+```python
+# Proportional gain (stiffness) — higher = reaches target faster
+kp = np.array([4500, 4500, 3500, 3500, 2000, 2000, 2000, 100, 100])
+robot.set_dofs_kp(kp, joint_indices)
+
+# Derivative gain (damping) — higher = less oscillation
+kv = np.array([450, 450, 350, 350, 200, 200, 200, 10, 10])
+robot.set_dofs_kv(kv, joint_indices)
+```
+
+
+**Exercise:** Load a robot and move each joint through its range of motion one by one.
+
+---
+
+#### Day 4: Inverse Kinematics (60 min)
+
+IK solves: "Given hand position → what joint angles?"
+
+```python
+# Get the hand link
+hand = robot.get_link("hand")
+
+# Target position in 3D
+target_pos = np.array([0.3, 0.0, 0.15])  # x, y, z in meters
+target_quat = np.array([0, 1, 0, 0])   # rotation (quaternion)
+
+
+# Solve IK
+joint_angles = robot.inverse_kinematics(
+    link=hand,
+    pos=target_pos,
+    quat=target_quat
+)
+
+# Now move to those angles
+robot.control_dofs_position(joint_angles[:-2], motor_indices)
+```
+
+Complete grasp sequence:
+```python
+# Phase 1: Approach
+goto_position(np.array([0.65, 0.0, 0.15]))
+
+# Phase 2: Lower
+goto_position(np.array([0.65, 0.0, 0.08]))
+
+# Phase 3: Grasp (close fingers)
+robot.control_dofs_position(np.array([0.0, 0.0]), finger_indices)
+
+# Phase 4: Lift
+goto_position(np.array([0.65, 0.0, 0.25]))
+```
+
+
+**Exercise:** Use IK to touch 5 different points in space.
+
+---
+
+#### Day 5: Your First Task — Pick and Place (60 min)
+
+Combine everything learned:
+
+```python
+import numpy as np
+import genesis as gs
+
+gs.init()
+scene = gs.Scene(show_viewer=True)
+scene.add_entity(gs.morphs.Plane())
+
+# Add robot and cube
+robot = scene.add_entity(gs.morphs.MJCF(file="xml/franka_emika_panda/panda.xml"))
+cube = scene.add_entity(gs.morphs.Box(size=(0.04, 0.04, 0.04), pos=(0.65, 0.0, 0.02)))
+
+scene.build()
+
+hand = robot.get_link("hand")
+motors = np.arange(7)
+fingers = np.arange(7, 9)
+
+# Set gripper gains
+robot.set_dofs_kp([100.0, 100.0], fingers)
+robot.set_dofs_kv([10.0, 10.0], fingers)
+
+# ===== SEQUENCE =====
+
+# 1. Move above cube
+qpos = robot.inverse_kinematics(link=hand, pos=(0.65, 0.0, 0.15))
+for _ in range(100):
+    robot.control_dofs_position(qpos[:-2], motors)
+    scene.step()
+
+# 2. Lower to cube
+qpos = robot.inverse_kinematics(link=hand, pos=(0.65, 0.0, 0.08))
+for _ in range(100):
+    robot.control_dofs_position(qpos[:-2], motors)
+    scene.step()
+
+# 3. Close fingers to grasp
+robot.control_dofs_position(np.array([0.0, 0.0]), fingers)
+for _ in range(50):
+    scene.step()
+
+# 4. Lift up
+qpos = robot.inverse_kinematics(link=hand, pos=(0.65, 0.0, 0.25))
+for _ in range(200):
+    robot.control_dofs_position(qpos[:-2], motors)
+    scene.step()
+
+# 5. Move to new location (0.4, 0.2, 0.2)
+qpos = robot.inverse_kinematics(link=hand, pos=(0.4, 0.2, 0.2))
+for _ in range(200):
+    robot.control_dofs_position(qpos[:-2], motors)
+    scene.step()
+
+# 6. Release
+robot.control_dofs_position(np.array([0.04, 0.04]), fingers)
+for _ in range(50):
+    scene.step()
+```
+
+
+**Exercise:** Pick up the cube and place it in a different location.
+
+---
 
 ### Phase 2: Physics & Sensors (Week 2)
-- Rigid body: collision, constraints
-- Cloth: `python examples/tutorials/pbd_cloth.py`
-- Sensors: LiDAR, tactile, IMU
+
+**Goal:** Learn different physics types and sensors
+
+---
+
+
+#### Day 6: Cloth Simulation (45 min)
+
+PBD (Position-Based Dynamics) for cloth:
+
+```python
+scene = gs.Scene(
+    sim_options=gs.options.SimOptions(
+        dt=0.004,     # smaller timestep
+        substeps=10   # more accuracy
+    ),
+    show_viewer=True
+)
+
+scene.add_entity(gs.morphs.Plane())
+
+# Cloth material
+cloth = scene.add_entity(
+    material=gs.materials.PBD.Cloth(),
+    morph=gs.morphs.Mesh(file="meshes/cloth.obj", scale=2.0, pos=(0, 0, 0.5)),
+    surface=gs.surfaces.Default(color=(0.2, 0.4, 0.8, 1.0))
+)
+
+scene.build()
+
+
+# Pin corners so it hangs
+cloth.fix_particles(cloth.find_closest_particle((-1, -1, 1.0)))
+cloth.fix_particles(cloth.find_closest_particle((1, -1, 1.0)))
+
+for _ in range(1000):
+    scene.step()
+```
+
+
+Variations:
+- Pin only one corner → cloth swings
+- Pin all four corners → tent shape
+- Add a box under cloth → drapes over it
+
+---
+
+
+#### Day 7: Fluid Simulation (45 min)
+
+SPH (Smoothed Particle Hydrodynamics) for liquids:
+
+```python
+scene = gs.Scene(
+    sim_options=gs.options.SimOptions(dt=0.01, substeps=10),
+    sph_options=gs.options.SPHOptions(
+        lower_bound=(0, -1, 0),
+        upper_bound=(1, 1, 2.5)
+    ),
+    show_viewer=True
+)
+
+scene.add_entity(gs.morphs.Plane())
+
+
+# Water
+water = scene.add_entity(
+    material=gs.materials.SPH.Liquid(mu=0.01),
+    morph=gs.morphs.Box(pos=(0.5, 0, 0.6), size=(0.8, 1.5, 1.0)),
+    surface=gs.surfaces.Default(color=(0.3, 0.6, 0.9, 0.8))
+)
+
+# Rigid body that interacts with fluid
+cube = scene.add_entity(
+    material=gs.materials.Rigid(needs_coup=True, coup_friction=0.0),
+    morph=gs.morphs.Box(pos=(0.5, 0, 2.2), size=(0.2, 0.2, 0.2))
+)
+
+scene.build()
+
+
+for _ in range(500):
+    scene.step()
+```
+
+---
+
+
+#### Day 8: LiDAR Sensor (45 min)
+
+LiDAR = Light Detection and Ranging — measures distance to objects:
+
+```python
+# Add robot
+robot = scene.add_entity(gs.morphs.URDF(file="urdf/go2/urdf/go2.urdf"))
+
+
+# Add LiDAR sensor
+lidar = scene.add_sensor(
+    gs.sensors.Lidar(
+        pattern=gs.sensors.SphericalPattern(),  # rays in sphere
+        entity_idx=robot.idx,
+        pos_offset=(0.3, 0.0, 0.1),  # mounted on robot
+        draw_debug=True  # show rays in viewer
+    )
+)
+
+scene.build()
+
+
+# Read distances
+for _ in range(100):
+    distances = lidar.read()  # array of distances
+    
+    # Filter valid readings
+    valid = distances[distances > 0]
+    if len(valid) > 0:
+        print(f"Min: {valid.min():.3f}m, Max: {valid.max():.3f}m")
+    
+    scene.step()
+```
+
+
+Other patterns:
+```python
+# Grid pattern
+gs.sensors.GridPattern()
+
+# Depth camera
+gs.sensors.DepthCamera(pattern=gs.sensors.DepthCameraPattern())
+```
+
+---
+
+#### Day 9: Camera & Other Sensors (45 min)
+
+
+Depth camera:
+```python
+camera = scene.add_sensor(
+    gs.sensors.DepthCamera(
+        pattern=gs.sensors.DepthCameraPattern(),
+        entity_idx=robot.idx,
+        pos_offset=(0, 0, 0.5)
+    )
+)
+
+for _ in range(100):
+    rgb, depth = camera.read_image()
+    # rgb = (H, W, 3) RGB image
+    # depth = (H, W) depth in meters
+    scene.step()
+```
+
+Tactile sensor:
+```python
+tactile = scene.add_sensor(
+    gs.sensors.Tactile(
+        entity_idx=robot.idx,
+        link_name="hand",
+        resolution=(8, 8)
+    )
+)
+
+for _ in range(100):
+    pressure = tactile.read()  # 8x8 pressure map
+    scene.step()
+```
+
+IMU (Inertial Measurement Unit):
+```python
+imu = scene.add_sensor(
+    gs.sensors.IMU(
+        entity_idx=robot.idx,
+        link_name="torso"
+    )
+)
+
+for _ in range(100):
+    accel, gyro = imu.read()
+    # accel = (ax, ay, az) acceleration
+    # gyro = (gx, gy, gz) angular velocity
+    scene.step()
+```
+
+---
+
+#### Day 10: Multi-Physics (45 min)
+
+
+Combine different physics types:
+
+```python
+# Cloth draped over rigid object
+cloth = scene.add_entity(
+    material=gs.materials.PBD.Cloth(),
+    morph=gs.morphs.Mesh(file="cloth.obj")
+)
+
+# Rigid body that cloth interacts with
+box = scene.add_entity(
+    material=gs.materials.Rigid(needs_coup=True),
+    morph=gs.morphs.Box(pos=(0, 0, 0.5))
+)
+```
+
+---
 
 ### Phase 3: Control & RL (Week 3)
-- PD control: `python examples/tutorials/control_your_robot.py`
-- Inverse kinematics
-- Simple RL integration
+
+**Goal:** Integrate with RL frameworks
+
+---
+
+#### Day 11: PD Control Deep Dive (60 min)
+
+
+Understanding how PD control works:
+
+```python
+# High kp = stiff response, fast convergence
+robot.set_dofs_kp(np.array([5000]*7), joints)
+
+
+# Low kp = soft response, slow convergence  
+robot.set_dofs_kp(np.array([100]*7), joints)
+
+# High kv = overdamped, no oscillation
+# Low kv = underdamped, oscillates
+```
+
+Try different gain combinations and observe the response.
+
+---
+
+
+#### Day 12: Domain Randomization (45 min)
+
+Randomize for sim-to-real transfer:
+
+```python
+import numpy as np
+
+# Randomize gravity
+scene = gs.Scene(
+    sim_options=gs.options.SimOptions(
+        gravity=(0, 0, np.random.uniform(-10, -9.8))
+    )
+)
+
+
+# Randomize object positions
+for _ in range(100):
+    cube.set_pos(np.random.uniform(-0.5, 0.5, 3))
+    scene.step()
+```
+
+---
+
+#### Day 13: Simple RL Environment (60 min)
+
+Create a Gym-style environment:
+
+```python
+import numpy as np
+import genesis as gs
+
+class ReachEnv:
+    def __init__(self):
+        gs.init()
+        self.scene = gs.Scene(show_viewer=False)
+        self.robot = self.scene.add_entity(gs.morphs.MJCF(file="robot.xml"))
+        self.target = self.scene.add_entity(gs.morphs.Sphere(radius=0.05))
+        self.scene.build()
+        self.hand = self.robot.get_link("hand")
+        self.joints = np.arange(7)
+    
+    def reset(self):
+        # Randomize target position
+        self.target.set_pos(np.random.uniform(0.2, 0.5, 3))
+        return self._get_obs()
+    
+    def step(self, action):
+        self.robot.control_dofs_position(action, self.joints)
+        self.scene.step()
+        return self._get_obs(), self._get_reward(), self._is_done()
+    
+    def _get_obs(self):
+        return np.concatenate([
+            self.robot.get_dofs_position(self.joints),
+            self.hand.get_pos(),
+            self.target.get_pos()
+        ])
+    
+    def _get_reward(self):
+        return -np.linalg.norm(self.hand.get_pos() - self.target.get_pos())
+    
+    def _is_done(self):
+        return np.linalg.norm(self.hand.get_pos() - self.target.get_pos()) < 0.02
+
+# Use with any RL library
+env = ReachEnv()
+obs = env.reset()
+for episode in range(100):
+    obs = env.reset()
+    for step in range(200):
+        action = np.random.uniform(-0.5, 0.5, 7)  # Replace with policy
+        obs, reward, done = env.step(action)
+```
+
+---
+
+
+#### Day 14: RL Integration with Stable-Baselines (60 min)
+
+
+Connect with RL libraries:
+
+```python
+# Convert Genesis env to Gym interface
+gym_env = GymWrapper(ReachEnv())
+
+
+# Use with Stable-Baselines3
+from stable_baselines3 import PPO
+
+model = PPO("MlpPolicy", gym_env, verbose=1)
+model.learn(total_timesteps=10000)
+
+# Or use SAC, TD3, TQC, etc.
+```
+
+
+---
+
 
 ### Phase 4: Advanced (Week 4+)
-- Custom environments
-- Nyx rendering
-- Differentiable simulation
+
+
+**Goal:** Production-ready skills
+
+---
+
+
+#### Day 15: Custom Environments (60 min)
+
+Create reusable environments:
+
+```python
+class CustomEnv:
+    def __init__(self, num_envs=4):
+        self.num_envs = num_envs
+        gs.init()
+        
+        self.scene = gs.Scene(show_viewer=False)
+        # Add shared entities
+        self.scene.add_entity(gs.morphs.Plane())
+        
+        # Create parallel environments
+        self.scene.build(n_envs=num_envs)
+    
+    def reset(self):
+        # Returns initial observation
+        return self._get_obs()
+    
+    def step(self, actions):
+        # Vectorized step for all environments
+        for i, action in enumerate(actions):
+            self.robot[i].control_dofs_position(action)
+        self.scene.step()
+        return self._get_obs(), self._get_rewards(), self._is_done()
+    
+    # ... implement obs, rewards, done
+```
+
+
+---
+
+
+#### Day 16: Nyx Rendering (45 min)
+
+
+Photo-realistic rendering:
+
+```python
+scene = gs.Scene(
+    renderer=gs.renderers.Nyx(),
+    viewer_options=...
+)
+```
+
+---
+
+
+#### Day 17: Differentiable Simulation (60 min)
+
+
+Backprop through physics:
+
+
+```python
+# Forward pass
+scene.step()
+
+
+# Backward pass
+scene.backward(loss)
+
+
+# Use gradients for RL
+loss = compute_loss()
+loss.backward()  # backprop through simulation
+```
+
+---
+
+
+#### Day 18: Deployment (60 min)
+
+
+- Save checkpoints
+- Export to ONNX
+- Connect to real robot
+- Sim-to-real transfer
+
+
+---
+
 
 ### Resources
 
 - **Docs**: https://genesis-world.readthedocs.io/
 - **Discord**: https://discord.gg/nukCuhB47p
+- **Examples**: `genesis/examples/` folder
+- **GitHub**: https://github.com/Genesis-Embodied-AI/genesis-world
+
+
+---
+
+
+### Quick Reference
+
+| Task | Code |
+|------|------|
+| Initialize | `gs.init()` |
+| Create world | `scene = gs.Scene(show_viewer=True)` |
+| Add floor | `scene.add_entity(gs.morphs.Plane())` |
+| Add box | `scene.add_entity(gs.morphs.Box(size=(w,h,d), pos=(x,y,z))` |
+| Load robot | `scene.add_entity(gs.morphs.MJCF(file="path.xml"))` |
+| Build | `scene.build()` |
+| Step | `scene.step()` |
+| Position control | `robot.control_dofs_position(target, joints)` |
+| Velocity control | `robot.control_dofs_velocity(vel, joints)` |
+| Force control | `robot.control_dofs_force(force, joints)` |
+| Inverse kinematics | `robot.inverse_kinematics(link, pos, quat)` |
+| Add sensor | `scene.add_sensor(gs.sensors.Lidar(...))` |
+| Read sensor | `sensor.read()` |
 
 ---
 
