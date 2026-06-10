@@ -602,3 +602,631 @@ for _ in range(1000):
 ---
 
 *Start here. Run the code. Then explore.*
+---
+
+# Appendix A: Study Tutorial - Phase 1 (Week 1)
+
+## Day 1: Installation & First Run
+
+### Install Genesis
+
+```bash
+pip install genesis-world
+```
+
+If you want the latest from git:
+
+```bash
+pip install git+https://github.com/Genesis-Embodied-AI/genesis-world.git
+```
+
+### Run Your First Example
+
+```bash
+cd genesis-world
+python examples/rigid/franka_cube.py --vis
+```
+
+You should see a window with a Franka robot and a cube. The robot picks up the cube.
+
+### What Just Happened?
+
+1. `gs.init(backend=gs.gpu)` — Started GPU physics
+2. Created scene with camera, viewer
+3. Added plane (floor), robot (from MJCF), cube
+4. Built physics world
+5. Used IK to compute joint angles
+6. Controlled robot to reach, grasp, lift cube
+
+### Exercise 1.1: Just Run Code
+- Try running other examples in `examples/` folder
+- Change camera position in ViewerOptions
+- See what changes
+
+---
+
+## Day 2: Core API - Scene, Entities, Stepping
+
+### The Scene Object
+
+```python
+scene = gs.Scene(
+    # Physics options
+    sim_options=gs.options.SimOptions(
+        dt=0.01,           # timestep (seconds)
+        gravity=(0, 0, -9.8),  # gravity direction
+    ),
+    
+    # Viewer options  
+    viewer_options=gs.options.ViewerOptions(
+        camera_pos=(3, -1, 1.5),  # where camera is
+        camera_lookat=(0, 0, 0.5),    # what camera looks at
+        camera_fov=30,                    # field of view
+    ),
+    
+    show_viewer=True,  # open 3D window
+)
+```
+
+### Entity Types
+
+| Type | Code | Description |
+|------|------|-------------|
+| Floor | `gs.morphs.Plane()` | Infinite ground |
+| Box | `gs.morphs.Box(size=(w,h,d), pos=(x,y,z))` | Rectangular box |
+| Sphere | `gs.morphs.Sphere(radius, pos)` | Ball |
+| Cylinder | `gs.morphs.Cylinder(height, radius, pos)` | Cylinder |
+| Capsule | `gs.morphs.Capsule(radius, height, pos)` | Capsule |
+
+### From Files
+
+```python
+# MuJoCo format (most common)
+scene.add_entity(gs.morphs.MJCF(file="path/to/robot.xml"))
+
+# ROS URDF
+scene.add_entity(gs.morphs.URDF(file="path/to/robot.urdf"))
+
+# 3D mesh
+scene.add_entity(gs.morphs.Mesh(file="path/to/model.obj"))
+```
+
+### Stepping
+
+```python
+scene.build()  # MUST call before stepping
+
+# Step once
+scene.step()
+
+# Step many times
+for _ in range(1000):
+    scene.step()
+    
+# Or use built-in loop
+scene.step_n(1000)  # same thing
+```
+
+### Exercise 2.1: Create Your Own Scene
+1. Create a scene with floor and 3 boxes at different heights
+2. Change gravity to be sideways (0, -9.8, 0)
+3. Add a ramp (rotated plane)
+
+---
+
+## Day 3: Loading & Controlling a Robot
+
+### Load Robot
+
+```python
+# Load from MJCF
+franka = scene.add_entity(
+    gs.morphs.MJCF(file="xml/franka_emika_panda/panda.xml")
+)
+```
+
+### Find Joints
+
+```python
+# All joints in Franka
+joint_names = [
+    "joint1", "joint2", "joint3", "joint4", 
+    "joint5", "joint6", "joint7",
+    "finger_joint1", "finger_joint2"
+]
+
+# Get indices
+joint_indices = []
+for name in joint_names:
+    joint_indices.append(franka.get_joint(name).dofs_idx_local[0])
+```
+
+### Control Modes
+
+```python
+import numpy as np
+
+# Position control (most common)
+target = np.array([0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.04, 0.04])
+franka.control_dofs_position(target, joint_indices)
+
+# Velocity control
+velocity = np.array([0.1, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0])
+franka.control_dofs_velocity(velocity, joint_indices)
+
+# Force control
+force = np.array([0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0])
+franka.control_dofs_force(force, joint_indices)
+```
+
+### PD Gains
+
+```python
+# Proportional gain (stiffness)
+kp = np.array([4500, 4500, 3500, 3500, 2000, 2000, 2000, 100, 100])
+franka.set_dofs_kp(kp, joint_indices)
+
+# Derivative gain (damping)
+kv = np.array([450, 450, 350, 350, 200, 200, 200, 10, 10])
+franka.set_dofs_kv(kv, joint_indices)
+```
+
+### Exercise 3.1: Joint Control
+1. Load robot
+2. Move joint 1 to position 0.5 radians
+3. Then move joint 2 to -0.5
+4. Then return to zero
+
+---
+
+## Day 4: Inverse Kinematics
+
+### The Problem
+
+Forward: Given joint angles → where is the hand?
+Inverse: Given hand position → what joint angles?
+
+### Genesis IK
+
+```python
+# Get hand link
+hand = franka.get_link("hand")
+
+# Target: 30cm forward, 15cm up
+target_pos = np.array([0.3, 0.0, 0.15])
+target_quat = np.array([0, 1, 0, 0])  # rotation (quaternion)
+
+# Solve IK
+joint_angles = franka.inverse_kinematics(
+    link=hand,
+    pos=target_pos,
+    quat=target_quat
+)
+
+# Now move to those angles
+franka.control_dofs_position(joint_angles[:-2], motor_indices)
+```
+
+### IK + Control Loop
+
+```python
+# Move to a sequence of positions
+positions = [
+    np.array([0.3, 0.0, 0.1]),
+    np.array([0.3, 0.0, 0.2]),
+    np.array([0.4, 0.1, 0.2]),
+    np.array([0.5, 0.0, 0.15]),
+]
+
+for target_pos in positions:
+    # Solve IK
+    qpos = franka.inverse_kinematics(link=hand, pos=target_pos)
+    
+    # Move there
+    for _ in range(100):
+        franka.control_dofs_position(qpos[:-2], motor_indices)
+        scene.step()
+```
+
+### Exercise 4.1: IK Practice
+1. Use IK to reach 5 different positions
+2. Move smoothly between them
+3. Add a cube and try to touch it with IK
+
+---
+
+## Day 5: Grasping
+
+### Complete Grasp Example
+
+```python
+import numpy as np
+import genesis as gs
+
+gs.init()
+scene = gs.Scene(show_viewer=True)
+scene.add_entity(gs.morphs.Plane())
+
+# Add robot and cube
+franka = scene.add_entity(
+    gs.morphs.MJCF(file="xml/franka_emika_panda/panda.xml"))
+cube = scene.add_entity(
+    gs.morphs.Box(size=(0.04, 0.04, 0.04), pos=(0.65, 0.0, 0.02)))
+
+scene.build()
+
+# Get indices
+motors = np.arange(7)
+fingers = np.arange(7, 9)
+
+# Set gains
+franka.set_dofs_kp([100.0, 100.0], fingers)
+franka.set_dofs_kv([10.0, 10.0], fingers)
+
+# Get hand
+hand = franka.get_link("hand")
+
+# ===== PHASE 1: Approach =====
+qpos = franka.inverse_kinematics(link=hand, pos=(0.65, 0.0, 0.135))
+for _ in range(100):
+    franka.control_dofs_position(qpos[:-2], motors)
+    scene.step()
+
+# ===== PHASE 2: Lower =====
+qpos = franka.inverse_kinematics(link=hand, pos=(0.65, 0.0, 0.08))
+for _ in range(100):
+    franka.control_dofs_position(qpos[:-2], motors)
+    scene.step()
+
+# ===== PHASE 3: Grasp =====
+franka.control_dofs_position(np.array([0.0, 0.0]), fingers)
+for _ in range(50):
+    scene.step()
+
+# ===== PHASE 4: Lift =====
+qpos = franka.inverse_kinematics(link=hand, pos=(0.65, 0.0, 0.3))
+for _ in range(200):
+    franka.control_dofs_position(qpos[:-2], motors)
+    scene.step()
+```
+
+### Exercise 5.1: Pick and Place
+1. Pick up cube
+2. Move to another location
+3. Release
+4. Return to home
+
+---
+
+## Day 6: Cloth Physics
+
+### PBD Cloth
+
+```python
+scene = gs.Scene(
+    sim_options=gs.options.SimOptions(dt=0.004, substeps=10),
+    show_viewer=True
+)
+scene.add_entity(gs.morphs.Plane())
+
+# Add cloth
+cloth = scene.add_entity(
+    material=gs.materials.PBD.Cloth(),
+    morph=gs.morphs.Mesh(file="meshes/cloth.obj", scale=2.0),
+    surface=gs.surfaces.Default(color=(0.2, 0.4, 0.8, 1.0))
+)
+
+scene.build()
+
+# Pin corners
+cloth.fix_particles(cloth.find_closest_particle((-1, -1, 1.0)))
+cloth.fix_particles(cloth.find_closest_particle((1, -1, 1.0)))
+
+for _ in range(1000):
+    scene.step()
+```
+
+### Exercise 6.1: Cloth Experiments
+1. Pin only one corner — watch it swing
+2. Pin all four corners — it becomes a tent
+3. Add a box under the cloth — cloth drapes over it
+
+---
+
+## Day 7: Sensors
+
+### LiDAR
+
+```python
+robot = scene.add_entity(gs.morphs.URDF(file="urdf/go2/urdf/go2.urdf"))
+
+lidar = scene.add_sensor(
+    gs.sensors.Lidar(
+        pattern=gs.sensors.SphericalPattern(),
+        entity_idx=robot.idx,
+        pos_offset=(0.3, 0.0, 0.1),
+        draw_debug=True,
+    )
+)
+scene.build()
+
+for _ in range(100):
+    distances = lidar.read()
+    print(f"Objects at: {distances.min():.3f}m to {distances.max():.3f}m")
+    scene.step()
+```
+
+### Depth Camera
+
+```python
+camera = scene.add_sensor(
+    gs.sensors.DepthCamera(
+        pattern=gs.sensors.DepthCameraPattern(),
+        entity_idx=robot.idx,
+        pos_offset=(0.0, 0.0, 0.5),
+    )
+)
+
+for _ in range(100):
+    rgb, depth = camera.read_image()
+    # rgb = (H, W, 3) RGB image
+    # depth = (H, W) depth map
+    scene.step()
+```
+
+### Exercise 7.1: Sensor Reading
+1. Read LiDAR and print distances
+2. Use depth camera to save an image
+3. Move robot and observe sensor changes
+
+---
+
+# Appendix B: Study Tutorial - Phase 2 (Week 2)
+
+## Rigid Body Dynamics
+
+### Collision Detection
+
+```python
+# Enable collision detection
+scene = gs.Scene(
+    rigid_options=gs.options.RigidOptions(
+        box_box_detection=True,  # box-box collisions
+        box_sphere_detection=True,  # box-sphere
+    )
+)
+```
+
+### Constraints
+
+```python
+# Fixed joint (doesn't move)
+joint = robot.get_joint("joint1")
+joint.set_type(gs.joints.Fixed)
+
+# Revolute joint (rotates)
+joint.set_type(gs.joints.Revolute)
+
+# Prismatic joint (slides)
+joint.set_type(gs.joints.Prismatic)
+```
+
+## Multi-Physics Coupling
+
+### Cloth + Rigid
+
+```python
+# Cloth entity
+cloth = scene.add_entity(
+    material=gs.materials.PBD.Cloth(),
+    morph=gs.morphs.Mesh(file="cloth.obj")
+)
+
+# Rigid body that interacts with cloth
+obj = scene.add_entity(
+    material=gs.materials.Rigid(needs_coup=True),  # enable coupling
+    morph=gs.morphs.Box(pos=(0, 0, 0.5))
+)
+```
+
+### SPH + Rigid
+
+```python
+water = scene.add_entity(
+    material=gs.materials.SPH.Liquid(mu=0.01),
+    morph=gs.morphs.Box(pos=(0.5, 0.0, 0.6), size=(0.9, 1.6, 1.2))
+)
+
+cube = scene.add_entity(
+    material=gs.materials.Rigid(needs_coup=True, coup_friction=0.0),
+    morph=gs.morphs.Box(pos=(0.5, 0.0, 2.4))
+)
+```
+
+# Appendix C: Study Tutorial - Phase 3 (Week 3)
+
+## Differentiable IK
+
+```python
+# Compute gradients through IK
+grad = franka.compute_ik_gradient(
+    link=hand,
+    target_pos,
+)
+
+# Use for learning
+loss = (end_effector_pos - target_pos).sum()
+loss.backward()  # backprop through simulation
+```
+
+## Domain Randomization
+
+```python
+# Randomize physics parameters
+scene = gs.Scene(
+    sim_options=gs.options.SimOptions(
+        gravity=np.random.uniform(-10, -9.8),  # vary gravity
+    ),
+)
+
+# Randomize object positions
+for obj in objects:
+    obj.set_pos(np.random.uniform(-0.5, 0.5, 3))
+```
+
+## RL Integration (Simple)
+
+```python
+import torch
+
+# Simple policy network
+policy = torch.nn.Sequential(
+    torch.nn.Linear(obs_dim, 64),
+    torch.nn.ReLU(),
+    torch.nn.Linear(64, action_dim),
+)
+
+# Training loop
+for episode in range(1000):
+    obs = scene.reset()
+    total_reward = 0
+    
+    for step in range(200):
+        # Get action
+        action = policy(obs).detach()
+        
+        # Apply action
+        robot.control_dofs_position(action.numpy(), joint_indices)
+        scene.step()
+        
+        # Get reward
+        obs = get_observation()
+        reward = compute_reward()
+        total_reward += reward
+        
+        # Store in replay buffer
+        replay_buffer.push(obs, action, reward)
+    
+    # Update policy
+    update_policy(replay_buffer)
+```
+
+# Appendix D: Study Tutorial - Phase 4 (Week 4+)
+
+## Custom Environments
+
+```python
+class MyEnv:
+    def __init__(self):
+        self.scene = gs.Scene(show_viewer=True)
+        self.setup()
+    
+    def setup(self):
+        # Add floor, robot, objects
+        self.scene.add_entity(gs.morphs.Plane())
+        self.robot = self.scene.add_entity(
+            gs.morphs.MJCF(file="robot.xml"))
+        self.target = self.scene.add_entity(
+            gs.morphs.Sphere(radius=0.05, pos=(0.5, 0, 0.1)))
+    
+    def reset(self):
+        # Randomize positions
+        self.scene.build()
+        return self.get_observation()
+    
+    def step(self, action):
+        # Apply action
+        self.robot.control_dofs_position(action)
+        self.scene.step()
+        
+        # Get obs, reward, done
+        obs = self.get_observation()
+        reward = self.compute_reward()
+        done = self.is_done()
+        
+        return obs, reward, done
+    
+    def get_observation(self):
+        # Return sensor data, joint positions, etc.
+        return np.concatenate([
+            self.robot.get_dofs_position(),
+            self.target.get_pos(),
+        ])
+    
+    def compute_reward(self):
+        # Reward for reaching target
+        dist = np.linalg.norm(self.robot.get_end_pos() - self.target.get_pos())
+        return -dist
+    
+    def is_done(self):
+        return np.linalg.norm(
+            self.robot.get_end_pos() - self.target.get_pos()
+        ) < 0.01
+```
+
+## Nyx Rendering (Photo-realistic)
+
+```python
+scene = gs.Scene(
+    renderer=gs.renderers.Nyx(),  # Photo-realistic
+    viewer_options=...,
+)
+```
+
+## Differentiable Simulation
+
+```python
+# Forward pass
+scene.step()
+
+# Backward pass (differentiable!)
+scene.backward(loss)
+
+# Use gradients for RL
+loss = compute_loss()
+loss.backward()  # backprop through physics
+```
+
+---
+
+# Quick Reference: Common Patterns
+
+## Minimal Script
+```python
+import genesis as gs
+gs.init()
+scene = gs.Scene(show_viewer=True)
+scene.add_entity(gs.morphs.Plane())
+scene.add_entity(gs.morphs.Box(pos=(0, 0, 1)))
+scene.build()
+for _ in range(100): scene.step()
+```
+
+## Load Robot
+```python
+robot = scene.add_entity(gs.morphs.MJCF(file="robot.xml"))
+scene.build()
+joints = [robot.get_joint(n).dofs_idx_local[0] for n in names]
+```
+
+## Control
+```python
+robot.control_dofs_position(target, joints)
+scene.step()
+```
+
+## IK
+```python
+qpos = robot.inverse_kinematics(link=hand, pos=target)
+robot.control_dofs_position(qpos, joints)
+```
+
+## Sensors
+```python
+sensor = scene.add_sensor(gs.sensors.Lidar(...))
+distances = sensor.read()
+```
+
+---
+
+*Start with Appendix A (Week 1). Move at your pace.*
